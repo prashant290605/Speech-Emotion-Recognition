@@ -17,6 +17,11 @@ data/cache/*
 results/scratch/
 results/*.tmp
 
+# --- third-party API caches ---------------------------------------------
+# Crossref responses. Regenerable, and a stale copy would hide a correction
+# that the publisher has since made, so it is deliberately not committed.
+.cache/
+
 # --- python -------------------------------------------------------------
 __pycache__/
 *.py[cod]

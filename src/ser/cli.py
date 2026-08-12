@@ -37,7 +37,6 @@ from .utils.seeding import set_all_seeds
 # Phase that owns each not-yet-built command. `ser <cmd>` exits 2 with a
 # pointer rather than a traceback or, worse, a partial result.
 PENDING = {
-    "check-refs": (1, "tools/check_refs.py: Crossref verification of the .bib"),
     "manifest": (2, "walk raw corpora -> data/manifest.csv"),
     "splits": (2, "speaker-disjoint splits, deterministic given a seed"),
     "dataset-stats": (2, "reports/dataset_stats.{md,csv}"),
@@ -77,6 +76,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "inventory": _cmd_inventory,
         "schema": _cmd_schema,
         "smoke": _cmd_smoke,
+        "check-refs": _cmd_check_refs,
     }[args.command]
 
     try:
@@ -110,6 +110,15 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Override the results path (default: project.results_path)",
     )
+
+    refs = sub.add_parser(
+        "check-refs", help="[1] audit the bibliography against Crossref (reports only)"
+    )
+    refs.add_argument("--tex", default="legacy/SER_Report.tex")
+    refs.add_argument("--out", default="reports/refs_report.md")
+    refs.add_argument("--cache", default=".cache/crossref.json")
+    refs.add_argument("--mailto", default=None, help="Contact for Crossref's polite pool")
+    refs.add_argument("--offline", action="store_true", help="Use the cache only")
 
     for name, (phase, description) in PENDING.items():
         sub.add_parser(name, help=f"[{phase}] {description}")
@@ -278,6 +287,20 @@ def _cmd_smoke(args: argparse.Namespace) -> int:
     print(f"run_id        : {row['run_id']}")
     print(f"appended to   : {out_path}  ({count_rows(out_path)} rows total)")
     return 0
+
+
+def _cmd_check_refs(args: argparse.Namespace) -> int:
+    """Phase 1: audit the bibliography. Reports only, never edits the .tex."""
+    from .refs import run_audit  # noqa: PLC0415 - keeps urllib off the import path
+
+    root = repo_root()
+    return run_audit(
+        tex_path=root / args.tex,
+        out_path=root / args.out,
+        cache_path=root / args.cache,
+        mailto=args.mailto,
+        offline=args.offline,
+    )
 
 
 if __name__ == "__main__":  # pragma: no cover

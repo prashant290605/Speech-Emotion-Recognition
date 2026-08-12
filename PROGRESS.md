@@ -9,6 +9,99 @@ file plus PHASES.md is the entire handover between them.
 
 ---
 
+## 2026-08-12 — Phase 1: reference integrity checker
+
+Status: **script complete; manual resolution outstanding.** `pytest` → 107 passed.
+
+The deliverables are done. The *acceptance criterion* is not met and cannot be
+met by code: it requires every non-clean entry to be opened on the publisher
+landing page by a human and corrected in the `.tex`. Five entries are waiting.
+`ser check-refs` exits non-zero until they are clean, so it can gate a release
+check later.
+
+### Result
+
+17 references parsed from `legacy/SER_Report.tex:346-433`; 15 distinct keys
+cited in the body.
+
+| Tier | Count | Entries |
+|---|---|---|
+| C. probable fabrication | 3 | [9] `jafari2025feature`, [16] `w2vprosody2023`, [17] `li2023cross` |
+| B. needs manual resolution | 2 | [11] `baevski2020wav2vec`, [15] `gretton2012kernel` |
+| A. confirmed correct | 12 | — |
+
+**All three known findings reproduced**, and the diagnosis is sharper than the
+brief's:
+
+- **[9]** — title, venue, page (110510) and year all match the Crossref record
+  exactly. Only the authors and the volume are wrong: entry claims Jafari,
+  Shahin, Alavi, vol. 187; the record is Naeeni and Nasersharif, vol. 194.
+  DOI `10.1016/j.compbiomed.2025.110510`. Correct in place, do not delete.
+- **[16]** — duplicates [6] `naderi2023cross` case-insensitively, disjoint
+  authors, uncited. Delete.
+- **[17]** — duplicates [7] `fu2023cross` *and* claims the identical article
+  slot (Entropy 25(1):124), disjoint authors, uncited. Delete.
+
+The two uncited entries are exactly [16] and [17] — the citation check
+independently corroborates the duplicate check, with no shared inputs.
+
+### Two defects found by inspecting the first run's output
+
+Both were caught because the first run produced results that contradicted known
+facts, and both would have wasted the manual pass or, worse, corrupted it.
+
+**1. Weak Crossref matches produced false fabrication signals.** The first run
+flagged [11] `baevski2020wav2vec` and [15] `gretton2012kernel` as
+AUTHOR-MISMATCH + VOLUME-MISMATCH. Both are real, heavily-cited papers. Crossref
+had matched them to *different* papers at 0.76 and 0.83 title similarity
+("ccc-wav2vec 2.0…", "A composite kernel two-sample test"), and the checker then
+compared authors and volumes against the wrong record.
+
+Fixed: metadata is compared **only** above a 0.90 title similarity. Below that
+the entry gets `NOT-IN-CROSSREF` and the report states explicitly that absence
+from Crossref is not evidence of fabrication — NeurIPS, JMLR, Interspeech and
+arXiv-only work are routinely unindexed. The landing link for such an entry is a
+Crossref *search*, never the wrong paper's DOI.
+
+**2. Duplicate groups condemned the genuine entry alongside the fake.** [6] and
+[7] were placed in tier C purely for being duplicated. [6] resolves to
+`10.1016/j.knosys.2023.110814` with matching authors, volume and pages — it is
+the real citation, and [16] is the impostor.
+
+Fixed: Crossref resolution now runs for every entry *before* the duplicate check,
+so the duplicate check can ask which member is independently corroborated. The
+corroborated member gets an informational `DUPLICATED-BY-OTHER` and stays tier A
+with a note naming the entry to delete. If no member is corroborated, both go to
+manual. Both fixes are covered by named regression tests.
+
+### Files created / modified
+
+```
+src/ser/refs.py            parser, Crossref client, four checks, report renderer
+tools/check_refs.py        thin CLI wrapper (the Phase 1 deliverable path)
+src/ser/cli.py             `ser check-refs` implemented; removed from PENDING
+tests/test_check_refs.py   17 tests, no network — Crossref is stubbed
+reports/refs_report.md     the report
+.gitignore                 .cache/ (Crossref responses; regenerable)
+README.md                  Phase 1 status
+```
+
+`reports/refs_report.md` opens with an **Actions** table: one row per outstanding
+entry, one sentence of instruction, one link. Crossref responses are cached, so
+`ser check-refs --offline` re-renders with no network.
+
+### Deferred
+
+- **The manual pass is yours.** Five landing pages. The script does not and will
+  not edit the bibliography.
+- **Two `.tex` files carry bibliographies.** Only `SER_Report.tex` was audited;
+  `cross_corpus_ser_paper.tex` is the older draft and has no
+  `thebibliography` block. If it is revived, audit it too.
+- The cache is not committed, so a fresh clone needs one online run to reproduce
+  the report.
+
+---
+
 ## 2026-08-10 — Phase 0 addendum 3: two corrections and two firewalls
 
 Status: **complete**. `pytest` → 90 passed. Amendments A9–A10 added.

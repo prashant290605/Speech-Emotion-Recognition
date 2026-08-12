@@ -37,7 +37,7 @@ decided, and deferred.
 | Phase | | Status |
 |---|---|---|
 | 0 | Scaffold and reproducibility spine | complete |
-| 1 | Reference integrity checker | not started |
+| 1 | Reference integrity checker | script complete; manual DOI resolution outstanding |
 | 2 | Manifest, label map, splits, leakage tests | not started |
 | 3 | Feature extraction and caching | not started |
 | 4 | Metrics and trivial baselines | not started |
