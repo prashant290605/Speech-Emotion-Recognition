@@ -1,3 +1,18 @@
+> # ⚠️ SUPERSEDED — DO NOT CITE
+>
+> **This is the pre-revision README, retained for provenance only. Every
+> performance number below — including the results table and the aggregate trend
+> claims about CORAL, MMD, and backbone ranking — was produced by a pipeline now
+> known to have fitted feature alignment on the target *test* set, and to have
+> performed model selection on target-test scores. The condition labelled "MMD"
+> was implemented as a plain mean shift, not MMD.**
+>
+> These results are invalid and are not being defended. See the
+> [current README](../README.md) and [PROGRESS.md](../PROGRESS.md) for the audit
+> and the rebuild. Nothing on this page should be cited, quoted, or relied on.
+
+---
+
 # Speech Emotion Recognition
 
 Research repository for **cross-corpus Speech Emotion Recognition (SER)** with:
@@ -147,6 +162,11 @@ The full sweep covers:
 - alignment / blending / classifier combinations
 
 ## Current Results Snapshot
+
+> **⚠️ INVALID — see the notice at the top of this file.** The table and trends
+> below came from a pipeline that fitted alignment on the target test set and
+> selected models on target-test scores. Retained only to document what was
+> previously claimed.
 
 The repository includes logged full-run results in local `results/results.json` during experimentation. The strongest observed cross-domain settings from the current run history are:
 

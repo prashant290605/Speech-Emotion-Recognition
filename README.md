@@ -45,7 +45,7 @@ decided, and deferred.
 | 6 | Classifiers with equal-budget search | not started |
 | 7 | Grid runner | not started |
 | 8 | Selection protocol and headline tables | not started |
-| 9 | Label-shift analysis and correction | not started |
+| 9 | Shift decomposition: label, covariate, conditional | not started |
 | 10 | Per-class analysis and figures | not started |
 | 11 | Release packaging and LaTeX tables | not started |
 

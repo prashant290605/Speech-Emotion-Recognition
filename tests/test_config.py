@@ -193,6 +193,10 @@ def test_all_label_decisions_are_made():
     config = load_config()
     assert config.undecided() == []
 
+    assert (
+        config.require_decision("iemocap_label_source")
+        == "majority_vote_discard_disagreement"
+    )
     assert config.require_decision("iemocap_excited_to_happy") is True
     assert config.require_decision("iemocap_frustrated") == "drop"
     assert config.require_decision("iemocap_subsets") == "both"
@@ -217,6 +221,35 @@ def test_require_decision_halts_while_undecided(raw, tmp_path):
 def test_invalid_frustration_decision_rejected(raw, tmp_path):
     raw["labels"]["iemocap_frustrated"] = "merge_frustrated"
     with pytest.raises(ConfigError, match="iemocap_frustrated"):
+        load_config(_write(tmp_path, raw))
+
+
+def test_annotation_rule_is_explicit_and_inside_the_label_map_hash(raw, tmp_path):
+    """The label source determines the counts, hence the priors, hence the whole
+    shift analysis. It must not be a silent property of the parsing code."""
+    baseline = load_config()
+
+    changed = copy.deepcopy(raw)
+    changed["labels"]["iemocap_label_source"] = "any_annotator"
+    assert load_config(_write(tmp_path, changed)).label_map_hash != baseline.label_map_hash
+
+
+def test_invalid_label_source_rejected(raw, tmp_path):
+    raw["labels"]["iemocap_label_source"] = "majority"
+    with pytest.raises(ConfigError, match="iemocap_label_source"):
+        load_config(_write(tmp_path, raw))
+
+
+def test_subset_probe_requires_the_subset_to_be_recorded(raw, tmp_path):
+    """The improvised/scripted pair cannot be built without the manifest column."""
+    raw["labels"]["iemocap_record_subset"] = False
+    with pytest.raises(ConfigError, match="requires labels.iemocap_record_subset"):
+        load_config(_write(tmp_path, raw))
+
+
+def test_subset_probe_requires_iemocap_in_the_grid(raw, tmp_path):
+    raw["grid"]["corpora"] = ["ravdess", "cremad"]
+    with pytest.raises(ConfigError, match="requires 'iemocap'"):
         load_config(_write(tmp_path, raw))
 
 

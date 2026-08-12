@@ -129,6 +129,74 @@ Bump `labels.label_map_version` / `splits.split_spec_version` whenever the
 *semantics* of the mapping or split code change in a way the config keys do not
 express.
 
+### A7. The IEMOCAP annotation rule is an explicit config key
+
+The canonical counts — neutral 1708, frustrated 1849, angry 1103, sad 1084,
+excited 1041, happy 595, fear 40, disgust 2, plus 2507 no-agreement — assume
+**majority vote over the three categorical annotators, discarding
+no-agreement**. Any-annotator labels, or folding in self-assessment, change every
+count substantially, therefore every prior, therefore the entire shift analysis.
+
+That rule is now `labels.iemocap_label_source`, inside `label_map_hash`. It was
+previously an implicit property of the parsing code — a silent axis that could
+change without moving the hash, which is exactly the failure mode the hash exists
+to prevent.
+
+### A8. The label-shift thesis is dead. Phase 9 becomes a shift decomposition.
+
+**This is the most important amendment. Read it before Phase 9.**
+
+The settled label decisions produce these priors:
+
+| Corpus (4-class) | angry | happy | neutral | sad |
+|---|---|---|---|---|
+| IEMOCAP | .199 | .296 | .309 | .196 |
+| RAVDESS | .222 | .222 | .333 | .222 |
+| CREMA-D | .259 | .259 | .222 | .259 |
+
+Pairwise KL over all six cross-domain pairs spans **0.0139 to 0.0336 nats**
+(6-class RAVDESS↔CREMA-D: 0.0252). Verified from published counts; Phase 2 must
+re-verify from the manifest.
+
+The original premise — IEMOCAP heavily skewed, RAVDESS balanced — was true of
+*raw* IEMOCAP. Dropping frustration and cutting fear removed almost all of the
+skew. **The decisions that make the label space defensible are the same decisions
+that dissolve the effect Phase 9 was built to find.** A Spearman correlation over
+six points spanning 0.02 nats is not underpowered; it is undefined.
+
+This cannot be fixed by restoring frustration. Merging it into anger would
+manufacture the skew and then discover it, which is worse than having no thesis.
+
+**The reframe.** Stop asking which shift dominates. Decompose all three, on
+features that are cached anyway:
+
+- **Label shift** — KL/JS between priors. Now measurably near-zero. That is a
+  *result*: it eliminates the hypothesis cleanly and predicts that BBSE- and
+  EM-style prior correction cannot help. Report it as an eliminated explanation,
+  not as a null finding.
+- **Covariate shift** — MMD between marginal source and target features. What
+  CORAL and MK-MMD actually minimise; the A2 ladder measures how much each rung
+  removes.
+- **Conditional shift** — class-conditional MMD, `MMD(X_src | y=k, X_tgt | y=k)`
+  per class, measured before *and* after alignment.
+
+**The claim:** alignment fails on cross-corpus SER because it minimises marginal
+discrepancy while class-conditional discrepancy is what moves the decision
+boundary — evidenced by the ladder showing marginal discrepancy shrinking
+monotonically while transfer macro-F1 does not. This holds whichever way the
+numbers land, needs no new data, and is an explanation rather than a table.
+
+**The mechanism-isolating experiment.** Treat IEMOCAP-improvised and
+IEMOCAP-scripted as two corpora. Same speakers, same label space, near-identical
+priors — so label shift and covariate shift are both structurally near zero and
+only elicitation style differs. Degradation across that boundary is conditional
+shift with the confounds held fixed, which none of the cited comparisons achieve.
+Config: `grid.include_iemocap_subset_pair`. Costs one extra pair, and depends on
+`labels.iemocap_record_subset`, already set.
+
+This experiment exists only if IEMOCAP is in hand — it is the strongest argument
+for waiting on the licence rather than substituting a smaller acted corpus.
+
 ### A6. The full factorial is dead — Phases 6/7 must be staged
 
 The ladder (5 alignments) × α (5) × layer aggregation (3) × 5 seeds on top of the
@@ -156,7 +224,7 @@ A designed ablation is a contribution; an exhaustive sweep is a table.
 | 6 | Classifier module with equal-budget search | light | 7 |
 | 7 | Grid runner | heavy | 8 onward |
 | 8 | Selection protocol and headline tables | none | 9 onward |
-| 9 | Label-shift analysis and correction | light | 10 |
+| 9 | Shift decomposition: label, covariate, conditional | light | 10 |
 | 10 | Per-class analysis and figures | none | 11 |
 | 11 | Release packaging and LaTeX table generation | none | submission |
 
@@ -256,6 +324,11 @@ later claim about splits mechanically checkable.
 `corpus, file_path, utterance_id, speaker_id, session_id, original_label, duration_s, sample_rate, sha256`.
 Build it by walking the raw corpora. Never hardcode counts.
 
+The IEMOCAP label source is `labels.iemocap_label_source` (A7), currently
+`majority_vote_discard_disagreement`. Implement that rule explicitly and record
+the discarded no-agreement count in `dataset_stats.md`; do not let the annotation
+rule be an emergent property of the parsing code.
+
 `src/ser/labels.py`: label mapping as a **pure function**
 `map_label(corpus, original_label, label_space) -> str | None`, where `None` means
 excluded. Two label spaces:
@@ -301,6 +374,13 @@ in the manifest for all three corpora.
 - Per corpus per class, for both label spaces: utterance count and share.
 - Class prior vector for every corpus under every label space.
 - Explicit flag on any class with fewer than 100 utterances after mapping.
+- **Pairwise prior KL and JS for all 9 pairs.** A8 predicts, from published
+  counts, KL in 0.0139–0.0336 nats across the six cross-domain pairs. Phase 9's
+  entire framing depends on this, so it is verified here, at manifest time, not
+  assumed. If the manifest disagrees materially with the table in A8, **stop and
+  report** — the reframe may need revisiting.
+- Per-subset counts for IEMOCAP (`scripted` / `improvised`), since the A8
+  mechanism-isolating pair depends on them.
 
 **Expect this to surface a problem.** IEMOCAP's fear class is very small. If support
 is under about 50 utterances, that class will collapse and it likely explains most of
@@ -526,7 +606,10 @@ written into the result row's `hyperparams_json`.
 > decisions and the resulting enumeration in PROGRESS.md.
 
 - `src/ser/run_grid.py`: enumerates distinct configurations, skipping the
-  blending duplicates identified in Phase 5.
+  blending duplicates identified in Phase 5. When
+  `grid.include_iemocap_subset_pair` is set, IEMOCAP-improvised and
+  IEMOCAP-scripted enumerate as an additional corpus pair in both directions
+  (A8) — speaker-disjoint within IEMOCAP as usual.
 - 5 seeds minimum per configuration. Seeds affect split assignment within the
   speaker-disjoint constraint, classifier init, and hyperparameter search order.
 - Resumable: on start, read `results/runs.jsonl`, build the set of completed
@@ -597,42 +680,69 @@ chance floor.
 
 ---
 
-# PHASE 9 — Label-shift analysis and correction
+# PHASE 9 — Shift decomposition: label, covariate, conditional
 
-**Goal.** Give the paper a thesis instead of a grid dump.
+> **Rewritten by A8.** The original brief hypothesised that transfer asymmetry is
+> driven by label prior shift. That hypothesis is dead: after the settled label
+> decisions, prior KL spans 0.0139–0.0336 nats across all six cross-domain pairs.
+> Read A8 before implementing.
 
-**The hypothesis.** Cross-corpus transfer asymmetry in SER is driven substantially by
-label prior shift, not covariate shift. CORAL and MMD only address covariate shift,
-which is why they help on some pairs and do nothing on others.
+**Goal.** Give the paper an explanation instead of a grid dump.
+
+**The claim.** Alignment fails on cross-corpus SER because it minimises *marginal*
+discrepancy while *class-conditional* discrepancy is what moves the decision
+boundary. The A2 ladder provides the evidence: marginal discrepancy shrinks
+monotonically along it while transfer macro-F1 does not.
 
 **Deliverables.**
 
-- For all 9 pairs, compute:
-  - `KL(prior_source || prior_target)` and the symmetric Jensen-Shannon distance,
-    using the priors from Phase 2.
-  - A covariate-shift measure: MMD between pooled source and target features, and
-    proxy A-distance from a domain-discriminator.
-- Spearman correlation of each shift measure against validated transfer macro-F1
-  across the 6 cross-domain pairs. Report both, with CIs. If label shift correlates
-  strongly and covariate shift does not, the thesis holds.
-- **Label-shift correction baseline.** Implement EM prior estimation
-  (Saerens-Latinne-Decaestecker): estimate target priors from the source-trained
-  classifier's outputs on `target_adapt` without using any target labels, then
-  reweight posteriors on `target_test`. BBSE is an acceptable alternative.
-- Comparison table: `none`, `zscore`, `coral`, `mmd`, `em_prior`, `coral+em_prior`,
-  `mmd+em_prior`. Paired tests across pairs and seeds.
-- `reports/label_shift.md`.
+- For all 9 pairs, decompose shift three ways:
+  1. **Label shift.** `KL(prior_source || prior_target)` and symmetric
+     Jensen-Shannon distance, from the Phase 2 priors. Expected near-zero.
+     Report it as an *eliminated* explanation, with the numbers, and state the
+     prediction it licenses: prior-correction methods cannot help here.
+  2. **Covariate shift.** MMD between marginal source and target features, plus
+     proxy A-distance from a domain discriminator. Measure at every rung of the
+     ladder, before and after alignment.
+  3. **Conditional shift.** Class-conditional MMD,
+     `MMD(X_src | y=k, X_tgt | y=k)` for each class k, before and after
+     alignment. This is the quantity the claim is about.
+- **The joint plot that carries the paper:** marginal discrepancy on one axis,
+  conditional discrepancy and validated macro-F1 on the other, across the ladder.
+  If marginal falls while conditional and macro-F1 stay flat, the claim is
+  demonstrated directly rather than inferred.
+- **The mechanism-isolating pair (A8).** IEMOCAP-improvised → IEMOCAP-scripted
+  and the reverse. Same speakers, same label space, near-identical priors: label
+  and covariate shift structurally near zero, only elicitation style differs.
+  Degradation here is conditional shift with the confounds held fixed. Enabled by
+  `grid.include_iemocap_subset_pair`.
+- Spearman correlation of each of the three measures against validated transfer
+  macro-F1 across the 6 cross-domain pairs, with CIs. **Report the label-shift
+  correlation as undefined-by-construction rather than as a weak result** — six
+  points spanning 0.02 nats does not support a correlation coefficient, and
+  presenting one would be the same overclaiming this rebuild exists to remove.
+- **Prior-correction baseline, kept as a falsifiable prediction.** Implement EM
+  prior estimation (Saerens-Latinne-Decaestecker): estimate target priors from
+  the source-trained classifier's outputs on `target_adapt`, using no target
+  labels, then reweight posteriors on `target_test`. BBSE is an acceptable
+  alternative. A8 predicts it is inert here. If it *does* help despite near-zero
+  prior KL, that falsifies the decomposition and must be investigated, not
+  quietly reported.
+- Comparison table: `none`, `zscore`, `mean_shift`, `coral`, `mmd`, `em_prior`,
+  `coral+em_prior`, `mmd+em_prior`. Paired tests across pairs and seeds.
+- `reports/shift_decomposition.md`.
 
-**Read the outcome honestly.** If EM correction beats CORAL and MMD, you have a
-clear claim. If it does not, that is still reportable and the paper becomes a
-carefully-controlled negative result on alignment methods, which is publishable in
-its own right. Do not tune until it wins.
+**Read the outcome honestly.** The claim is designed to hold whichever way the
+numbers land — that is why it is worth making. Do not tune until something wins.
 
-**Acceptance.** All correlations and comparisons reproducible from a single script.
-The EM implementation has a unit test on synthetic data with a known prior shift.
+**Acceptance.** All three decompositions and every comparison reproducible from a
+single script. The EM implementation has a unit test on synthetic data with a
+known prior shift. The conditional-MMD implementation has a unit test on synthetic
+data with known conditional shift and zero marginal shift.
 
 **Do not.** Selectively report. Every measure computed goes into the report,
-including the ones that do not support the hypothesis.
+including the ones that do not support the claim. Do not resurrect the label-shift
+thesis by changing a label decision to restore skew.
 
 ---
 

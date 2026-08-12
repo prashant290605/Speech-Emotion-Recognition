@@ -74,6 +74,7 @@ class LabelsConfig:
 
     # Decisions a human must make. Anything else in this section is machinery.
     DECISION_FIELDS = (
+        "iemocap_label_source",
         "iemocap_excited_to_happy",
         "iemocap_frustrated",
         "iemocap_subsets",
@@ -81,11 +82,23 @@ class LabelsConfig:
         "ravdess_calm_to_neutral",
     )
 
+    # How an IEMOCAP utterance gets its categorical label. This determines the
+    # counts, so it determines the priors, so it determines the entire shift
+    # analysis -- it is not a detail. It lives in this section specifically so
+    # that it falls inside label_map_hash.
+    LABEL_SOURCES = (
+        "majority_vote_discard_disagreement",
+        "majority_vote_with_self_assessment",
+        "any_annotator",
+        "self_assessment",
+    )
+
     label_map_version: str
     spaces: Dict[str, List[str]]
     space_for_iemocap_pairs: str
     space_for_other_pairs: str
     min_class_support_warn: int
+    iemocap_label_source: Optional[str] = None
     iemocap_excited_to_happy: Optional[bool] = None
     iemocap_frustrated: Optional[str] = None  # "drop" | "merge_angry"
     iemocap_subsets: Optional[str] = None  # "scripted" | "improvised" | "both"
@@ -115,6 +128,11 @@ class LabelsConfig:
         if self.iemocap_frustrated not in (None, "drop", "merge_angry"):
             raise ConfigError(
                 "labels.iemocap_frustrated must be null, 'drop', or 'merge_angry'"
+            )
+        if self.iemocap_label_source not in (None, *self.LABEL_SOURCES):
+            raise ConfigError(
+                f"labels.iemocap_label_source must be null or one of "
+                f"{list(self.LABEL_SOURCES)}"
             )
 
 
@@ -263,12 +281,24 @@ class ClassifiersConfig:
 class GridConfig:
     corpora: List[str]
     feature_branches: List[str]
+    include_iemocap_subset_pair: bool
+
+    KNOWN_CORPORA = ("ravdess", "cremad", "iemocap")
 
     def __post_init__(self) -> None:
+        unknown_corpora = sorted(set(self.corpora) - set(self.KNOWN_CORPORA))
+        if unknown_corpora:
+            raise ConfigError(
+                f"grid.corpora contains unknown corpus/corpora: {unknown_corpora}"
+            )
         allowed = {"ssl", "mfcc", "fused"}
         unknown = sorted(set(self.feature_branches) - allowed)
         if unknown:
             raise ConfigError(f"grid.feature_branches unknown: {unknown}")
+        if self.include_iemocap_subset_pair and "iemocap" not in self.corpora:
+            raise ConfigError(
+                "grid.include_iemocap_subset_pair requires 'iemocap' in grid.corpora"
+            )
 
 
 @dataclass(frozen=True)
@@ -462,14 +492,16 @@ def _validate_cross_section(config: Config) -> None:
     if config.project.seed < 0:
         raise ConfigError("project.seed must be non-negative")
 
-    known_corpora = {"ravdess", "cremad", "iemocap"}
-    unknown = sorted(set(config.grid.corpora) - known_corpora)
-    if unknown:
-        raise ConfigError(f"grid.corpora contains unknown corpus/corpora: {unknown}")
-
     for space, classes in config.labels.spaces.items():
         if not classes:
             raise ConfigError(f"labels.spaces.{space} is empty")
+
+    if config.grid.include_iemocap_subset_pair and not config.labels.iemocap_record_subset:
+        raise ConfigError(
+            "grid.include_iemocap_subset_pair requires labels.iemocap_record_subset: "
+            "the improvised/scripted probe cannot be built without the per-utterance "
+            "subset recorded in the manifest"
+        )
 
     for layer in config.classifiers.layer_candidates:
         if not 0 <= layer < config.features.n_layers:

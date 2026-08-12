@@ -56,6 +56,18 @@ labels:
   # data section. Values the original used are noted where they differ.
   # ---------------------------------------------------------------------
 
+  # How an IEMOCAP utterance gets its categorical label. Majority vote over the
+  # three categorical annotators, discarding the ~2507 no-agreement utterances.
+  # This is the canonical rule and produces the canonical counts (neutral 1708,
+  # frustrated 1849, angry 1103, sad 1084, excited 1041, happy 595, fear 40,
+  # disgust 2). Switching to any-annotator or folding in self-assessment changes
+  # every count substantially, hence every prior, hence the entire shift
+  # analysis -- so it is an explicit key inside label_map_hash rather than an
+  # implicit property of the parsing code.
+  # Options: majority_vote_discard_disagreement | majority_vote_with_self_assessment
+  #          | any_annotator | self_assessment
+  iemocap_label_source: majority_vote_discard_disagreement
+
   # Standard IEMOCAP convention; makes the 4-class setup comparable to the
   # literature. Happy goes from ~595 to ~1636 utterances. (Original: same.)
   iemocap_excited_to_happy: true
@@ -187,6 +199,14 @@ classifiers:
 grid:
   corpora: [ravdess, cremad, iemocap]
   feature_branches: [ssl, mfcc, fused]
+
+  # The conditional-shift probe (A8): treat IEMOCAP-improvised and
+  # IEMOCAP-scripted as two corpora. Same speakers, same label space, near
+  # identical priors -- so label shift and covariate shift are both structurally
+  # near zero and only elicitation style differs. Transfer degradation across
+  # that boundary is conditional shift with the confounds held fixed. Costs one
+  # extra pair. Requires labels.iemocap_record_subset.
+  include_iemocap_subset_pair: true
 
 baselines:
   # Draws for the empirical uniform-random and prior-matched estimates.

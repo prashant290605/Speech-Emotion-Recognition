@@ -9,6 +9,120 @@ file plus PHASES.md is the entire handover between them.
 
 ---
 
+## 2026-08-10 — Phase 0 addendum 2: the label-shift thesis is dead
+
+Status: **complete**. `pytest` → 89 passed. Recorded as PHASES.md amendments
+A7–A8; Phase 9 rewritten.
+
+### The finding
+
+The published IEMOCAP counts are not estimates — they are the canonical
+majority-agreement figures: neutral 1708, frustrated 1849, angry 1103, sad 1084,
+excited 1041, happy 595, fear 40, disgust 2, plus 2507 no-agreement. Applying the
+settled A3/A4 decisions and computing priors:
+
+| Corpus (4-class) | angry | happy | neutral | sad | n |
+|---|---|---|---|---|---|
+| IEMOCAP | .199 | .296 | .309 | .196 | 5531 |
+| RAVDESS | .222 | .222 | .333 | .222 | 864 |
+| CREMA-D | .259 | .259 | .222 | .259 | 4900 |
+
+Pairwise KL, all six cross-domain pairs:
+
+| pair | K | KL | JS |
+|---|---|---|---|
+| iemocap → ravdess | 4 | 0.0148 | 0.0598 |
+| ravdess → iemocap | 4 | 0.0139 | 0.0598 |
+| iemocap → cremad | 4 | 0.0336 | 0.0914 |
+| cremad → iemocap | 4 | 0.0335 | 0.0914 |
+| ravdess → cremad | 6 | 0.0252 | 0.0769 |
+| cremad → ravdess | 6 | 0.0224 | 0.0769 |
+
+**Prior shift is near-zero everywhere.** The original premise — IEMOCAP heavily
+skewed, RAVDESS balanced — held of *raw* IEMOCAP. Dropping frustration (A3) and
+cutting fear (A4) removed almost all of the skew. The decisions that make the
+label space defensible are the same decisions that dissolve the effect Phase 9
+was built to detect. A Spearman correlation over six points spanning 0.02 nats is
+not underpowered; it is undefined.
+
+This is not fixable by restoring frustration: merging it into anger would
+manufacture the skew and then discover it.
+
+### The reframe (A8)
+
+Phase 9 becomes a three-way decomposition rather than a single-hypothesis test:
+label shift (KL/JS — now an *eliminated* explanation, reported as such, with the
+prediction that prior-correction methods are inert), covariate shift (marginal
+MMD, plus proxy A-distance, measured at every rung of the A2 ladder), and
+conditional shift (class-conditional MMD before and after alignment).
+
+The claim: alignment fails because it minimises marginal discrepancy while
+class-conditional discrepancy moves the decision boundary — evidenced by the
+ladder showing marginal discrepancy shrinking monotonically while transfer
+macro-F1 does not. Holds whichever way the numbers land, needs no new data.
+
+EM/BBSE prior correction is retained, reframed as a **falsifiable prediction**:
+A8 says it must be inert. If it helps despite near-zero prior KL, the
+decomposition is wrong and that must be investigated, not quietly reported.
+
+### The mechanism-isolating experiment
+
+IEMOCAP-improvised ↔ IEMOCAP-scripted as two corpora. Same speakers, same label
+space, near-identical priors, so label and covariate shift are structurally near
+zero and only elicitation style differs. Degradation there is conditional shift
+with the confounds held fixed — something none of the cited comparisons achieve.
+Costs one extra pair; `grid.include_iemocap_subset_pair: true`, with a
+cross-section validator requiring `labels.iemocap_record_subset`.
+
+**This is the strongest argument for waiting on the IEMOCAP licence rather than
+substituting EmoDB/SAVEE.** The experiment does not exist without the corpus, and
+both substitutes are acted, which would cost the spontaneous-vs-acted axis
+entirely.
+
+### The annotation rule is now explicit (A7)
+
+`labels.iemocap_label_source: majority_vote_discard_disagreement`, inside
+`label_map_hash`. The counts above depend entirely on it; any-annotator or
+self-assessment labels change every count, every prior, and the whole analysis.
+It was previously an implicit property of the parsing code — a silent axis that
+could change without moving the hash, the exact failure mode the hash exists to
+prevent.
+
+### Files modified
+
+```
+configs/default.yaml     iemocap_label_source, grid.include_iemocap_subset_pair
+src/ser/config.py        LABEL_SOURCES enum, subset-pair validators; corpus
+                         validation moved into GridConfig so its error precedes
+                         the subset-pair check
+PHASES.md                A7, A8; Phase 9 rewritten; Phase 2 gains pairwise-KL
+                         verification and per-subset counts; Phase 7 enumerates
+                         the subset pair; phase map renamed
+README.md                Phase 9 renamed
+legacy/README.md         superseded banner + inline warning above the results
+                         table (annotated, not edited: the original text is
+                         intact below the banner)
+tests/test_config.py     +4 tests (89 total)
+```
+
+### Deferred / still open
+
+- The priors above are computed from published counts. **Phase 2 must re-verify
+  from the manifest and stop if it disagrees materially** — A8's framing depends
+  on it. The verification is written into the Phase 2 deliverables.
+- IEMOCAP licence: it is an institutional agreement with SAIL requiring a
+  signatory with authority to bind the recipient organisation, so it needs the
+  faculty co-author. Licence and co-author are one item, not two. Open question
+  for the group: did the original semester's work run under a signed licence? If
+  one is already held, reuse it. If the data came informally, regularise before
+  publishing — clause 5 requires citation and clause 6 asks licensees to discuss
+  planned evaluations with SAIL prior to public reporting.
+- Contingency if the licence stalls past four weeks: EmoDB and SAVEE as
+  substitute corpora. Both acted, so the spontaneous-vs-acted axis and the A8
+  probe are lost. Fallback, not plan.
+
+---
+
 ## 2026-08-10 — Phase 0 addendum: decisions settled, schema v2
 
 Status: **complete**. `pytest` → 85 passed. Decisions below are now encoded in
