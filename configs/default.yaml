@@ -212,6 +212,14 @@ baselines:
   # Draws for the empirical uniform-random and prior-matched estimates.
   n_random_draws: 1000
 
+shift:
+  # Phase 9 shift decomposition. Extended when Phase 9 is built.
+  #
+  # Class-conditional MMD on a class with a few dozen target samples is mostly
+  # estimator variance. Below this support the value is reported as undefined,
+  # not as a number, and per-class n accompanies every value that is defined.
+  conditional_mmd_min_support: 50
+
 stats:
   bootstrap_resamples: 2000
   ci_level: 0.95

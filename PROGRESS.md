@@ -9,6 +9,97 @@ file plus PHASES.md is the entire handover between them.
 
 ---
 
+## 2026-08-10 — Phase 0 addendum 3: two corrections and two firewalls
+
+Status: **complete**. `pytest` → 90 passed. Amendments A9–A10 added.
+
+### Corrections to earlier entries in this file
+
+**1. The KL figures in addendum 2 are corpus-level, and the analysis needs
+split-level (A9).** The 0.0139–0.0336 range is computed from whole-corpus
+priors. The quantity that governs a run is the divergence between the realised
+`source_train` prior and the realised `target_test` prior *after* speaker-disjoint
+splitting. IEMOCAP has five sessions and ten speakers with non-uniform
+per-session emotion distributions, so a session-disjoint fold moves class
+proportions by several points, differently per seed. Split-level KL will be
+larger than corpus-level and will vary across the five seeds.
+
+This does not rescue the label-shift thesis and must not be used to. But
+asserting "near zero" at corpus level while testing at split level is a mismatch
+a reviewer will find. Phase 2's halt-and-report guard stays corpus-level against
+corpus-level (a data-integrity check against published counts); Phase 8 gains
+split-level KL per pair per seed, as mean and range over realised partitions.
+
+**2. "No `.bib` exists" (Phase 0 entry, Deferred) overstated the Phase 1
+blocker.** There is no `.bib`, but `legacy/SER_Report.tex:346-433` contains a
+`thebibliography` environment with exactly 17 `\bibitem` entries in a regular
+parseable layout. Phase 1 is not blocked on producing a `.bib` first.
+
+All three known findings are confirmed present in that source:
+
+| ref | key | claimed | problem |
+|---|---|---|---|
+| [9] | `jafari2025feature` | Jafari/Shahin/Alavi, Comput. Biol. Med. **187**, 110510, 2025 | real paper is Naeeni & Nasersharif, vol **194** — page matches, volume and authors do not |
+| [16] | `w2vprosody2023` | Ploszaj/Tarnowski/Jedrzejczak, KBS **275**:110676 | title duplicates [6] `naderi2023cross` (KBS 277:110814); differs only by `wav2vec2` vs `Wav2Vec2` |
+| [17] | `li2023cross` | Y. Li/J. Wu/X. Liu/H. Meng, Entropy 25(1):124 | **same venue, volume, issue and page** as [7] `fu2023cross` — identical article coordinates, invented author list |
+
+Two implications written into Phase 1: title matching must be case- and
+whitespace-insensitive (or [16] is missed), and duplicate venue+volume+issue+page
+should be flagged independently of title (it is what makes [17] unambiguous).
+
+**3. A merge of `rebuild` into `main` is not a fast-forward.** Stated incorrectly
+in the previous session summary. `main` carries `2215976` (the README withdrawal),
+which is not in `rebuild`'s ancestry, so the branches have diverged. The
+`README.md` conflict is unavoidable whenever the merge happens; resolve in favour
+of `rebuild`'s version and delete `main`'s variant at that moment. **Do not rename
+or delete the `rebuild` branch while `main`'s README is public** — its links to
+the revision notice are relative and point there.
+
+### A10 — firewalling the conditional-shift diagnostic
+
+`MMD(X_src | y=k, X_tgt | y=k)` requires target test labels by construction.
+Legitimate post hoc, illegitimate anywhere near fitting or selection — it is the
+Phase 2 leak reintroduced under a respectable name. Containment written into
+PHASES.md: analysis layer only; never written into a pipeline-readable artifact;
+never an input to selection, including A6 axis pruning; covered by an explicit
+assertion rather than a comment; reported as undefined below
+`shift.conditional_mmd_min_support` (50), with per-class n always shown.
+
+Worth recording: **the frozen result schema is itself part of this firewall.** It
+has no field for a conditional-shift quantity, and adding one requires a
+`SCHEMA_VERSION` bump that invalidates every existing row. That mechanical guard
+should not be weakened by adding a general-purpose "diagnostics" column.
+
+### Files modified
+
+```
+configs/default.yaml     new `shift` section: conditional_mmd_min_support: 50
+src/ser/config.py        ShiftConfig
+PHASES.md                A9, A10; Phase 1 source located + two matching notes;
+                         Phase 2 guard scoped to corpus level; Phase 8 gains
+                         split-level KL; Phase 9 label-shift and conditional-shift
+                         bullets updated
+tests/test_config.py     +1 case, +1 assertion (90 total)
+```
+
+### Not blocked on IEMOCAP
+
+Calling IEMOCAP "the whole critical path" was too pessimistic. RAVDESS and
+CREMA-D are immediate downloads and cover two of the six cross-domain pairs, the
+full 6-class label space, and **every piece of machinery**: splits, leakage
+assertions, 13-layer caching, the four-rung ladder, the α axis, the smoke gate.
+Only the four IEMOCAP pairs and the A8 subset probe genuinely block.
+
+A two-corpus config is a two-line edit and is verified to load:
+`grid.corpora: [ravdess, cremad]` with `grid.include_iemocap_subset_pair: false`
+(the validator requires the latter, since the probe needs IEMOCAP).
+
+Phase 2 should start on `{ravdess, cremad}` without waiting. If the smoke gate
+fires on that pair, better to learn it now than a month later with IEMOCAP
+finally in hand.
+
+---
+
 ## 2026-08-10 — Phase 0 addendum 2: the label-shift thesis is dead
 
 Status: **complete**. `pytest` → 89 passed. Recorded as PHASES.md amendments

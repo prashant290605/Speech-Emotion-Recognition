@@ -197,6 +197,47 @@ Config: `grid.include_iemocap_subset_pair`. Costs one extra pair, and depends on
 This experiment exists only if IEMOCAP is in hand — it is the strongest argument
 for waiting on the licence rather than substituting a smaller acted corpus.
 
+### A9. KL is measured at split level, not corpus level
+
+The 0.0139–0.0336 figures in A8 are **whole-corpus** priors. The quantity that
+actually governs a run is the divergence between the realised `source_train`
+prior and the realised `target_test` prior *after* speaker-disjoint splitting.
+
+IEMOCAP has five sessions and ten speakers, and per-session emotion
+distributions are not uniform, so a session-disjoint fold can move class
+proportions by several points — and moves them differently per seed. Split-level
+KL will therefore be **larger than corpus-level KL and will vary across the five
+seeds**.
+
+This does not rescue the label-shift thesis and must not be used to. But "label
+shift is near zero" asserted at corpus level and tested at split level is a
+mismatch a careful reviewer will find.
+
+- **Phase 2's halt-and-report guard compares corpus level to corpus level.** That
+  is a data-integrity check against the published counts, and it stays that way.
+- **Phase 8 reports split-level KL per pair per seed**, as mean and range,
+  computed from the realised partitions. That is the number the analysis uses.
+
+### A10. The conditional-shift diagnostic reads target test labels — firewall it
+
+`MMD(X_src | y=k, X_tgt | y=k)` requires target labels by construction. That is
+legitimate as post-hoc analysis and illegitimate anywhere near fitting or
+selection. It is exactly the shape of the leak Phase 2 exists to prevent,
+reintroduced under a respectable name. Required containment:
+
+1. Computed **only** in the analysis layer (`src/ser/analysis/`), never in
+   `alignment`, `classifiers`, or `run_grid`.
+2. **Never written into any artifact the pipeline reads.** The frozen result
+   schema has no field for it, and adding one would require a `SCHEMA_VERSION`
+   bump and fail every existing row — that mechanical guard is load-bearing, so
+   do not weaken it by adding a "diagnostics" column.
+3. **Never an input to configuration selection**, under any framing, including
+   axis pruning in the A6 screening pass.
+4. Covered by an explicit assertion stating the above, not a comment.
+5. Minimum support: `shift.conditional_mmd_min_support` (50). Below it the value
+   is reported as undefined rather than as a number. **Per-class n is reported
+   alongside every defined value.**
+
 ### A6. The full factorial is dead — Phases 6/7 must be staged
 
 The ladder (5 alignments) × α (5) × layer aggregation (3) × 5 seeds on top of the
@@ -283,6 +324,21 @@ assets were found.
 hand; the script only narrows the search.
 
 **Deliverables.**
+
+> **Source located.** There is no `.bib`. The reference list is a
+> `thebibliography` environment at `legacy/SER_Report.tex:346-433` with exactly
+> **17 `\bibitem` entries**, each in a regular
+> `key / authors / ``title'' / \textit{venue}, vol, no, pp, year` layout — fully
+> parseable, so the missing `.bib` is not a blocker.
+>
+> Two notes for the duplicate-title check, from inspecting the source:
+> - Match titles **case- and whitespace-insensitively**. `[16] w2vprosody2023`
+>   differs from `[6] naderi2023cross` only by `wav2vec2` vs `Wav2Vec2`; an exact
+>   match would miss it.
+> - Also flag **duplicate venue+volume+issue+page**, independent of title.
+>   `[17] li2023cross` and `[7] fu2023cross` both claim Entropy 25(1):124 — the
+>   same article coordinates with a different author list, which is a stronger
+>   signal than the title match alone.
 
 - `tools/check_refs.py`: reads the `.bib` (or parses the reference list from the
   `.tex`), queries the Crossref REST API by title, and for each entry reports:
@@ -374,11 +430,14 @@ in the manifest for all three corpora.
 - Per corpus per class, for both label spaces: utterance count and share.
 - Class prior vector for every corpus under every label space.
 - Explicit flag on any class with fewer than 100 utterances after mapping.
-- **Pairwise prior KL and JS for all 9 pairs.** A8 predicts, from published
-  counts, KL in 0.0139–0.0336 nats across the six cross-domain pairs. Phase 9's
-  entire framing depends on this, so it is verified here, at manifest time, not
-  assumed. If the manifest disagrees materially with the table in A8, **stop and
-  report** — the reframe may need revisiting.
+- **Pairwise corpus-level prior KL and JS for all 9 pairs.** A8 predicts, from
+  published counts, KL in 0.0139–0.0336 nats across the six cross-domain pairs.
+  Phase 9's entire framing depends on this, so it is verified here, at manifest
+  time, not assumed. If the manifest disagrees materially with the table in A8,
+  **stop and report** — the reframe may need revisiting.
+  This guard is **corpus level against corpus level** (A9): it is a data-integrity
+  check against the published counts. The split-level quantity the analysis
+  actually uses is a Phase 8 deliverable — do not conflate them here.
 - Per-subset counts for IEMOCAP (`scripted` / `improvised`), since the A8
   mechanism-isolating pair depends on them.
 
@@ -663,6 +722,11 @@ and it costs you nothing extra to make.
   - Blending effects in aligned settings (replaces Table 3)
   - ~~Mean macro-F1 by classifier~~ → per-pair, same reason (replaces Table 4)
   - Backbone-specific in-domain vs cross-domain gap (replaces Table 5)
+  - New: **split-level prior KL per pair per seed** (A9) — computed from the
+    realised `source_train` and `target_test` partitions, reported as mean and
+    range across the five seeds, next to the corpus-level figure from Phase 2.
+    Expect it to be larger than corpus level and to vary by seed; that variance
+    is the point, not noise to be averaged away.
   - New: validated vs oracle gap per pair
   - New: `last` vs `weighted` layer aggregation, quantifying the layer-pooling fix
   - New: **the alignment ladder** — `none` / `zscore` / `mean_shift` / `coral` /
@@ -698,15 +762,24 @@ monotonically along it while transfer macro-F1 does not.
 
 - For all 9 pairs, decompose shift three ways:
   1. **Label shift.** `KL(prior_source || prior_target)` and symmetric
-     Jensen-Shannon distance, from the Phase 2 priors. Expected near-zero.
-     Report it as an *eliminated* explanation, with the numbers, and state the
-     prediction it licenses: prior-correction methods cannot help here.
+     Jensen-Shannon distance. Report **both** the corpus-level figure from
+     Phase 2 and the split-level figure per pair per seed from Phase 8 (A9) —
+     the split-level one is the quantity the analysis rests on, and asserting
+     "near zero" at corpus level while testing at split level is the mismatch
+     A9 exists to prevent. Expected near-zero at both. Report it as an
+     *eliminated* explanation, with the numbers, and state the prediction it
+     licenses: prior-correction methods cannot help here.
   2. **Covariate shift.** MMD between marginal source and target features, plus
      proxy A-distance from a domain discriminator. Measure at every rung of the
      ladder, before and after alignment.
   3. **Conditional shift.** Class-conditional MMD,
      `MMD(X_src | y=k, X_tgt | y=k)` for each class k, before and after
      alignment. This is the quantity the claim is about.
+     **It reads target test labels, so A10's firewall is mandatory** — analysis
+     layer only, never written into a pipeline-readable artifact, never an input
+     to selection or to A6 axis pruning, covered by an explicit assertion, and
+     reported as undefined below `shift.conditional_mmd_min_support` with
+     per-class n always shown.
 - **The joint plot that carries the paper:** marginal discrepancy on one axis,
   conditional discrepancy and validated macro-F1 on the other, across the ladder.
   If marginal falls while conditional and macro-F1 stay flat, the claim is

@@ -62,6 +62,7 @@ def test_default_config_matches_the_brief():
 
     assert config.stats.bootstrap_resamples == 2000
     assert config.baselines.n_random_draws == 1000
+    assert config.shift.conditional_mmd_min_support >= 2
 
 
 def test_config_hash_is_stable_and_content_addressed(raw, tmp_path):
@@ -124,6 +125,7 @@ def test_missing_file_rejected():
         ("classifiers", "layer_candidates", [4, 99], "outside"),
         ("features", "storage_dtype", "float64", "float16 or float32"),
         ("grid", "corpora", ["ravdess", "emodb"], "unknown corpus"),
+        ("shift", "conditional_mmd_min_support", 1, "at least 2"),
         ("stats", "ci_level", 1.0, "strictly between"),
         ("stats", "correction", "bonferroni", "holm-bonferroni"),
         ("labels", "iemocap_subsets", "improv", "scripted"),

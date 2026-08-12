@@ -307,6 +307,23 @@ class BaselinesConfig:
 
 
 @dataclass(frozen=True)
+class ShiftConfig:
+    """Phase 9 shift decomposition. Extended when Phase 9 is built.
+
+    ``conditional_mmd_min_support`` exists because class-conditional MMD on a
+    class with a few dozen target samples is mostly estimator variance. Below
+    this threshold the value is reported as undefined rather than as a number,
+    and per-class n is reported alongside every value that is defined.
+    """
+
+    conditional_mmd_min_support: int
+
+    def __post_init__(self) -> None:
+        if self.conditional_mmd_min_support < 2:
+            raise ConfigError("shift.conditional_mmd_min_support must be at least 2")
+
+
+@dataclass(frozen=True)
 class StatsConfig:
     bootstrap_resamples: int
     ci_level: float
@@ -331,6 +348,7 @@ class Config:
     classifiers: ClassifiersConfig
     grid: GridConfig
     baselines: BaselinesConfig
+    shift: ShiftConfig
     stats: StatsConfig
     raw: Dict[str, Any] = field(repr=False, default_factory=dict)
     source_path: Optional[str] = None
@@ -425,6 +443,7 @@ _SECTIONS: Dict[str, type] = {
     "classifiers": ClassifiersConfig,
     "grid": GridConfig,
     "baselines": BaselinesConfig,
+    "shift": ShiftConfig,
     "stats": StatsConfig,
 }
 
