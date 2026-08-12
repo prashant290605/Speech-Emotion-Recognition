@@ -1,0 +1,724 @@
+# Cross-Corpus SER Paper: Phased Rebuild Plan
+
+Twelve phases, 0 through 11. Each phase is a self-contained brief you paste into a
+fresh Claude Code session. Do not run two phases in one session.
+
+Reference audit (Track R) runs in parallel and is manual. It does not block the code track.
+
+---
+
+## Standing preamble
+
+Paste this at the top of **every** phase. Claude Code sessions do not share memory,
+so this is what keeps each session inside its lane.
+
+```
+CONTEXT
+Project: reproducibility rebuild of a cross-corpus speech emotion recognition study.
+Corpora: RAVDESS, CREMA-D, IEMOCAP. Backbones: HuBERT Base, wav2vec 2.0 Base, WavLM Base.
+The original version of this study had methodological problems we are systematically
+fixing: test-set model selection, final-layer-only SSL pooling, no seeds, no chance
+baselines, unspecified alignment operator. The rebuild must be defensible to a
+journal reviewer.
+
+RULES FOR THIS SESSION
+1. Read PHASES.md and PROGRESS.md before doing anything.
+2. Implement ONLY the phase specified below. Do not implement future phases,
+   do not add "helpful" extras, do not refactor code outside this phase's scope.
+3. If a design decision is genuinely ambiguous, STOP and ask. Do not guess and
+   proceed.
+4. Every result must be reproducible from a config file plus a seed. No values
+   hardcoded in scripts.
+5. Run `pytest` before declaring the phase done. All tests must pass.
+6. At the end, append a dated entry to PROGRESS.md listing: files created, files
+   modified, tests added, decisions made, and anything you deferred.
+7. Do not delete or overwrite anything under data/cache/ or results/.
+```
+
+---
+
+## AMENDMENTS — settled 2026-08-10, after the Phase 0 inventory
+
+**These override the phase text below wherever they conflict. Read this section
+before the phase you are implementing.** Rationale for each is in PROGRESS.md.
+
+### A1. Decision A — Transformer: **fix**, not drop
+
+8-segment cache retained; the Transformer operates on an `(8, D)` sequence. The
+pooled-vector-reshaped-into-pseudo-tokens variant is *unconfigurable*, not merely
+discouraged (`config.py` raises if `transformer` is requested without the segment
+cache).
+
+Expect the Transformer to lose to the MLP at these data sizes. That is fine and
+gets reported. The original's problem was never that it underperformed — it was
+that the discussion admitted the architecture was meaningless and shipped it.
+A fair weak baseline is publishable; a strawman is not.
+
+### A2. Decision B — MMD: implement the ladder, keep the mean shift
+
+`X_src + (μ_tgt − μ_src)` is exactly the transform minimising MMD under a
+**linear kernel** (linear-kernel MMD reduces to ‖μ_s − μ_t‖²). The original
+implemented a degenerate special case of what it claimed. Report both as one
+ordered ablation:
+
+| Condition | Moments matched |
+|---|---|
+| `zscore` | per-dimension 1st + 2nd, no cross-terms |
+| `mean_shift` (= linear-kernel MMD) | 1st |
+| `coral` | 1st + 2nd, with covariance |
+| `mmd` | all, via RBF |
+
+Flat performance across the whole ladder is direct evidence the shift is not
+covariate — an ordered series, not two arbitrary points.
+
+MK-MMD is specified as an **affine map fit by minimising MMD**, not a divergence
+gestured at. Learn `W, b` minimising
+
+> `MMD²_k(W·X_src + b, X_target_adapt) + λ‖W − I‖²_F`
+
+with `k` a sum of RBF kernels at bandwidths `{0.25, 0.5, 1, 2, 4} × σ_median`.
+Fitted on `source_train` and `target_adapt` **only**.
+
+**Name the mean-shift condition `mean_shift`. Do not alias `mmd` to it, ever** —
+the alias is how the misstatement survives into v2.
+
+### A3. Label decisions
+
+| Decision | Value |
+|---|---|
+| `iemocap_excited_to_happy` | **merge** — standard convention; happy ~595 → ~1636 |
+| `iemocap_frustrated` | **drop** — do *not* merge into angry |
+| `iemocap_subsets` | **both**, subset recorded per utterance |
+| `ravdess_calm_to_neutral` | **merge** |
+
+Frustration (~1849 utterances vs anger's ~1103) merged into anger would make
+`angry` ~30% of retained IEMOCAP — *manufacturing* the label-prior skew the
+thesis then claims to discover. It is also absent from RAVDESS and CREMA-D.
+
+RAVDESS is balanced at 8 classes, **not** at the 6-class intersection. The
+"RAVDESS is exactly balanced" line in the current draft is wrong and must be
+corrected.
+
+### A4. IEMOCAP pairs are 4-class, and the cross-pair mean headline is dead
+
+IEMOCAP disgust ≈ 2 utterances, fear ≈ 40 — about 4 fear utterances per
+speaker-disjoint fold, so macro-F1 collapse is guaranteed by construction on
+exactly the pairs the draft attributes to "structural mismatch". Label spaces are
+now:
+
+- `six`: angry, disgust, fear, happy, neutral, sad — RAVDESS ↔ CREMA-D
+- `four`: angry, happy, neutral, sad — any pair involving IEMOCAP
+
+Phase 2 still **reports** IEMOCAP fear and disgust support; it does not silently
+drop them.
+
+**Consequence:** chance floors differ by pair (0.167 vs 0.250). Any statistic
+averaging macro-F1 across pairs is now not merely uninformative but ill-defined.
+**Report per pair against per-pair chance.** This kills the "mean cross-domain
+macro-F1" table in Phase 8 (see A6).
+
+### A5. `run_id` carries the label map and split spec
+
+Schema v2 adds `label_map_hash` and `split_spec_hash` as `run_id` coordinates.
+Without them, changing a label decision mid-project leaves `run_id` unchanged and
+a Phase 7 resume silently merges incompatible runs. `blend_alpha` is already a
+coordinate; per-group `gaa` alphas are selected on `source_val` inside a run and
+live in `hyperparams_json`.
+
+Bump `labels.label_map_version` / `splits.split_spec_version` whenever the
+*semantics* of the mapping or split code change in a way the config keys do not
+express.
+
+### A6. The full factorial is dead — Phases 6/7 must be staged
+
+The ladder (5 alignments) × α (5) × layer aggregation (3) × 5 seeds on top of the
+existing axes is six figures of runs. Required design:
+
+1. **Screening pass** on one pair, one backbone, to prune axes.
+2. **Reduced factorial** with seeds over what survives.
+
+Pruning is scored on the **source-side validation split, never on target test** —
+otherwise the screening pass reinvents the exact leak Phase 2 exists to prevent.
+A designed ablation is a contribution; an exhaustive sweep is a table.
+
+---
+
+## Phase map
+
+| Phase | Name | Compute | Blocks |
+|---|---|---|---|
+| 0 | Scaffold and reproducibility spine | none | everything |
+| 1 | Reference integrity checker | none | nothing |
+| 2 | Manifest, label map, splits, leakage tests, dataset stats | light | 3 onward |
+| 3 | Feature extraction and caching | heavy, one time | 5 onward |
+| 4 | Metrics and trivial baselines | none | 7 onward |
+| 5 | Alignment and blending module | light | 7 |
+| 6 | Classifier module with equal-budget search | light | 7 |
+| 7 | Grid runner | heavy | 8 onward |
+| 8 | Selection protocol and headline tables | none | 9 onward |
+| 9 | Label-shift analysis and correction | light | 10 |
+| 10 | Per-class analysis and figures | none | 11 |
+| 11 | Release packaging and LaTeX table generation | none | submission |
+
+---
+
+# PHASE 0 — Scaffold and reproducibility spine
+
+**Goal.** Build the skeleton every later phase writes into. No science in this phase.
+
+**First action: inventory.** Before writing anything, search the repo and any
+attached directories for the original study's code, cached features, and result
+files. Report what exists in PROGRESS.md. If original code exists, do not delete
+it; move it to `legacy/` untouched.
+
+**Deliverables.**
+
+- `pyproject.toml` or `requirements.txt` with fully pinned versions.
+- `src/ser/utils/seeding.py`: one `set_all_seeds(seed)` that sets python `random`,
+  `numpy`, `torch`, `torch.cuda`, and enables deterministic cuDNN.
+- `src/ser/utils/runmeta.py`: captures git SHA, dirty-tree flag, config hash,
+  library versions, hostname, timestamp. Every result row carries this.
+- `src/ser/config.py`: dataclass-backed config loaded from YAML. No magic strings.
+- `configs/default.yaml`.
+- `src/ser/utils/results.py`: append-only JSONL writer with a frozen schema.
+- `tests/` with pytest configured and one smoke test that passes.
+- `PHASES.md` (copy this file in) and `PROGRESS.md` (empty, with a header).
+- `Makefile` or a `ser` CLI entrypoint with stub commands for each later phase.
+
+**Frozen result schema.** Get this right now, because changing it later means
+re-running the grid. One row per completed run:
+
+```
+run_id, git_sha, config_hash, timestamp, seed,
+source_corpus, target_corpus, n_classes, class_names,
+backbone, layer_agg, layer_index, feature_branch,
+alignment, blending, blend_alpha, n_groups,
+classifier, hyperparams_json,
+split_id, n_train, n_val, n_target_adapt, n_target_test,
+macro_f1, accuracy, uar, per_class_f1_json, confusion_json,
+chance_macro_f1, majority_macro_f1, prior_matched_macro_f1,
+selection_source_val_macro_f1,
+wall_seconds
+```
+
+**Acceptance.** `pytest` passes. `make smoke` writes one dummy row to
+`results/runs.jsonl` and the schema validates. `PROGRESS.md` lists what legacy
+assets were found.
+
+**Do not.** Touch audio, install torch models, write any classifier or alignment code.
+
+---
+
+# PHASE 1 — Reference integrity checker
+
+**Goal.** A script that flags broken and likely-fabricated citations. You verify by
+hand; the script only narrows the search.
+
+**Deliverables.**
+
+- `tools/check_refs.py`: reads the `.bib` (or parses the reference list from the
+  `.tex`), queries the Crossref REST API by title, and for each entry reports:
+  matched DOI, Crossref author surnames, Crossref volume/pages/year, and a flag
+  when the bib authors do not overlap the Crossref authors.
+- Second check: flag any reference whose title matches another reference's title.
+  Duplicate titles with different author lists are the fabrication signature.
+- Third check: flag any reference never cited in the body `.tex`.
+- `refs_report.md`: table of every reference with status
+  `VERIFIED / AUTHOR-MISMATCH / VOLUME-MISMATCH / DUPLICATE-TITLE / UNCITED / NOT-FOUND`.
+
+**Known findings to confirm.** These three are already established and the script
+should reproduce them:
+
+- `[9]` DistilHuBERT domain adaptation: bib says Jafari/Shahin/Alavi, vol 187.
+  Actual is Naeeni and Nasersharif, Computers in Biology and Medicine 2025, vol 194,
+  p. 110510.
+- `[16]` duplicates the title of `[6]` (Naderi and Nasersharif, KBS 2023, 277:110814)
+  with an invented author list. Delete.
+- `[17]` duplicates the title of `[7]` (Fu, Zhuang, Wang, Huang, Duan, Entropy
+  2023, 25(1):124) with an invented author list. Delete.
+
+**Acceptance.** `refs_report.md` covers every reference. Every non-VERIFIED entry
+has been opened manually on the publisher landing page and corrected in the `.bib`.
+Re-running the script yields all VERIFIED.
+
+**Do not.** Auto-edit the `.bib`. The script reports; you fix.
+
+---
+
+# PHASE 2 — Manifest, label map, splits, leakage tests, dataset stats
+
+**Goal.** One canonical description of the data, plus the assertions that make every
+later claim about splits mechanically checkable.
+
+**Deliverables.**
+
+`data/manifest.csv`, one row per audio file, columns:
+`corpus, file_path, utterance_id, speaker_id, session_id, original_label, duration_s, sample_rate, sha256`.
+Build it by walking the raw corpora. Never hardcode counts.
+
+`src/ser/labels.py`: label mapping as a **pure function**
+`map_label(corpus, original_label, label_space) -> str | None`, where `None` means
+excluded. Two label spaces:
+
+- `six`: angry, disgust, fear, happy, neutral, sad (RAVDESS and CREMA-D pairs)
+- ~~`five`: angry, fear, happy, neutral, sad~~ → **superseded by A4**:
+  `four`: angry, happy, neutral, sad (any pair involving IEMOCAP)
+
+**Amendment A3 settles the label decisions** — `excited`→`happy` merge,
+`frustrated` dropped (not merged into angry), both IEMOCAP subsets with the
+subset recorded per utterance, RAVDESS `calm`→`neutral` merge. They are set in
+`configs/default.yaml`; do not re-ask, and do not silently change them (the
+config keys feed `label_map_hash`, a `run_id` coordinate — see A5).
+
+The manifest gains a `subset` column for IEMOCAP (`scripted` / `improvised`), so
+improvised-only is available later as a free robustness check.
+
+`src/ser/splits.py`: speaker-disjoint splits, deterministic given a seed.
+
+- Source corpus splits into `source_train` and `source_val` by speaker.
+- Target corpus splits into `target_adapt` and `target_test` by speaker.
+- `target_adapt` is the **only** target data any alignment method may see.
+- `target_test` is touched exactly once, at scoring time.
+- For IEMOCAP use session-level splits, not speaker-level, since sessions are the
+  standard unit.
+
+`tests/test_leakage.py`, all four as hard assertions:
+
+1. No speaker ID appears in more than one split within a corpus.
+2. No `utterance_id` appears in both a source split and a target split for any pair.
+3. `target_test` indices never appear in any fitted alignment object. Implement this
+   by having alignment objects record the index set they were fitted on, and assert
+   the intersection with `target_test` is empty.
+4. `map_label` is pure: same inputs give same output, has no side effects, and every
+   raw label in the manifest either maps to a class in the space or explicitly to `None`.
+
+`tests/test_labelmap.py`: table-driven test covering every raw label string present
+in the manifest for all three corpora.
+
+`reports/dataset_stats.md` plus `reports/dataset_stats.csv`:
+
+- Per corpus: speaker count, utterance count, total hours, mean utterance duration.
+- Per corpus per class, for both label spaces: utterance count and share.
+- Class prior vector for every corpus under every label space.
+- Explicit flag on any class with fewer than 100 utterances after mapping.
+
+**Expect this to surface a problem.** IEMOCAP's fear class is very small. If support
+is under about 50 utterances, that class will collapse and it likely explains most of
+the sub-chance results on IEMOCAP pairs. Report the number; do not silently drop the
+class. The decision about whether to exclude it is a paper-level decision, not a
+code-level one.
+
+> **That decision has been made — see A4.** Fear (~40) and disgust (~2) are
+> excluded from IEMOCAP pairs via the `four` label space. This phase must still
+> **report** their support in `dataset_stats.md`, with the exclusion stated
+> explicitly. Verify the ~40 / ~2 figures against the real corpus; they are
+> estimates until the manifest exists.
+
+**Acceptance.** `pytest tests/test_leakage.py tests/test_labelmap.py` passes.
+`dataset_stats.md` renders and every number traces back to `manifest.csv`.
+
+**Do not.** Extract features, load any model, or touch audio content beyond reading
+duration and sample rate.
+
+---
+
+# PHASE 3 — Feature extraction and caching
+
+**Goal.** Extract once, reuse forever. This is the expensive phase and the design
+choice that makes layer selection free downstream.
+
+**Key design point.** Cache **all hidden layers**, not just the last one. For a Base
+model that is 13 states (CNN output plus 12 transformer layers). Storing all of them
+means Phase 5 onward can try any single layer or any weighted sum with zero
+re-extraction. This is what fixes the final-layer-pooling problem cheaply.
+
+**Deliverables.**
+
+- `src/ser/features/ssl.py`: for each backbone, mean-pool over time **per layer**,
+  producing `(n_utterances, 13, 768)` stored as float16.
+- Segment-pooled cache (only if you chose to fix the Transformer): for each
+  utterance, split frames into 8 uniform segments and mean-pool each, producing
+  `(n_utterances, 13, 8, 768)` float16. Store separately so it can be skipped.
+- `src/ser/features/mfcc.py`: 13 base coefficients plus delta and delta-delta,
+  mean-pooled and std-pooled, giving 78 dims. Store both; the paper can use mean only,
+  but std-pooling is nearly free and often helps.
+- Cache keyed by `sha256(manifest_rows) + backbone_name + feature_version`. Never
+  overwrite a cache on a key hit.
+- `src/ser/features/aggregate.py`: given the layer cache and a spec
+  (`last`, `layer:k`, `mean:a-b`, `weighted`), return the pooled matrix. Weighted-sum
+  weights are learnable parameters owned by the classifier, not baked into the cache.
+- `tools/verify_cache.py`: asserts row count matches the manifest, no NaN or Inf,
+  expected shapes, and that the utterance ordering matches the manifest ordering exactly.
+
+**Preprocessing, fixed and documented.** Mono, resample to 16 kHz, peak normalise.
+Same for every corpus and backbone. Record the exact torchaudio/transformers versions
+in the cache metadata.
+
+**Acceptance.** `tools/verify_cache.py` passes for all three backbones. Cache sizes
+and extraction wall time recorded in `PROGRESS.md`. Re-running extraction is a no-op.
+
+**Do not.** Train anything. Do not fit alignment. Do not standardise features at
+extraction time; standardisation is an experimental condition in Phase 5, not a
+preprocessing default.
+
+---
+
+# PHASE 4 — Metrics and trivial baselines
+
+**Goal.** Every table in the paper needs a floor. This phase builds it.
+
+**Deliverables.**
+
+- `src/ser/metrics.py`: macro-F1, accuracy, UAR (unweighted average recall),
+  per-class F1, confusion matrix. Include UAR because most prior work reports it and
+  the comparison table needs a shared axis.
+- Three baselines in `src/ser/baselines.py`, each returning full metrics on
+  `target_test`:
+  1. `uniform_random`: analytic chance value plus an empirical estimate over 1000
+     draws with a CI. For K=6 the analytic macro-F1 is ~0.167; **for K=4 it is
+     0.25** (A4 replaced the 5-class space, so the ~0.20 figure is obsolete).
+     Floors are therefore **pair-dependent**: every table carries the floor for
+     that pair, and nothing averages macro-F1 across pairs of different K.
+  2. `majority_class`: always predicts the most frequent source class. Expect
+     macro-F1 near 0.05 for K=6. This is the collapse floor.
+  3. `prior_matched_random`: samples labels from the source class prior. This is the
+     most honest floor, because it is what a model that has learned nothing about the
+     input but everything about the source prior would score.
+- `src/ser/stats.py`:
+  - Bootstrap CI over test utterances (2000 resamples) for any metric.
+  - Wilcoxon signed-rank paired test across matched runs, for comparing two
+    conditions over the set of (pair, seed) combinations.
+  - Holm-Bonferroni correction helper, since you will run several comparisons.
+- `tests/test_metrics.py`: verifies macro-F1 against sklearn on synthetic data,
+  verifies the collapse case returns the expected analytic value, verifies the
+  uniform-random empirical mean lands within CI of the analytic value.
+
+**Acceptance.** Tests pass. Running baselines for all 9 corpus pairs writes rows to
+`results/runs.jsonl` with `classifier="baseline_*"`.
+
+**Do not.** Train real classifiers. Do not implement alignment.
+
+---
+
+# PHASE 5 — Alignment and blending module
+
+**Goal.** A clean interface, an honest control condition, and a fully specified MMD.
+
+**Interface.** Every alignment method implements:
+
+```python
+class Alignment:
+    def fit(self, X_source, X_target_adapt, target_adapt_indices) -> Self
+    def transform(self, X) -> np.ndarray
+    fitted_on_indices: set   # asserted disjoint from target_test in tests
+```
+
+**Five conditions — the ladder of A2**, ordered by moments matched.
+
+1. `none`: identity. Raw cached features.
+2. `zscore`: per-corpus standardisation only, no covariance matching. **This is the
+   control that decides whether your CORAL gains were ever real.** If z-scoring
+   recovers most of CORAL's improvement, that is the paper's most interesting
+   negative result.
+3. `mean_shift`: `X_src + (μ_tgt − μ_src)`. First moment only, and exactly the
+   minimiser of linear-kernel MMD. This is what the original study's `"mmd"`
+   column actually was. **Never alias `mmd` to this.**
+4. `coral`: whiten source covariance, recolour with target. Regularise with
+   `C + eps*I`; the epsilon must be a config value, reported in the paper, and
+   sensitivity to it checked at three values.
+5. `mmd`: the affine map of A2 — learn `W, b` minimising
+   `MMD²_k(W·X_src + b, X_target_adapt) + λ‖W − I‖²_F`, `k` a sum of RBF kernels
+   at `{0.25, 0.5, 1, 2, 4} × σ_median`. Write the full spec into a docstring:
+   kernel family, bandwidth rule, optimisation steps, learning rate, λ, and what
+   is being learned. All are config values (`alignment.mmd_*`).
+
+**Blending.**
+
+- `none`
+- `scalar`: single α. **α is selected on `source_val`, never on target test.**
+  Search α over {0.0, 0.25, 0.5, 0.75, 1.0}.
+- `gaa`: k-means over feature dimensions into g groups, per-group α_g, each selected
+  on `source_val`. g is a config value.
+
+Blending only applies when alignment is `mean_shift`, `coral`, or `mmd`. With
+`none` or `zscore` the three blending modes are mathematically identical, so the
+runner must not enumerate them. The original study generated 216 duplicate runs
+this way and reported a grid size of 972 when only 756 were distinct.
+
+Note for the paper: in the original, α was **never searched** — `fwaa` and `gaa`
+derived it from `|X_aligned − X_orig|` magnitudes and only `scalar` took an α
+argument. So the draft's Table 3 compares three blending modes at three different
+unspecified α values. Selecting α on `source_val` is a change in kind, not a
+correction to the selection surface; say so.
+
+**Tests.**
+
+- `transform` on `target_test` never causes `fitted_on_indices` to change.
+- `fitted_on_indices ∩ target_test == ∅` for every method.
+- CORAL with source equal to target is approximately identity.
+- Blending with α=1.0 equals pure aligned; α=0.0 equals pure original.
+- `zscore` output has per-corpus mean ≈ 0 and std ≈ 1.
+
+**Acceptance.** Tests pass. A tiny end-to-end run on one corpus pair produces
+sane numbers for all four alignment conditions.
+
+**Do not.** Run the full grid. Do not tune α against target test data under any
+framing.
+
+---
+
+# PHASE 6 — Classifier module with equal-budget search
+
+**Goal.** Remove the asymmetry where the simple baseline runs at library defaults
+while the neural model gets a real training loop.
+
+**Rule for this phase.** Every classifier family gets the same hyperparameter search
+budget, measured in number of configurations evaluated on `source_val`. Set the budget
+in config (suggest 20 configurations per family). No family gets defaults.
+
+**Families.**
+
+- `logreg`: search C (log scale), class_weight (`None`, `balanced`), solver, max_iter.
+- `svm`: search C and gamma (log scale), kernel, class_weight balanced.
+- `mlp`: search hidden dim, depth, dropout, learning rate, weight decay. **Add early
+  stopping on `source_val`.** The original ran a fixed 8 epochs with no early stopping
+  and no validation set, so there was no evidence of convergence.
+- `transformer` (only if you chose to fix it in Decision A): operates on the
+  8-segment cache from Phase 3, so it sees genuine temporal structure. Search depth,
+  heads, hidden dim, learning rate.
+
+**Also implement `layer_agg` as a searchable option**, since Phase 3 cached every
+layer:
+
+- `last` (reproduces the original, keep it as a comparison condition)
+- `layer:k` for k in a small candidate set around the middle layers
+- `weighted` (learnable softmax weights over the 13 layers, trained jointly with the
+  head)
+
+Middle layers carry the paralinguistic signal in these models; the final layer skews
+toward the pretraining objective. Including `last` as a condition lets the paper
+quantify how much of the original study's weak numbers came from this one choice,
+which turns a mistake into a reported finding.
+
+**Selection always happens on `source_val`. Never on target.** This holds for the
+Phase 7 screening pass too (A6): pruning an axis on target-test numbers would
+reinvent the exact leak Phase 2 exists to prevent.
+
+**Acceptance.** For one corpus pair and one backbone, all families run end to end,
+each consumes exactly the configured budget, and the selected hyperparameters are
+written into the result row's `hyperparams_json`.
+
+**Do not.** Run the full grid. Do not add classifier families beyond this list.
+
+---
+
+# PHASE 7 — Grid runner
+
+**Goal.** Execute the full experiment, resumably, with seeds.
+
+**Deliverables.**
+
+> **A6 applies here.** The full factorial is dead. This phase runs a screening
+> pass on one pair and one backbone to prune axes, then a reduced factorial with
+> seeds over what survives. Pruning is scored on `source_val`, **never** on
+> target test. The acceptance criterion below therefore reads "row count equals
+> the enumerated *reduced* configuration count times seeds"; record the pruning
+> decisions and the resulting enumeration in PROGRESS.md.
+
+- `src/ser/run_grid.py`: enumerates distinct configurations, skipping the
+  blending duplicates identified in Phase 5.
+- 5 seeds minimum per configuration. Seeds affect split assignment within the
+  speaker-disjoint constraint, classifier init, and hyperparameter search order.
+- Resumable: on start, read `results/runs.jsonl`, build the set of completed
+  `run_id`s, skip them. Killing and restarting the job must lose at most one run.
+- Append-only writes with a file lock. Never rewrite the results file.
+- Progress logging with ETA, and a periodic checkpoint of how many runs remain.
+- Failure handling: a crashed run writes a row with `status="failed"` and the
+  traceback, then the runner continues. A silent skip is worse than a recorded failure.
+
+**Sanity gates before the long job.** Run a `--smoke` mode over one corpus pair, one
+backbone, one seed, all alignment and classifier conditions. Inspect the numbers.
+If cross-domain macro-F1 is still below the chance value from Phase 4, stop and
+diagnose rather than burning compute on the full grid.
+
+**Acceptance.** Full grid completes. Row count equals the enumerated configuration
+count times seeds, plus baselines. Zero rows with `status="failed"`. A second
+invocation of the runner does nothing.
+
+**Do not.** Analyse results. Do not build tables. That is Phase 8.
+
+---
+
+# PHASE 8 — Selection protocol and headline tables
+
+**Goal.** This is where the paper's central methodological fix lands.
+
+**Two reporting protocols, both reported.**
+
+1. **Validated** (the honest number). For each (source, target, backbone), select
+   the configuration with the best `source_val` macro-F1, then report that
+   configuration's `target_test` macro-F1. This is what a practitioner could actually
+   achieve without target labels.
+2. **Oracle** (the upper bound). Max over the whole grid on `target_test`. Label it
+   explicitly as an oracle. This is what the original Table 1 reported without saying so.
+
+**The gap between them is a result.** Report it as its own table and discuss it. A
+large gap means the field's habit of reporting grid maxima on target test data
+systematically overstates cross-corpus transfer. That is a defensible contribution
+and it costs you nothing extra to make.
+
+**Deliverables.**
+
+- `src/ser/analysis/select.py` implementing both protocols.
+- Regenerated versions of every table from the original paper, under both protocols,
+  each with 95% CIs and each carrying the chance and prior-matched floors as columns:
+  - Top configurations (replaces original Table 1)
+  - ~~Mean cross-domain macro-F1 by backbone and alignment~~ → **killed by A4.**
+    Pairs no longer share a K, so a cross-pair mean is ill-defined, not merely
+    uninformative. Replace with **per-pair macro-F1 by backbone and alignment,
+    each against its own chance floor** (replaces Table 2).
+  - Blending effects in aligned settings (replaces Table 3)
+  - ~~Mean macro-F1 by classifier~~ → per-pair, same reason (replaces Table 4)
+  - Backbone-specific in-domain vs cross-domain gap (replaces Table 5)
+  - New: validated vs oracle gap per pair
+  - New: `last` vs `weighted` layer aggregation, quantifying the layer-pooling fix
+  - New: **the alignment ladder** — `none` / `zscore` / `mean_shift` / `coral` /
+    `mmd` in moment order (A2). Quantifies how much of "alignment" is just
+    standardisation, and what the original's mislabelled `"mmd"` column was worth.
+    A flat ladder is itself the label-shift evidence.
+- Paired significance tests with Holm-Bonferroni for the headline comparisons.
+- `reports/results.md` with all tables rendered.
+
+**Acceptance.** Every table cell traces to `results/runs.jsonl` via a script. No
+number is typed by hand anywhere. Every table with a comparison also carries the
+chance floor.
+
+**Do not.** Write paper prose. Do not make figures.
+
+---
+
+# PHASE 9 — Label-shift analysis and correction
+
+**Goal.** Give the paper a thesis instead of a grid dump.
+
+**The hypothesis.** Cross-corpus transfer asymmetry in SER is driven substantially by
+label prior shift, not covariate shift. CORAL and MMD only address covariate shift,
+which is why they help on some pairs and do nothing on others.
+
+**Deliverables.**
+
+- For all 9 pairs, compute:
+  - `KL(prior_source || prior_target)` and the symmetric Jensen-Shannon distance,
+    using the priors from Phase 2.
+  - A covariate-shift measure: MMD between pooled source and target features, and
+    proxy A-distance from a domain-discriminator.
+- Spearman correlation of each shift measure against validated transfer macro-F1
+  across the 6 cross-domain pairs. Report both, with CIs. If label shift correlates
+  strongly and covariate shift does not, the thesis holds.
+- **Label-shift correction baseline.** Implement EM prior estimation
+  (Saerens-Latinne-Decaestecker): estimate target priors from the source-trained
+  classifier's outputs on `target_adapt` without using any target labels, then
+  reweight posteriors on `target_test`. BBSE is an acceptable alternative.
+- Comparison table: `none`, `zscore`, `coral`, `mmd`, `em_prior`, `coral+em_prior`,
+  `mmd+em_prior`. Paired tests across pairs and seeds.
+- `reports/label_shift.md`.
+
+**Read the outcome honestly.** If EM correction beats CORAL and MMD, you have a
+clear claim. If it does not, that is still reportable and the paper becomes a
+carefully-controlled negative result on alignment methods, which is publishable in
+its own right. Do not tune until it wins.
+
+**Acceptance.** All correlations and comparisons reproducible from a single script.
+The EM implementation has a unit test on synthetic data with a known prior shift.
+
+**Do not.** Selectively report. Every measure computed goes into the report,
+including the ones that do not support the hypothesis.
+
+---
+
+# PHASE 10 — Per-class analysis and figures
+
+**Goal.** Publication-quality figures and the per-class breakdown that costs nothing
+and adds real value.
+
+**Deliverables.**
+
+- Per-class F1 across all cross-domain pairs, as a table and a heatmap. Expect anger
+  and sadness to transfer and happiness, disgust and fear not to. That pattern is
+  a genuine finding sitting in data you already have.
+- Class-collapse diagnostic: for every run, the number of classes with zero predicted
+  instances. Report the share of the grid that collapses. This explains the sub-chance
+  aggregates directly.
+- Rebuilt confusion matrices replacing the original Figure 2:
+  - Class names on both axes, not integer indices.
+  - Row-normalised, shared colour scale across all panels.
+  - Vector output (PDF), legible at single-column width.
+  - Panel captions naming the exact configuration and protocol.
+- Scatter: prior-shift KL on x, validated transfer macro-F1 on y, one point per pair,
+  labelled, with the fitted trend and the Spearman value.
+- Bar chart with CIs comparing alignment conditions, with the chance line drawn in.
+  Drawing the chance line is not optional; it is the single most informative mark on
+  the figure.
+- All figures generated by scripts in `src/ser/analysis/figures.py`, saved to
+  `figures/`, regenerable with one command.
+
+**Acceptance.** `make figures` regenerates every figure from results with no manual
+steps. Every figure is legible when printed at journal column width.
+
+**Do not.** Hand-edit any figure in an image editor. If it needs fixing, fix the script.
+
+---
+
+# PHASE 11 — Release packaging and LaTeX table generation
+
+**Goal.** Make the artefact reviewable and make paper tables impossible to drift from
+results.
+
+**Deliverables.**
+
+- `README.md`: exact commands to reproduce every table and figure from raw corpora,
+  including expected wall time and disk requirements.
+- Environment lock file. Verify a clean-machine install.
+- `src/ser/analysis/latex.py`: emits every paper table as a `.tex` file directly from
+  `results/runs.jsonl`. The paper `\input{}`s these. No number is ever typed into the
+  manuscript by hand.
+- Consolidate the Phase 2 and Phase 5 leakage assertions into a single
+  `make verify` target. This is your "executable checks, not a form" requirement,
+  and it goes in the paper as a reproducibility statement with the command name in it.
+- Ready-to-paste manuscript sections:
+  - Data availability statement
+  - Code availability statement, with the archive DOI
+  - Author contributions
+  - Funding statement
+  - Conflict of interest statement
+  - Brief ethics note (affective inference on human subjects, public corpora, no new
+    data collection)
+- Archive the repo to Zenodo, get a DOI, put it in the paper.
+- Anonymised variant of the repo for double-blind submission, if the target venue
+  requires it.
+
+**Acceptance.** A clean clone plus `make verify && make tables && make figures`
+produces byte-identical tables and figures. Someone who is not you can follow the
+README start to finish.
+
+**Do not.** Write the manuscript prose. That is your job, not Claude Code's.
+
+---
+
+## After Phase 11
+
+The rewrite is a human task. The structural changes the manuscript needs:
+
+- New Section 2 Related Work, moved out of the Results section.
+- Rebuilt comparison-with-prior-work table: replace the "reported performance" column
+  with a protocol column (what is controlled, whether target labels are used, how
+  selection is done). Comparing your macro-F1 against other papers' accuracy on
+  different corpora makes you look far worse than you are and proves nothing.
+- Abstract carrying actual numbers, including the validated-versus-oracle gap.
+- Title sharpened to state the claim rather than list the components.
+- Limitations section.
+- Corresponding author email and ORCIDs.
+
+Then run your venue-benchmark rule: pull Pastor et al. 2023 from Applied Sciences,
+run the same surface test on it that you would run on your own paper, and fix
+whatever the comparison exposes before you submit.

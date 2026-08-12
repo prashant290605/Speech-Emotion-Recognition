@@ -1,220 +1,123 @@
-# Speech Emotion Recognition
+# Cross-Corpus Speech Emotion Recognition
 
-Research repository for **cross-corpus Speech Emotion Recognition (SER)** with:
+Cross-corpus SER over RAVDESS, CREMA-D, and IEMOCAP with self-supervised speech
+representations (HuBERT Base, wav2vec 2.0 Base, WavLM Base), feature alignment,
+and several classifier heads.
 
-- hybrid **SSL + MFCC** representations
-- configurable **alignment** (`none`, `mmd`, `coral`)
-- configurable **blending** (`none`, `scalar`, `fwaa`, `gaa`)
-- multiple **classifier heads** (`logreg`, `svm`, `mlp`, `aplin`, `transformer`)
-- **in-domain** and **cross-domain** evaluation on RAVDESS, CREMA-D, and IEMOCAP
+> ## ⚠️ Results under revision
+>
+> **This repository is mid-rebuild. No performance numbers are currently
+> published here, and any figures you may have seen in an earlier version of this
+> README or in the draft manuscript should not be cited or relied on.**
+>
+> An audit of the original pipeline (recorded in [PROGRESS.md](PROGRESS.md))
+> found methodological defects serious enough to invalidate the reported results:
+>
+> - Feature alignment was fitted on the target **test** set, not just the target
+>   adaptation split — transductive leakage into every aligned condition.
+> - Model selection was performed on target-test scores, with no source-side
+>   validation split in existence.
+> - The condition reported as **MMD** was implemented as a plain mean shift,
+>   `X_src + (μ_tgt − μ_src)` — no kernel, no learned map, no optimisation.
+> - SSL features used final-layer pooling only.
+> - A single hardcoded seed, so no run-to-run variance was ever measured.
+> - No chance or prior-matched floors, against which several reported numbers
+>   need re-reading.
+>
+> Corrected results will be published here when the rebuild completes. Until
+> then, please treat this repository as code under active revision rather than as
+> an accompaniment to any published claim.
 
-This repository is prepared for research presentation, academic reproducibility, and public code review. Raw datasets are **not** included.
+## Status
 
-## Repository Status
+The rebuild is organised as twelve phases; see [PHASES.md](PHASES.md) for the
+plan and [PROGRESS.md](PROGRESS.md) for the running log of what has been done,
+decided, and deferred.
 
-- Main research pipeline: [`strict_modular_ser.py`](./strict_modular_ser.py)
-- Full experiment sweep: [`full_run.py`](./full_run.py)
-- Legacy / earlier experiment scripts are retained for traceability and comparison.
+| Phase | | Status |
+|---|---|---|
+| 0 | Scaffold and reproducibility spine | complete |
+| 1 | Reference integrity checker | not started |
+| 2 | Manifest, label map, splits, leakage tests | not started |
+| 3 | Feature extraction and caching | not started |
+| 4 | Metrics and trivial baselines | not started |
+| 5 | Alignment and blending | not started |
+| 6 | Classifiers with equal-budget search | not started |
+| 7 | Grid runner | not started |
+| 8 | Selection protocol and headline tables | not started |
+| 9 | Label-shift analysis and correction | not started |
+| 10 | Per-class analysis and figures | not started |
+| 11 | Release packaging and LaTeX tables | not started |
 
-## Project Structure
+The original pipeline is preserved untouched under [`legacy/`](legacy/) for
+traceability. It is **not** the entry point and should not be run for new work.
 
-```text
-.
-├── strict_modular_ser.py        # Main modular SER pipeline
-├── full_run.py                  # Exhaustive experiment runner
-├── phase*.py                    # Phase-based experimental scripts
-├── run_all_phases.py            # Sequential runner for phase scripts
-├── progress_utils.py            # Logging helpers
-├── results_utils.py             # Result serialization helpers
-├── svm_utils.py                 # SVM experiment utilities
-├── coral.py                     # CORAL alignment utilities
-├── ravdess_preprocessing.py     # Dataset preprocessing helpers
-├── baseline_ser_mfcc.py         # Legacy MFCC baseline
-├── cross_dataset_eval.py        # Legacy cross-dataset baseline
-├── wav2vec2_cross_dataset_eval.py
-│                                # Earlier wav2vec2 pipeline
-├── SER_Report.tex               # Current research paper source
-├── cross_corpus_ser_paper.tex   # Older paper draft
-├── requirements.txt             # Reproducible Python dependencies
-└── README.md
-```
+## What the rebuild changes
+
+- Speaker-disjoint splits with an explicit `target_adapt` / `target_test`
+  separation. Alignment may see `target_adapt` only; `target_test` is touched
+  once, at scoring time. Alignment objects record the indices they were fitted
+  on, and this is asserted, not asserted-in-prose.
+- All hidden layers cached, so layer aggregation becomes a searchable condition
+  rather than an unexamined default.
+- Two reporting protocols, both published: **validated** (configuration selected
+  on source-side validation — what a practitioner could achieve without target
+  labels) and **oracle** (grid maximum on target test). The gap between them is
+  reported as a result in its own right.
+- An ordered alignment ladder — identity, z-score, mean shift, CORAL, MK-MMD —
+  by moments matched, rather than two arbitrary points of comparison.
+- Chance, majority-class, and prior-matched floors on every table.
+- Five seeds minimum, with paired significance tests.
+- Every result row carries its git SHA, config hash, label-map hash, split hash,
+  and library versions. Every table and figure is generated from
+  `results/runs.jsonl` by script; no number is typed by hand.
 
 ## Environment
 
-- Recommended Python: **3.10 or 3.11**
-- PyTorch + Transformers are required for SSL backbones.
-- `matplotlib` is used for confusion matrix export.
-
-### Setup
+Python 3.12. Fully pinned; see [requirements.txt](requirements.txt).
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+python -m pip install -r requirements.txt && python -m pip install -e .
 ```
 
-## Dataset Preparation
-
-Datasets must be downloaded manually and kept **outside version control**.
-
-Expected local directories:
-
-```text
-Radvess/
-Crema D/
-IEMOCAP/
-MAED/     # optional; local support exists but not required for the main paper sweep
-```
-
-### Notes
-
-- The repository `.gitignore` excludes all raw corpora and large media.
-- Do **not** commit dataset folders, extracted features, or cached model artifacts.
-- If you want a single common root, place datasets in the repository root as above.
-
-## Main Pipeline
-
-The main pipeline implemented in [`strict_modular_ser.py`](./strict_modular_ser.py) follows:
-
-```text
-audio
-├── SSL branch   -> extract_ssl -> align_ssl -> blend_ssl
-├── MFCC branch  -> extract_mfcc
-└── fusion       -> concat([SSL_final ; MFCC]) -> classifier
-```
-
-Key design constraints:
-
-- alignment is applied **only** to SSL features
-- MFCC features are **never aligned**
-- fusion happens **after** SSL blending
-- the classifier sees only the concatenated hybrid representation
-
-## Running Experiments
-
-### Quick single experiment
+## Usage
 
 ```bash
-python - <<'PY'
-from strict_modular_ser import run_experiment
-
-config = {
-    "src_dataset": "ravdess",
-    "tgt_dataset": "crema",
-    "backbone": "hubert",
-    "alignment": "mmd",
-    "blending": "gaa",
-    "alpha": None,
-    "classifier": "logreg",
-}
-
-print(run_experiment(config))
-PY
+ser --help
 ```
 
-### Fast debug run
+`ser inventory` reports repository state, configuration, and open decisions.
+`ser smoke` exercises the result-writing path end to end. Commands belonging to
+phases that are not yet built exit with the phase number that owns them.
+
+On Windows, or without `make`:
 
 ```bash
-python - <<'PY'
-from strict_modular_ser import run_experiment
-
-config = {
-    "src_dataset": "ravdess",
-    "tgt_dataset": "crema",
-    "backbone": "hubert",
-    "alignment": "coral",
-    "blending": "gaa",
-    "alpha": None,
-    "classifier": "transformer",
-    "ultra_debug": True,
-}
-
-print(run_experiment(config))
-PY
+PYTHONPATH=src python -m ser.cli inventory
 ```
 
-### Full sweep
+Every experimental value lives in [`configs/default.yaml`](configs/default.yaml).
+Configuration loading is strict — an unknown or missing key is an error, never a
+silent default.
+
+## Tests
 
 ```bash
-python full_run.py
+python -m pytest
 ```
 
-The full sweep covers:
+## Data
 
-- in-domain and cross-domain pairs for `ravdess`, `crema`, `iemocap`
-- plain baseline runs
-- alignment / blending / classifier combinations
-
-## Current Results Snapshot
-
-The repository includes logged full-run results in local `results/results.json` during experimentation. The strongest observed cross-domain settings from the current run history are:
-
-| Source -> Target | Backbone | Alignment | Blending | Classifier | Macro-F1 |
-|---|---|---|---|---|---:|
-| ravdess -> crema | hubert | mmd | gaa | logreg | 0.4111 |
-| ravdess -> crema | hubert | mmd | scalar (`alpha=0.5`) | logreg | 0.3995 |
-| ravdess -> crema | hubert | mmd | none | mlp | 0.3775 |
-| ravdess -> crema | hubert | mmd | none | logreg | 0.3730 |
-| crema -> ravdess | hubert | mmd | gaa | svm | 0.3715 |
-
-Observed aggregate trends from the recorded run matrix:
-
-- **HuBERT** is the strongest backbone on average.
-- **CORAL** and **MMD** both help on average, but gains are pair-dependent.
-- **GAA** appears in several top configurations, but is not uniformly best in average-case analysis.
-- **Logistic regression** remains highly competitive despite stronger nonlinear heads being available.
-
-## Outputs
-
-The main pipeline writes experiment artifacts locally under:
-
-```text
-results/
-└── confusion/
-feature_cache/
-```
-
-These are intentionally ignored by Git.
-
-## Reproducibility Notes
-
-- Set a consistent random seed where exposed by the scripts.
-- Cached features are separated from source code and excluded from version control.
-- The project includes explicit dependency versions in [`requirements.txt`](./requirements.txt).
-- The main modular pipeline supports reproducible configuration dictionaries for experiments.
-
-## Legacy Scripts
-
-Several scripts remain in the repository because they document earlier experimental phases:
-
-- `phase0_baseline.py` to `phase13_svm_gaa_reverse.py`
-- `wav2vec2_cross_dataset_eval.py`
-- `baseline_ser_mfcc.py`
-- `cross_dataset_eval.py`
-
-These are kept for research traceability, not because they are the preferred public entry points. For new work, use:
-
-- [`strict_modular_ser.py`](./strict_modular_ser.py)
-- [`full_run.py`](./full_run.py)
+Raw corpora are licence-restricted and are not distributed here. RAVDESS and
+CREMA-D are public downloads; IEMOCAP requires a signed agreement with USC. Point
+`paths.raw_*` in the config at local copies.
 
 ## Paper
 
-- Current report: [`SER_Report.tex`](./SER_Report.tex)
-- Earlier draft retained: [`cross_corpus_ser_paper.tex`](./cross_corpus_ser_paper.tex)
+The manuscript sources are under [`legacy/`](legacy/) and are being rewritten
+alongside the code. They contain the pre-revision results described above.
 
-## What Is Not Committed
+## License
 
-The public repository should **not** contain:
-
-- raw datasets
-- extracted features
-- model checkpoints
-- logs / outputs / cache
-- virtual environments
-- notebook checkpoints
-- local secrets or `.env` files
-
-## License / Usage
-
-Add a project license before public release if you want explicit reuse permissions. Until then, treat the repository as research code accompanying ongoing work.
+No licence is currently granted. Treat this as research code accompanying work in
+progress.

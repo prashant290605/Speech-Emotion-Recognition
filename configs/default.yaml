@@ -1,0 +1,198 @@
+# Default configuration for the cross-corpus SER rebuild.
+#
+# Everything that can change a number lives here. Scripts read this file; they
+# never hardcode values. A result is reproducible from (this file, a seed).
+#
+# Loading is strict: unknown keys, missing keys, and out-of-range values raise
+# at load time. See src/ser/config.py.
+
+project:
+  name: cross-corpus-ser
+  # Master seed. Per-run seeds come from splits.seeds; this one seeds anything
+  # that happens outside a run (manifest ordering, cache construction).
+  seed: 42
+  results_path: results/runs.jsonl
+
+paths:
+  # Raw corpora are licence-restricted and never committed. Point these at
+  # local copies; Phase 2 walks them to build the manifest.
+  raw_ravdess: data/raw/RAVDESS
+  raw_cremad: data/raw/CREMA-D
+  raw_iemocap: data/raw/IEMOCAP
+  manifest: data/manifest.csv
+  cache_dir: data/cache
+  reports_dir: reports
+  figures_dir: figures
+
+labels:
+  # Bump when the semantics of ser.labels.map_label change in a way the keys
+  # below do not express. Feeds label_map_hash, a run_id coordinate.
+  label_map_version: v1
+
+  # Class order is alphabetical and is the index order of every confusion
+  # matrix in the paper. Do not reorder.
+  #
+  # 'four' replaces the original plan's 'five'. IEMOCAP disgust has ~2
+  # utterances and fear ~40; across 10 speakers that is ~4 fear utterances per
+  # speaker-disjoint fold, so macro-F1 collapse on IEMOCAP pairs is guaranteed
+  # by construction and would be misread as transfer failure. IEMOCAP pairs run
+  # as canonical 4-class instead.
+  #
+  # CONSEQUENCE: chance floors now differ by pair -- 1/6 = 0.167 for
+  # RAVDESS<->CREMA-D, 1/4 = 0.250 for IEMOCAP pairs. No headline number may
+  # average macro-F1 across pairs; report per-pair against per-pair chance.
+  spaces:
+    six:  [angry, disgust, fear, happy, neutral, sad]
+    four: [angry, happy, neutral, sad]
+  space_for_iemocap_pairs: four
+  space_for_other_pairs: six
+
+  # Any class with fewer than this many utterances after mapping is flagged in
+  # reports/dataset_stats.md.
+  min_class_support_warn: 100
+
+  # ---------------------------------------------------------------------
+  # DECIDED 2026-08-10. Rationale in PROGRESS.md; each belongs in the paper's
+  # data section. Values the original used are noted where they differ.
+  # ---------------------------------------------------------------------
+
+  # Standard IEMOCAP convention; makes the 4-class setup comparable to the
+  # literature. Happy goes from ~595 to ~1636 utterances. (Original: same.)
+  iemocap_excited_to_happy: true
+
+  # DROP, do not merge into angry. Frustration has ~1849 utterances against
+  # anger's ~1103, so merging would make 'angry' ~30% of retained IEMOCAP --
+  # manufacturing the label-prior skew the paper's thesis then claims to
+  # discover. Neither RAVDESS nor CREMA-D elicits frustration, so the merge
+  # would also import acoustic material with no counterpart in the target
+  # space. (Original: merge_angry.)
+  iemocap_frustrated: drop
+
+  # Both. Scripted sessions repeat sentences across speakers and emotions -- a
+  # lexical confound -- but improvised alone roughly halves IEMOCAP.
+  # Per-utterance subset is recorded in the manifest so improvised-only is
+  # available as a free robustness check. (Original: both, unrecorded.)
+  iemocap_subsets: both
+  iemocap_record_subset: true
+
+  # Merge. Calm exists only in RAVDESS, so it cannot transfer and cannot be
+  # evaluated cross-corpus. Merging gives neutral 288 against 192 for every
+  # other class; dropping would leave neutral at 96 against 192. Neither is
+  # balanced -- RAVDESS is balanced at 8 classes, NOT at the 6-class
+  # intersection. The "RAVDESS is exactly balanced" claim in the current draft
+  # must be corrected. (Original: same.)
+  ravdess_calm_to_neutral: true
+
+splits:
+  # Bump when split construction changes in a way the keys below do not
+  # express. Feeds split_spec_hash, a run_id coordinate.
+  split_spec_version: v1
+
+  # Source corpus -> source_train / source_val, speaker-disjoint.
+  source_train_ratio: 0.8
+  # Target corpus -> target_adapt / target_test, speaker-disjoint.
+  # target_adapt is the ONLY target data any alignment method may see.
+  target_adapt_ratio: 0.5
+  # IEMOCAP splits on session, the standard unit for that corpus.
+  iemocap_split_unit: session
+  # One split realisation per seed. Minimum five.
+  seeds: [0, 1, 2, 3, 4]
+
+features:
+  # Bump when the extraction code changes in a way that alters values. Part of
+  # the cache key, so old and new features can never be mixed.
+  feature_version: v1
+
+  # Preprocessing, identical for every corpus and backbone.
+  sample_rate: 16000
+  mono: true
+  peak_normalise: true
+
+  backbones:
+    hubert: facebook/hubert-base-ls960
+    wav2vec2: facebook/wav2vec2-base
+    wavlm: microsoft/wavlm-base
+
+  # Base models: CNN feature-encoder output plus 12 transformer layers.
+  n_layers: 13
+  hidden_dim: 768
+  storage_dtype: float16
+
+  # Segment-pooled cache for the Transformer baseline (Decision A: fix, not
+  # drop). 8 uniform temporal segments give it real sequence structure at 8x
+  # storage. Set false to drop the Transformer instead.
+  segment_pooling_enabled: true
+  n_segments: 8
+
+  # 13 coefficients + delta + delta-delta, mean- and std-pooled -> 78 dims.
+  mfcc_n_coefficients: 13
+  mfcc_deltas: true
+  mfcc_pooling: [mean, std]
+
+alignment:
+  # The ladder, ordered by which moments each condition matches:
+  #   zscore      per-dimension 1st + 2nd, no cross-terms
+  #   mean_shift  1st            (= MMD under a linear kernel)
+  #   coral       1st + 2nd, with covariance
+  #   mmd         all, via a sum of RBF kernels
+  # Reported as one ordered ablation, not as scattered points. If performance
+  # is flat across the ladder, the shift is demonstrably not covariate -- shown
+  # with an ordered series rather than two arbitrary comparisons.
+  methods: [none, zscore, mean_shift, coral, mmd]
+
+  # Covariance regularisation: C + eps*I.
+  coral_eps: 1.0e-5
+  # Sensitivity is reported at exactly three settings.
+  coral_eps_sensitivity: [1.0e-6, 1.0e-5, 1.0e-4]
+
+  # MMD operator, fully specified (Decision B). Learn an affine map (W, b)
+  # minimising
+  #
+  #     MMD^2_k(W.X_src + b, X_target_adapt) + lambda * ||W - I||_F^2
+  #
+  # with k a sum of RBF kernels at these multiples of the median pairwise
+  # distance. Fitted on source_train and target_adapt ONLY -- never target_test.
+  #
+  # 'mean_shift' is the separate first rung, NOT an alias for this. The
+  # original study's "mmd" was X_src + (mu_tgt - mu_src), which is exactly the
+  # minimiser of linear-kernel MMD: a degenerate special case of what it
+  # claimed. Both rungs are reported so that column's real value is measured.
+  mmd_kernel: gaussian_multikernel
+  mmd_bandwidth_multipliers: [0.25, 0.5, 1.0, 2.0, 4.0]
+  mmd_fit_bias: true
+  mmd_identity_penalty: 0.1     # lambda on ||W - I||_F^2
+  mmd_steps: 500
+  mmd_learning_rate: 1.0e-3
+
+blending:
+  modes: [none, scalar, gaa]
+  # alpha is selected on source_val. Never on target test.
+  alpha_grid: [0.0, 0.25, 0.5, 0.75, 1.0]
+  # k-means over feature dimensions into this many groups, per-group alpha.
+  n_groups: 16
+
+classifiers:
+  families: [logreg, svm, mlp, transformer]
+  # Configurations evaluated on source_val, per family. Equal for every family:
+  # no family runs at library defaults while another gets a training loop.
+  search_budget: 20
+  early_stopping_patience: 10
+
+  # Layer aggregation is a searchable option because Phase 3 caches all layers.
+  # 'last' is kept as a condition so the paper can quantify how much of the
+  # original study's weak numbers came from final-layer-only pooling.
+  layer_agg_options: [last, layer, mean, weighted]
+  layer_candidates: [4, 6, 8, 10]
+
+grid:
+  corpora: [ravdess, cremad, iemocap]
+  feature_branches: [ssl, mfcc, fused]
+
+baselines:
+  # Draws for the empirical uniform-random and prior-matched estimates.
+  n_random_draws: 1000
+
+stats:
+  bootstrap_resamples: 2000
+  ci_level: 0.95
+  correction: holm-bonferroni
