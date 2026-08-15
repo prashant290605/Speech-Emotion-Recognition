@@ -211,7 +211,8 @@ class AlignmentConfig:
     mmd_lambda_grid: List[float]
     mmd_fit_bias: bool
     mmd_steps: int
-    mmd_learning_rate: float
+    mmd_step_norm: float
+    mmd_warm_start: str
     mmd_batch_size: int
 
     # Ordered by moments matched. Used to order the ablation table.
@@ -242,8 +243,25 @@ class AlignmentConfig:
                 "value: W is ~590k parameters fitted on ~1000 samples and the "
                 "regularisation strength decides whether it generalises at all"
             )
+        if self.mmd_step_norm <= 0:
+            raise ConfigError("alignment.mmd_step_norm must be positive")
+        if self.mmd_warm_start not in ("coral", "identity"):
+            raise ConfigError(
+                "alignment.mmd_warm_start must be 'coral' or 'identity'"
+            )
         if self.mmd_batch_size < 4:
             raise ConfigError("alignment.mmd_batch_size must be at least 4")
+
+    def learning_rate_for(self, n_parameters: int) -> float:
+        """Adam lr giving a step of ~``mmd_step_norm`` in Frobenius norm.
+
+        Adam's update is ~lr per parameter, so ||dW||_F ~= lr * sqrt(P). Solving
+        for lr makes one step mean the same displacement whether W is diagonal
+        (768 parameters) or full (~590k).
+        """
+        import math
+
+        return self.mmd_step_norm / math.sqrt(max(n_parameters, 1))
 
     def ladder_order(self) -> List[str]:
         """Configured methods, in ladder order."""
@@ -272,16 +290,25 @@ class ClassifiersConfig:
     families: List[str]
     search_budget: int
     early_stopping_patience: int
+    max_epochs: int
     layer_agg_options: List[str]
     layer_candidates: List[int]
 
+    # 'weighted' learns a softmax over the 13 layers jointly with the head, so
+    # it needs a model with trainable parameters. sklearn families cannot.
+    TORCH_FAMILIES = ("mlp", "transformer")
+
     def __post_init__(self) -> None:
-        allowed = {"logreg", "svm", "mlp", "transformer"}
+        allowed = {"logreg", "svm_linear", "svm_rbf", "mlp", "transformer"}
         unknown = sorted(set(self.families) - allowed)
         if unknown:
             raise ConfigError(f"classifiers.families contains unknown family: {unknown}")
         if self.search_budget < 1:
             raise ConfigError("classifiers.search_budget must be at least 1")
+        if self.max_epochs < 1:
+            raise ConfigError("classifiers.max_epochs must be at least 1")
+        if self.early_stopping_patience < 1:
+            raise ConfigError("classifiers.early_stopping_patience must be at least 1")
         agg_allowed = {"last", "layer", "mean", "weighted"}
         unknown_agg = sorted(set(self.layer_agg_options) - agg_allowed)
         if unknown_agg:
@@ -370,6 +397,94 @@ class Config:
         """sha256 over the canonicalised raw config. Recorded on every row."""
         return hash_payload(self.raw)
 
+    # ------------------------------------------------------------------
+    # Which config sections each run_id facet hash covers.
+    #
+    # config_hash is NOT a run_id coordinate. It is far too coarse: editing an
+    # unrelated section changed every run_id and orphaned 60 completed baseline
+    # rows in Phase 5. These facets pin the semantics that actually determine
+    # what a run computes, so an edit only invalidates the runs it can affect.
+    #
+    # Every config key must be covered here or listed in INERT_CONFIG_KEYS, and
+    # a test fails when a new key appears in neither. See PHASES.md A6.
+    # ------------------------------------------------------------------
+    FACET_SECTIONS = {
+        "label_map_hash": ("labels",),
+        "split_spec_hash": ("splits",),
+        "feature_spec_hash": ("features",),
+        "search_spec_hash": ("alignment", "blending", "classifiers", "baselines", "stats"),
+    }
+
+    # splits.seeds is excluded from split_spec_hash because the per-run `seed`
+    # is already its own run_id coordinate; hashing the whole list would make
+    # adding a sixth seed invalidate the five that already ran.
+    FACET_EXCLUSIONS = {"split_spec_hash": ("seeds",)}
+
+    # Keys that genuinely cannot change what a run computes.
+    #   project.*  naming, master seed (per-run seeds come from splits.seeds),
+    #              and where results are written
+    #   paths.*    where inputs live, not what they contain -- the manifest
+    #              hashes file *content* into label_map_hash's inputs
+    #   grid.*     which runs are enumerated, not what any one run computes;
+    #              a row already records its own corpora
+    #   shift.*    Phase 9 analysis parameters, applied after every run exists
+    INERT_CONFIG_KEYS = ("project", "paths", "grid", "shift")
+
+    # Keys excluded from a facet because a dedicated run_id coordinate already
+    # captures them. Mapping to the coordinate, so the claim is checkable.
+    COORDINATE_COVERED_KEYS = {"splits.seeds": "seed"}
+
+    def classify_config_key(self, section: str, key: str) -> str:
+        """How a config key reaches ``run_id``: a facet, a coordinate, or inert.
+
+        Raises for a key that is none of the three. That is the point: a new
+        config key must be classified deliberately, not default into invisibility.
+        """
+        dotted = f"{section}.{key}"
+        if dotted in self.COORDINATE_COVERED_KEYS:
+            return f"coordinate:{self.COORDINATE_COVERED_KEYS[dotted]}"
+        for facet, sections in self.FACET_SECTIONS.items():
+            if section in sections and key not in self.FACET_EXCLUSIONS.get(facet, ()):
+                return f"facet:{facet}"
+        if section in self.INERT_CONFIG_KEYS:
+            return "inert"
+        raise ConfigError(
+            f"config key '{dotted}' is neither covered by a run_id facet nor "
+            "declared inert. Add it to a FACET_SECTIONS section, to "
+            "COORDINATE_COVERED_KEYS, or to INERT_CONFIG_KEYS -- with a reason. "
+            "An unclassified key can change a result without changing run_id."
+        )
+
+    def _facet_payload(self, facet: str) -> Dict[str, Any]:
+        excluded = set(self.FACET_EXCLUSIONS.get(facet, ()))
+        payload = {}
+        for section in self.FACET_SECTIONS[facet]:
+            values = dict(self.raw[section])
+            for key in excluded:
+                values.pop(key, None)
+            payload[section] = values
+        return payload
+
+    def facet_hash(self, facet: str) -> str:
+        if facet not in self.FACET_SECTIONS:
+            raise ConfigError(f"unknown facet {facet!r}")
+        return hash_payload(self._facet_payload(facet))[:16]
+
+    @property
+    def feature_spec_hash(self) -> str:
+        """sha256 over the feature extraction spec. A ``run_id`` coordinate."""
+        return self.facet_hash("feature_spec_hash")
+
+    @property
+    def search_spec_hash(self) -> str:
+        """sha256 over the searched space and reported statistics.
+
+        Changing a search grid changes which hyperparameter could be selected,
+        so it changes what the run means even when every other coordinate is
+        identical.
+        """
+        return self.facet_hash("search_spec_hash")
+
     @property
     def label_map_hash(self) -> str:
         """sha256 over the resolved label mapping. A ``run_id`` coordinate.
@@ -379,7 +494,7 @@ class Config:
         resume silently merges runs scored against different label spaces --
         a corruption nothing downstream could detect.
         """
-        return hash_payload(self.raw["labels"])[:16]
+        return self.facet_hash("label_map_hash")
 
     @property
     def split_spec_hash(self) -> str:
@@ -388,7 +503,7 @@ class Config:
         Same argument as :attr:`label_map_hash`: a changed ratio or split unit
         must produce new run ids rather than colliding with old ones.
         """
-        return hash_payload(self.raw["splits"])[:16]
+        return self.facet_hash("split_spec_hash")
 
     @property
     def seed(self) -> int:

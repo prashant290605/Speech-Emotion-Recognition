@@ -81,9 +81,10 @@ def run_baselines(config, corpora: Sequence[str], *, force: bool = False) -> int
 
             for name, result in floors.items():
                 coords = {
-                    "config_hash": config.config_hash,
                     "label_map_hash": config.label_map_hash,
                     "split_spec_hash": config.split_spec_hash,
+                    "feature_spec_hash": config.feature_spec_hash,
+                    "search_spec_hash": config.search_spec_hash,
                     "seed": seed,
                     "source_corpus": source,
                     "target_corpus": target,
@@ -133,6 +134,11 @@ def run_baselines(config, corpora: Sequence[str], *, force: bool = False) -> int
                     confusion_json=json.dumps(result.confusion),
                     **floor_columns,
                     selection_source_val_macro_f1=None,
+                    cov_condition_number=None,
+                    cov_effective_rank=None,
+                    n_search_trials=None,
+                    marginal_mmd_raw=None,
+                    marginal_mmd_normalised=None,
                     wall_seconds=round(elapsed / len(floors), 6),
                     status="ok",
                     error=None,

@@ -277,23 +277,42 @@ Pruning is scored on the **source-side validation split, never on target test** 
 otherwise the screening pass reinvents the exact leak Phase 2 exists to prevent.
 A designed ablation is a contribution; an exhaustive sweep is a table.
 
-> **FREEZE THE CONFIG BEFORE THE GRID RUNS.** `config_hash` is a `run_id`
-> coordinate, so **any** edit to `configs/default.yaml` — even to a section the
-> run never reads, such as `stats.bootstrap_resamples` — changes every `run_id`
-> and orphans every completed run. Observed for real in Phase 5: editing the
-> `alignment` section made the 60 baseline rows re-run rather than resume, and
-> `results/runs.jsonl` now holds three `config_hash` generations.
+> **RESOLVED in schema v4 — `config_hash` is no longer a `run_id` coordinate.**
 >
-> That is the conservative behaviour and it is deliberate — two runs under
-> different configs must never be conflated — but at grid scale it is the
-> difference between resuming and restarting. So:
+> It was, and that was wrong: **any** edit to `configs/default.yaml` — even to a
+> section the run never reads — changed every `run_id` and orphaned every
+> completed run. Observed for real in Phase 5, where editing the `alignment`
+> section made the 60 baseline rows re-run rather than resume.
 >
-> - Freeze the config, run the screening pass, freeze again, then run the grid.
-> - Analysis **must filter by `config_hash`**; superseded generations stay in
->   the file, because the file is append-only by design.
-> - If a late config fix is genuinely required mid-grid, that is a decision to
->   take deliberately and record, not something to discover from a resume that
->   silently redoes 40 hours of work.
+> `run_id` now uses **four facet hashes** instead, each covering the part of the
+> config that actually determines what a run computes:
+>
+> | facet | covers | so an edit invalidates |
+> |---|---|---|
+> | `label_map_hash` | `labels` | runs whose labels could differ |
+> | `split_spec_hash` | `splits` (minus `seeds`) | runs whose partitions could differ |
+> | `feature_spec_hash` | `features` | runs whose features could differ |
+> | `search_spec_hash` | `alignment`, `blending`, `classifiers`, `baselines`, `stats` | runs whose selected hyperparameter could differ |
+>
+> `splits.seeds` is excluded because the per-run `seed` is already its own
+> coordinate — otherwise adding a sixth seed would invalidate the five that
+> already ran. `config_hash` is still **recorded** on every row for provenance.
+>
+> **Every config key must be classified.** `Config.classify_config_key` maps each
+> key to a facet, to a dedicated coordinate, or to `INERT_CONFIG_KEYS`
+> (`project`, `paths`, `grid`, `shift` — naming, locations, which runs get
+> enumerated, and post-hoc analysis parameters). A test walks the whole config
+> and fails on any key that is in none of the three, because an unclassified key
+> can change a result without changing `run_id`. This is the mirror of the
+> existing test that no `run_id` coordinate is inert.
+>
+> **Freeze the config before the grid anyway.** The facets make an unrelated edit
+> harmless, but an edit *within* a facet still invalidates that facet's runs, and
+> `search_spec_hash` is deliberately broad. Freeze, screen, freeze, run.
+>
+> A `run_id` coordinate change cannot be migrated — old ids were computed over a
+> different field set, so carrying them forward would assert an equivalence that
+> does not hold. `tools/migrate_results.py` refuses and says so.
 
 ---
 

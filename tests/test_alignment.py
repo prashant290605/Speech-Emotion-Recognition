@@ -252,7 +252,14 @@ def test_median_bandwidth_of_identical_points_does_not_divide_by_zero():
 
 
 @pytest.mark.parametrize("diagonal", [True, False])
-def test_mkmmd_reduces_mmd_and_records_lambda(config, data, diagonal):
+def test_mkmmd_reduces_mmd_against_no_alignment(config, data, diagonal):
+    """The invariant is the *evaluated* MMD against the unaligned baseline.
+
+    Not `final_objective < initial_objective`: those are minibatch estimates at
+    different steps on different batches, so the comparison is noisy, and with a
+    warm start the initial value is already good. What must hold is that the
+    fitted transform is better than doing nothing.
+    """
     A, B = data
     name = "mkmmd_diag" if diagonal else "mkmmd_full"
     alignment = build_alignment(name, config, lam=0.01, seed=0)
@@ -260,7 +267,19 @@ def test_mkmmd_reduces_mmd_and_records_lambda(config, data, diagonal):
 
     assert alignment.diagnostics["lambda"] == 0.01
     assert alignment.diagnostics["diagonal"] is diagonal
-    assert alignment.diagnostics["final_mmd2"] < alignment.diagnostics["initial_mmd2"]
+    assert alignment.diagnostics["warm_start"] in (
+        "coral",
+        "diagonal_moment_match",
+        "identity",
+    )
+    assert alignment.diagnostics["learning_rate"] > 0
+
+    bandwidth = median_bandwidth(A, B, seed=0)
+    unaligned = multi_kernel_mmd2(A, B, bandwidth=bandwidth)
+    aligned = multi_kernel_mmd2(
+        alignment.transform(A), B, bandwidth=bandwidth
+    )
+    assert aligned < unaligned
 
 
 def test_mkmmd_diagonal_has_far_fewer_parameters(config, data):

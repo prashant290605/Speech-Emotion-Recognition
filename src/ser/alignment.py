@@ -296,7 +296,42 @@ class MKMMDAlignment(Alignment):
         self.seed = seed
         self.result = None
 
+    def coral_warm_start(self, coral: "CoralAlignment"):
+        """(W, b) equivalent to a fitted CORAL, for warm starting.
+
+        CORAL computes ``(x - mu_s) @ M + mu_t``; the affine form is
+        ``x @ W.T + b``. So ``W = M.T`` **and** ``b = mu_t - mu_s @ M`` -- the
+        bias term is not optional, and omitting it initialises somewhere that is
+        not CORAL at all.
+        """
+        M = coral.transform_matrix
+        return M.T.copy(), (coral.mean_target - coral.mean_source @ M).copy()
+
     def _fit(self, X_source, X_target_adapt) -> None:
+        W_init = b_init = None
+        warm_start = "identity"
+
+        if self.config.alignment.mmd_warm_start == "coral":
+            if self.diagonal:
+                # The diagonal analogue of CORAL: per-dimension moment matching,
+                # w_j = sigma_t,j / sigma_s,j and b_j = mu_t,j - w_j * mu_s,j.
+                # CORAL's dense solution cannot be projected onto a diagonal
+                # without becoming a different transform, but this is the same
+                # idea within the diagonal family -- and without it the diagonal
+                # rung starts at the identity and, at a step size scaled for 768
+                # parameters, cannot travel far enough in the step budget.
+                std_source = X_source.std(axis=0)
+                std_source = np.where(std_source < 1e-12, 1.0, std_source)
+                W_init = X_target_adapt.std(axis=0) / std_source
+                b_init = X_target_adapt.mean(axis=0) - W_init * X_source.mean(axis=0)
+                warm_start = "diagonal_moment_match"
+            else:
+                coral = CoralAlignment(
+                    eps=min(self.config.alignment.coral_shrinkage)
+                ).fit(X_source, X_target_adapt, (), ())
+                W_init, b_init = self.coral_warm_start(coral)
+                warm_start = "coral"
+
         self.result = fit_affine_mmd(
             X_source,
             X_target_adapt,
@@ -304,10 +339,16 @@ class MKMMDAlignment(Alignment):
             lam=self.lam,
             diagonal=self.diagonal,
             seed=self.seed,
+            W_init=W_init,
+            b_init=b_init,
         )
         self.diagnostics = {
             "lambda": self.lam,
             "diagonal": self.diagonal,
+            "warm_start": warm_start,
+            "learning_rate": self.result.learning_rate,
+            "converged": self.result.converged,
+            "final_grad_norm": self.result.final_grad_norm,
             "bandwidth": self.result.bandwidth,
             "steps": self.result.steps,
             "initial_mmd2": self.result.initial_mmd2,

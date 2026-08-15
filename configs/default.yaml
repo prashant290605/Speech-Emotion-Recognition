@@ -208,7 +208,22 @@ alignment:
   mmd_lambda_grid: [0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
 
   mmd_steps: 500
-  mmd_learning_rate: 1.0e-3
+
+  # Target Frobenius norm of ONE optimiser step on W. Adam normalises per
+  # parameter, so a raw learning rate moves ||dW||_F ~= lr * sqrt(P) -- at
+  # lr=1e-3 and P=768x768 that is 0.77 per step, which hurls the map away from
+  # any good solution. Measured: warm-started exactly at CORAL, the objective
+  # ROSE from 0.00400 to 0.00580. Deriving lr = step_norm / sqrt(P) instead
+  # makes the step size mean the same thing for the 768-parameter diagonal
+  # variant and the ~590k-parameter full one.
+  mmd_step_norm: 0.01
+
+  # Warm start the full map at the fitted CORAL solution. The MMD optimum is at
+  # least as good as CORAL's, because CORAL's W is in the feasible set, so
+  # starting there makes "did the optimiser converge?" separable from "is the
+  # objective attainable?". With this and the step-norm fix, mkmmd_full reaches
+  # 1.3x the same-distribution null against CORAL's 2.1x.
+  mmd_warm_start: coral
   # Minibatch for the kernel matrices. Full matrices over several thousand
   # target samples would dominate runtime without improving the gradient.
   mmd_batch_size: 256
@@ -221,16 +236,27 @@ blending:
   n_groups: 16
 
 classifiers:
-  families: [logreg, svm, mlp, transformer]
+  # Linear and RBF SVM are separate families: they have different capacity and
+  # different search spaces, and collapsing them hides which one carried a
+  # result.
+  families: [logreg, svm_linear, svm_rbf, mlp, transformer]
   # Configurations evaluated on source_val, per family. Equal for every family:
   # no family runs at library defaults while another gets a training loop.
   search_budget: 20
+  # Early stopping on source_val for the torch families. The original ran a
+  # fixed 8 gradient steps with no validation set and therefore no evidence of
+  # convergence; fixed-epoch training is not permitted here.
   early_stopping_patience: 10
+  max_epochs: 200
 
   # Layer aggregation is a searchable option because Phase 3 caches all layers.
   # 'last' is kept as a condition so the paper can quantify how much of the
   # original study's weak numbers came from final-layer-only pooling.
-  layer_agg_options: [last, layer, mean, weighted]
+  # last reproduces the original; layer:k probes the middle layers; weighted
+  # learns a softmax over all 13 states jointly with the head. 'weighted' is
+  # only valid for the torch families -- a closed-form sklearn model has no
+  # parameters to learn it with.
+  layer_agg_options: [last, layer, weighted]
   layer_candidates: [4, 6, 8, 10]
 
 grid:

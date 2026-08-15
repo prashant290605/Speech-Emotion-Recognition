@@ -25,10 +25,12 @@ from ser.utils.results import (
 
 CLASS_NAMES = ["angry", "disgust", "fear", "happy", "neutral", "sad"]
 
+# config_hash is deliberately NOT here: it is recorded but is not a coordinate.
 COORDS = {
-    "config_hash": "a" * 64,
     "label_map_hash": "labelmap00000000",
     "split_spec_hash": "splitspec0000000",
+    "feature_spec_hash": "featspec00000000",
+    "search_spec_hash": "searchspec000000",
     "seed": 0,
     "source_corpus": "ravdess",
     "target_corpus": "cremad",
@@ -49,6 +51,7 @@ def _row(**overrides):
     values = dict(
         **COORDS,
         run_id=make_run_id(COORDS),
+        config_hash="a" * 64,
         git_sha="0" * 40,
         git_dirty=False,
         timestamp="2026-08-10T12:00:00Z",
@@ -72,6 +75,9 @@ def _row(**overrides):
         selection_source_val_macro_f1=0.61,
         cov_condition_number=1.5e4,
         cov_effective_rank=57.2,
+        n_search_trials=20,
+        marginal_mmd_raw=0.0018,
+        marginal_mmd_normalised=2.0,
         wall_seconds=12.5,
         status="ok",
         error=None,
@@ -99,15 +105,22 @@ def test_every_field_from_the_brief_is_present():
 
 
 def test_schema_version_is_pinned():
-    assert SCHEMA_VERSION == 3
-    assert _row()["schema_version"] == 3
+    assert SCHEMA_VERSION == 4
+    assert _row()["schema_version"] == 4
 
 
-def test_label_map_and_split_spec_are_run_id_coordinates():
-    """A changed label decision or split ratio must produce a new run_id, or a
-    Phase 7 resume silently merges runs scored against different label spaces."""
-    assert "label_map_hash" in RUN_ID_FIELDS
-    assert "split_spec_hash" in RUN_ID_FIELDS
+def test_the_four_facets_are_run_id_coordinates_and_config_hash_is_not():
+    """config_hash was a coordinate and orphaned 60 completed rows when an
+    unrelated section changed. The facets replace it; it is still recorded."""
+    for facet in (
+        "label_map_hash",
+        "split_spec_hash",
+        "feature_spec_hash",
+        "search_spec_hash",
+    ):
+        assert facet in RUN_ID_FIELDS
+    assert "config_hash" not in RUN_ID_FIELDS
+    assert "config_hash" in FIELD_NAMES
 
 
 def test_valid_row_validates():
@@ -191,9 +204,10 @@ def test_run_id_changes_with_every_coordinate():
     """No coordinate may be inert, or two distinct runs collide onto one id."""
     baseline = make_run_id(COORDS)
     alternatives = {
-        "config_hash": "b" * 64,
         "label_map_hash": "labelmap11111111",
         "split_spec_hash": "splitspec1111111",
+        "feature_spec_hash": "featspec11111111",
+        "search_spec_hash": "searchspec111111",
         "seed": 1,
         "source_corpus": "cremad",
         "target_corpus": "iemocap",

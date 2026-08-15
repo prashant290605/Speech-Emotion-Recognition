@@ -35,6 +35,13 @@ MIGRATIONS = {
     2: {"to": 3, "adds": {"cov_condition_number": None, "cov_effective_rank": None}},
 }
 
+# Versions whose run_id *coordinates* changed. Adding columns can be migrated;
+# redefining identity cannot. A v3 run_id was computed over a different field
+# set, so carrying it forward would assert an equivalence that does not hold --
+# two rows could share an id while meaning different things, or differ in id
+# while meaning the same thing. Those versions must be regenerated.
+IDENTITY_CHANGED_AT = {4}
+
 
 def migrate_row(row: dict) -> dict:
     version = row.get("schema_version")
@@ -65,6 +72,21 @@ def main(argv=None) -> int:
     if versions == {SCHEMA_VERSION}:
         print(f"already at v{SCHEMA_VERSION}; nothing to do")
         return 0
+
+    blocking = sorted(v for v in IDENTITY_CHANGED_AT if any(o < v for o in versions if o))
+    if blocking:
+        target = blocking[0]
+        print(
+            f"REFUSING to migrate across v{target}: run_id coordinates changed at "
+            f"that version, so existing ids were computed over a different field "
+            f"set.\n"
+            f"Carrying them forward would assert an equivalence that does not "
+            f"hold. Archive this file and regenerate:\n"
+            f"    mv {path.name} {path.stem}.v{min(v for v in versions if v)}.archive.jsonl\n"
+            f"    ser baselines\n",
+            file=sys.stderr,
+        )
+        return 2
 
     migrated = [migrate_row(dict(row)) for row in original]
     for index, row in enumerate(migrated, start=1):

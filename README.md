@@ -42,7 +42,7 @@ decided, and deferred.
 | 3 | Feature extraction and caching | complete for {RAVDESS, CREMA-D}; IEMOCAP pending |
 | 4 | Metrics and trivial baselines | complete for {RAVDESS, CREMA-D} |
 | 5 | Alignment and blending | complete for {RAVDESS, CREMA-D} |
-| 6 | Classifiers with equal-budget search | not started |
+| 6 | Classifiers with equal-budget search | complete for {RAVDESS, CREMA-D} |
 | 7 | Grid runner | not started |
 | 8 | Selection protocol and headline tables | not started |
 | 9 | Shift decomposition: label, covariate, conditional | not started |

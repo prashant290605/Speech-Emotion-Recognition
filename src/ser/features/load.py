@@ -47,23 +47,40 @@ class FeatureLoader:
         return np.asarray([self.index[uid] for uid in utterance_ids], dtype=np.int64)
 
     def load(
-        self, utterance_ids: Sequence[str], *, layer_spec: str = "last"
+        self,
+        utterance_ids: Sequence[str],
+        *,
+        layer_spec: str = "last",
+        segments: bool = False,
     ) -> np.ndarray:
-        """Return ``(n, d)`` float64 features for these ids, in the order given."""
+        """Features for these ids, in the order given, as float64.
+
+        Shapes, by ``(layer_spec, segments)``:
+
+            ('last'|'layer:k', False)  (n, d)          pooled vector
+            ('last'|'layer:k', True)   (n, S, d)       segment sequence
+            ('weighted',       False)  (n, L, d)       unreduced layer stack
+            ('weighted',       True)   (n, L, S, d)    layers x segments
+
+        ``weighted`` returns the stack unreduced because the softmax over layers
+        is a parameter of the classifier, not of the cache.
+        """
         indices = self.rows_for_ids(utterance_ids)
 
         if self.backbone == MFCC_BACKBONE:
+            if segments or layer_spec != "last":
+                raise ValueError("the MFCC cache has no layer or segment axis")
             matrix = np.asarray(self.entry.array("mfcc"))[indices]
             return np.asarray(matrix, dtype=np.float64)
 
-        layers = np.asarray(self.entry.array("layers"))[indices]
-        aggregated = aggregate_layers(layers, layer_spec)
-        if aggregated.ndim != 2:
-            raise ValueError(
-                f"layer spec {layer_spec!r} produced shape {aggregated.shape}; "
-                "a 2D matrix is required here. 'weighted' is owned by the "
-                "classifier, not by this loader."
+        name = "segments" if segments else "layers"
+        if segments and not self.entry.has("segments"):
+            raise FileNotFoundError(
+                f"{self.corpus}/{self.backbone} has no segment cache; the "
+                "Transformer family requires features.segment_pooling_enabled"
             )
+        stack = np.asarray(self.entry.array(name))[indices]
+        aggregated = aggregate_layers(stack, layer_spec)
         # float64 before anything touches a covariance. See ser.numerics.
         return np.asarray(aggregated, dtype=np.float64)
 

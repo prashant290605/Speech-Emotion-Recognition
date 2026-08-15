@@ -63,7 +63,13 @@ __all__ = [
 # hyperparams_json, because "which runs were near-singular?" has to be
 # answerable by filtering. Bumped before any alignment run existed; the 60
 # baseline rows were regenerated.
-SCHEMA_VERSION = 3
+#
+# v4 (2026-08-15): config_hash REMOVED from RUN_ID_FIELDS (still recorded);
+# feature_spec_hash and search_spec_hash added as coordinates in its place;
+# marginal_mmd_raw, marginal_mmd_normalised and n_search_trials added.
+# config_hash as a coordinate meant editing any unrelated config section
+# orphaned every completed run -- observed for real in Phase 5.
+SCHEMA_VERSION = 4
 
 VALID_STATUSES = ("ok", "failed")
 
@@ -96,9 +102,11 @@ FIELDS: tuple[Field, ...] = (
     _f("run_id", str, False, "Deterministic id over the experimental coordinates."),
     _f("git_sha", str, False, "Commit that produced the row, or 'unknown'."),
     _f("git_dirty", bool, False, "True if the working tree had uncommitted changes."),
-    _f("config_hash", str, False, "sha256 of the canonicalised config."),
+    _f("config_hash", str, False, "sha256 of the whole config. Recorded, NOT a run_id coordinate."),
     _f("label_map_hash", str, False, "Hash of the resolved label mapping."),
     _f("split_spec_hash", str, False, "Hash of the split specification."),
+    _f("feature_spec_hash", str, False, "Hash of the feature extraction spec."),
+    _f("search_spec_hash", str, False, "Hash of the searched space and reported statistics."),
     _f("timestamp", str, False, "ISO-8601 UTC completion time."),
     _f("hostname", str, False, "Machine that ran it."),
     _f("lib_versions_json", str, False, "JSON map of tracked library versions."),
@@ -132,7 +140,26 @@ FIELDS: tuple[Field, ...] = (
         "cov_effective_rank",
         (float, int),
         True,
-        "Entropy-based effective rank of the source covariance (Roy & Vetterli).",
+        "Spectral-entropy effective rank of the source covariance (Roy & Vetterli).",
+    ),
+    _f(
+        "n_search_trials",
+        int,
+        True,
+        "Hyperparameter configurations evaluated on source_val. Equal across families.",
+    ),
+    # -- covariate shift, at a bandwidth fixed once on the unaligned pair ----
+    _f(
+        "marginal_mmd_raw",
+        (float, int),
+        True,
+        "Marginal MMD^2 between aligned source and target.",
+    ),
+    _f(
+        "marginal_mmd_normalised",
+        (float, int),
+        True,
+        "marginal_mmd_raw / typical same-distribution MMD^2. Scale-invariant.",
     ),
     # -- splits -------------------------------------------------------------
     _f("split_id", str, False, "Identifies the speaker-disjoint split realisation."),
@@ -171,19 +198,23 @@ _FIELDS_BY_NAME: Dict[str, Field] = {field.name: field for field in FIELDS}
 # (searched inside a run on source_val, so they are an output not a coordinate),
 # metrics, and provenance (which vary between reruns of an identical config).
 #
-# label_map_hash and split_spec_hash are here because config_hash alone is too
-# coarse in one direction and too fine in the other: it changes when an
-# unrelated key changes, and -- if a future config ever resolves the label map
-# outside this file -- could fail to change when the mapping does. These two
-# pin the semantics that actually determine what a row means.
+# The four facet hashes replace config_hash, which was too coarse to be a
+# coordinate: it changes when ANY key changes, so editing an unrelated section
+# orphaned 60 completed baseline rows in Phase 5. Each facet pins one part of
+# the semantics that actually determines what a row means, so an edit
+# invalidates only the runs it can affect. ser.config.Config.FACET_SECTIONS
+# maps them to config sections, and a test asserts every config key is either
+# covered by a facet or explicitly declared inert.
 #
 # Note on gaa: per-group alphas are selected on source_val inside the run, so
 # they live in hyperparams_json, not here. Only the scalar blend_alpha axis is a
 # coordinate.
 RUN_ID_FIELDS: tuple[str, ...] = (
-    "config_hash",
+    # config_hash is deliberately ABSENT. See SCHEMA_VERSION v4 and PHASES.md A6.
     "label_map_hash",
     "split_spec_hash",
+    "feature_spec_hash",
+    "search_spec_hash",
     "seed",
     "source_corpus",
     "target_corpus",

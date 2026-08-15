@@ -41,6 +41,7 @@ __all__ = [
     "median_bandwidth",
     "multi_kernel_mmd2",
     "marginal_mmd",
+    "null_mmd_scale",
     "MMDFitResult",
     "fit_affine_mmd",
 ]
@@ -122,14 +123,17 @@ def marginal_mmd(
     X_target: np.ndarray,
     config,
     *,
+    bandwidth: Optional[float] = None,
     max_samples: int = 512,
     seed: int = 0,
 ) -> float:
     """Marginal MMD² between two feature sets.
 
-    This is the covariate-shift column of the Phase 9 decomposition. Collected
-    for every rung before and after alignment, which costs nothing here and
-    saves re-deriving it later.
+    ``bandwidth`` should be **fixed once** from the unaligned source/target pair
+    and reused for every rung. Re-estimating it per rung makes the statistic
+    scale-dependent: an alignment that merely shrinks the features shrinks the
+    median pairwise distance too, the kernel widens to compensate, and the
+    reported MMD falls without any distributions having moved closer.
     """
     rng = np.random.default_rng(seed)
 
@@ -141,8 +145,84 @@ def marginal_mmd(
 
     a, b = subsample(X_source), subsample(X_target)
     return multi_kernel_mmd2(
-        a, b, multipliers=tuple(config.alignment.mmd_bandwidth_multipliers), seed=seed
+        a,
+        b,
+        multipliers=tuple(config.alignment.mmd_bandwidth_multipliers),
+        bandwidth=bandwidth,
+        seed=seed,
     )
+
+
+def kernel_saturation(
+    X: np.ndarray, Y: np.ndarray, bandwidth: float, multipliers, *, max_samples: int = 300
+) -> float:
+    """Fraction of kernel mass lost to saturation at the widest bandwidth.
+
+    Returns the mean kernel value at the widest multiplier. Near 1 means the
+    kernel cannot discriminate (everything is 'close'); near 0 means it has
+    saturated the other way and everything reads as infinitely far apart, so
+    MMD collapses to ~0 regardless of how the distributions actually overlap.
+
+    Measured because a bandwidth fixed on the unaligned pair is not valid for a
+    rung that changes the feature scale: z-scoring 768 dimensions moves the
+    median pairwise distance from 1.5 to 35.6, i.e. 16.8x the fixed bandwidth,
+    at which point every kernel value is ~1e-4 and the statistic is an artefact.
+    """
+    X = np.asarray(X, dtype=np.float64)[:max_samples]
+    Y = np.asarray(Y, dtype=np.float64)[:max_samples]
+    widest = max(multipliers) * bandwidth
+    gamma = 1.0 / (2.0 * widest**2)
+    return float(np.exp(-gamma * _pairwise_sq_dists_numpy(X, Y)).mean())
+
+
+def null_mmd_scale(
+    X: np.ndarray,
+    config,
+    *,
+    bandwidth: Optional[float] = None,
+    n_repeats: int = 10,
+    max_samples: int = 512,
+    seed: int = 0,
+) -> Dict[str, float]:
+    """Typical same-distribution MMD² at this sample size.
+
+    Splits ``X`` into two random halves repeatedly and measures MMD² between
+    them. Both halves come from one distribution, so this is the discrepancy
+    attributable purely to finite sampling -- the natural denominator for an
+    effect size.
+
+    **Deviation, deliberate.** The brief says to divide by the *mean* null MMD².
+    With the unbiased estimator that mean is zero by construction: measured on
+    real data it came out at −3.5e-4 against a spread of 9.2e-4, so the ratio
+    would be unstable and would flip sign. The scale returned here is therefore
+    the mean **absolute** null MMD² (8.8e-4 on that same data, agreeing with the
+    spread to within 5%). ``std`` is returned alongside so the two can be
+    compared directly.
+    """
+    X = np.asarray(X, dtype=np.float64)
+    rng = np.random.default_rng(seed)
+    multipliers = tuple(config.alignment.mmd_bandwidth_multipliers)
+
+    values = []
+    for _ in range(n_repeats):
+        order = rng.permutation(X.shape[0])
+        half = min(X.shape[0] // 2, max_samples)
+        if half < 2:
+            raise ValueError("need at least 4 samples to form two halves")
+        a = X[order[:half]]
+        b = X[order[half : 2 * half]]
+        values.append(
+            multi_kernel_mmd2(a, b, multipliers=multipliers, bandwidth=bandwidth)
+        )
+
+    array = np.asarray(values, dtype=np.float64)
+    return {
+        "scale": float(np.abs(array).mean()),
+        "signed_mean": float(array.mean()),
+        "std": float(array.std()),
+        "n_repeats": n_repeats,
+        "n_per_half": int(half),
+    }
 
 
 @dataclass
@@ -158,6 +238,26 @@ class MMDFitResult:
     initial_mmd2: float
     final_mmd2: float
     history: List[float]
+    grad_norms: List[float] = None
+    learning_rate: float = 0.0
+
+    @property
+    def final_grad_norm(self) -> float:
+        return float(self.grad_norms[-1]) if self.grad_norms else float("nan")
+
+    @property
+    def converged(self) -> bool:
+        """Objective flat over the last 10% of steps.
+
+        Not a guarantee of a global optimum -- only that further steps at this
+        learning rate would not move it much.
+        """
+        if len(self.history) < 20:
+            return False
+        tail = np.asarray(self.history[-max(10, len(self.history) // 10):])
+        span = float(tail.max() - tail.min())
+        scale = abs(float(np.mean(tail))) + 1e-12
+        return span / scale < 0.01
 
     def transform(self, X: np.ndarray) -> np.ndarray:
         X = np.asarray(X, dtype=np.float64)
@@ -174,6 +274,8 @@ def fit_affine_mmd(
     lam: float,
     diagonal: bool,
     seed: int = 0,
+    W_init: Optional[np.ndarray] = None,
+    b_init: Optional[np.ndarray] = None,
 ) -> MMDFitResult:
     """Learn (W, b) minimising multi-kernel MMD² plus the identity penalty.
 
@@ -198,19 +300,33 @@ def fit_affine_mmd(
     source = torch.from_numpy(X_source)
     target = torch.from_numpy(X_target)
 
-    if diagonal:
+    if W_init is not None:
+        # Warm start. The MMD optimum is at least as good as CORAL's solution,
+        # because CORAL's W lies in the feasible set -- so starting there makes
+        # "did the optimiser converge?" separable from "is the objective
+        # attainable?". Documented as a distinct condition, not a silent default.
+        start = np.asarray(W_init, dtype=np.float64)
+        expected = (d,) if diagonal else (d, d)
+        if start.shape != expected:
+            raise ValueError(f"W_init shape {start.shape} != expected {expected}")
+        W = torch.tensor(start, dtype=torch.float64, requires_grad=True)
+    elif diagonal:
         W = torch.ones(d, dtype=torch.float64, requires_grad=True)
     else:
         W = torch.eye(d, dtype=torch.float64, requires_grad=True)
-    b = torch.zeros(d, dtype=torch.float64, requires_grad=True)
+    if b_init is not None:
+        b = torch.tensor(np.asarray(b_init, dtype=np.float64), requires_grad=True)
+    else:
+        b = torch.zeros(d, dtype=torch.float64, requires_grad=True)
 
     identity = torch.ones(d, dtype=torch.float64) if diagonal else torch.eye(
         d, dtype=torch.float64
     )
 
-    optimiser = torch.optim.Adam(
-        [W, b], lr=config.alignment.mmd_learning_rate
-    )
+    n_parameters = int(W.numel())
+    learning_rate = config.alignment.learning_rate_for(n_parameters)
+    optimiser = torch.optim.Adam([W, b], lr=learning_rate)
+    grad_norms: List[float] = []
     generator = torch.Generator().manual_seed(seed)
     batch = int(getattr(config.alignment, "mmd_batch_size", 256))
 
@@ -237,6 +353,13 @@ def fit_affine_mmd(
             initial_objective = float(loss.item())
             initial_mmd2 = float(mmd2.item())
         loss.backward()
+        grad_norms.append(
+            float(
+                torch.sqrt(
+                    sum((p.grad**2).sum() for p in (W, b) if p.grad is not None)
+                ).item()
+            )
+        )
         optimiser.step()
         history.append(float(loss.item()))
 
@@ -259,6 +382,8 @@ def fit_affine_mmd(
         initial_mmd2=float(initial_mmd2),
         final_mmd2=float(final_mmd2.item()),
         history=history,
+        grad_norms=grad_norms,
+        learning_rate=learning_rate,
     )
 
 

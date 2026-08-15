@@ -159,7 +159,7 @@ def test_transformer_requires_the_segment_cache(raw, tmp_path):
 
 def test_dropping_the_transformer_allows_disabling_segments(raw, tmp_path):
     raw["features"]["segment_pooling_enabled"] = False
-    raw["classifiers"]["families"] = ["logreg", "svm", "mlp"]
+    raw["classifiers"]["families"] = ["logreg", "svm_linear", "svm_rbf", "mlp"]
     config = load_config(_write(tmp_path, raw))
     assert "transformer" not in config.classifiers.families
 
@@ -321,3 +321,79 @@ def test_relative_paths_resolve_against_repo_root():
     config = load_config()
     assert config.results_path == repo_root() / "results" / "runs.jsonl"
     assert config.resolve("data/manifest.csv").is_absolute()
+
+
+# -- run_id coverage: every config key must be classified -------------------
+def test_config_hash_is_not_a_run_id_coordinate():
+    """It was, and editing an unrelated section orphaned 60 completed rows."""
+    from ser.utils.results import RUN_ID_FIELDS
+
+    assert "config_hash" not in RUN_ID_FIELDS
+    for facet in Config.FACET_SECTIONS:
+        assert facet in RUN_ID_FIELDS
+
+
+def test_every_config_key_is_covered_by_a_facet_or_declared_inert(raw):
+    """Mirror of the inert-run_id-field test. Fails when a new config key
+    appears in neither category, because an unclassified key can change a
+    result without changing run_id."""
+    config = load_config()
+    unclassified = []
+    for section, values in raw.items():
+        if not isinstance(values, dict):
+            continue
+        for key in values:
+            try:
+                config.classify_config_key(section, key)
+            except ConfigError:
+                unclassified.append(f"{section}.{key}")
+    assert unclassified == [], f"unclassified config keys: {unclassified}"
+
+
+def test_an_unknown_section_is_not_silently_treated_as_inert():
+    config = load_config()
+    with pytest.raises(ConfigError, match="neither covered"):
+        config.classify_config_key("brand_new_section", "some_key")
+
+
+def test_facet_hashes_are_narrower_than_config_hash(raw, tmp_path):
+    """The whole point: an unrelated edit must not move a run's coordinates."""
+    base = load_config()
+
+    changed = copy.deepcopy(raw)
+    changed["stats"]["bootstrap_resamples"] = 4000
+    other = load_config(_write(tmp_path, changed))
+
+    assert other.config_hash != base.config_hash
+    # stats sits in search_spec_hash, so that facet moves...
+    assert other.search_spec_hash != base.search_spec_hash
+    # ...but the facets that decide the data and the features do not.
+    assert other.label_map_hash == base.label_map_hash
+    assert other.split_spec_hash == base.split_spec_hash
+    assert other.feature_spec_hash == base.feature_spec_hash
+
+
+def test_adding_a_seed_does_not_invalidate_existing_seeds(raw, tmp_path):
+    """splits.seeds is excluded from split_spec_hash because the per-run seed is
+    already a coordinate; hashing the list would make a sixth seed invalidate
+    the five that already ran."""
+    base = load_config()
+    changed = copy.deepcopy(raw)
+    changed["splits"]["seeds"] = [0, 1, 2, 3, 4, 5]
+    assert load_config(_write(tmp_path, changed)).split_spec_hash == base.split_spec_hash
+
+
+def test_feature_spec_hash_tracks_extraction_settings(raw, tmp_path):
+    base = load_config()
+    changed = copy.deepcopy(raw)
+    changed["features"]["feature_version"] = "v2"
+    assert load_config(_write(tmp_path, changed)).feature_spec_hash != base.feature_spec_hash
+
+
+def test_search_spec_hash_tracks_the_searched_grids(raw, tmp_path):
+    """Changing a grid changes which value could be selected, so it changes what
+    the run means even with every other coordinate identical."""
+    base = load_config()
+    changed = copy.deepcopy(raw)
+    changed["alignment"]["mmd_lambda_grid"] = [0.1, 1.0]
+    assert load_config(_write(tmp_path, changed)).search_spec_hash != base.search_spec_hash

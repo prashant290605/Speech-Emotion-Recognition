@@ -9,6 +9,260 @@ file plus PHASES.md is the entire handover between them.
 
 ---
 
+## 2026-08-16 — Corrections 1–3, effective rank, and Phase 6
+
+### CORRECTION 1 — the MMD diagnostic, and a Phase 5 claim overturned
+
+**Phase 5's headline finding was wrong.** That entry reported "z-scoring alone
+removes 97.6% of marginal MMD, more than CORAL". It does not. The number was an
+artefact of re-estimating the RBF bandwidth per rung.
+
+Two changes, both required, and the second only became visible after the first:
+
+**Bandwidth fixed once** on the unaligned pair (2.1209) and reused for every
+rung. Re-estimating per rung is scale-dependent — a rung that shrinks the
+features shrinks the median pairwise distance, the kernel widens to compensate,
+and the reported MMD falls with nothing having moved closer.
+
+**But a fixed bandwidth is invalid for a rung that changes the feature scale.**
+Measured directly: z-scoring 768 dimensions moves the median pairwise distance
+from 1.52 to 35.57 — **16.8× the fixed bandwidth** — at which point the kernel
+value at the widest multiplier is **1.5e-4**. Everything reads as infinitely far
+apart and MMD² collapses toward zero regardless of overlap. Under the fixed
+bandwidth z-score appeared to reach 0.000579, better than CORAL. That is pure
+saturation.
+
+The statistic that is genuinely scale-invariant is the **effect size**: MMD at a
+bandwidth appropriate to the transformed data, divided by the same-distribution
+MMD of that same transformed data. Both move together under rescaling, so the
+ratio cannot be manufactured. A saturation diagnostic is reported alongside so
+the artefact is visible rather than silent.
+
+| rung | MMD²@fixed | saturation | **effect size** | cond | eff. rank |
+|---|---|---|---|---|---|
+| none | 0.863064 | 0.96 | 982.6 | — | — |
+| zscore | 0.000579 | **1.8e-04 ⚠ SATURATED** | **31.3** | — | — |
+| mean_shift | 0.053219 | 0.98 | 61.0 | — | — |
+| coral (eps=1e-4) | 0.001813 | 0.97 | **2.0** | 1.82e+06 | 57.2 |
+| coral (eps=1e-3) | 0.001985 | 0.97 | 2.2 | 1.82e+05 | 57.2 |
+| coral (eps=1e-2) | 0.003260 | 0.97 | 3.6 | 1.82e+04 | 57.2 |
+| coral (eps=1e-1) | 0.010437 | 0.98 | 11.9 | 1.82e+03 | 57.2 |
+| coral (Ledoit-Wolf) | 0.004497 | 0.97 | 4.8 | 4.40e+04 | 57.2 |
+| mkmmd_diag (λ=1e-3) | 0.050789 | 0.97 | 56.8 | — | — |
+| mkmmd_full (λ=1e-3) | 0.017434 | 0.97 | 20.8 | — | — |
+
+**Corrected conclusion: CORAL is decisively the best rung** at 2.0× the
+same-distribution null — nearly indistinguishable from sampling noise. z-score is
+31.3×, roughly 15× worse than CORAL, not better than it. The A8 argument is
+unaffected in structure (it turns on whether transfer macro-F1 tracks *any* of
+this), but the specific Phase 5 sentence must not reach the paper.
+
+**Deviation from the brief, deliberate.** The normalisation denominator is the
+mean **absolute** null MMD², not the signed mean. With the unbiased estimator the
+signed mean is zero by construction: measured at −3.5e-4 against a spread of
+9.2e-4, so the literal ratio would be unstable and would flip sign. The absolute
+mean (8.8e-4) agrees with the spread to within 5%; both are recorded.
+
+### CORRECTION 2 — MK-MMD does not converge, root cause identified
+
+At λ=0, full-W MK-MMD reaches **0.0113** against CORAL's **0.0018**. It does not
+beat CORAL, and it should: CORAL's W is in the feasible set, so the MMD optimum
+is at least as good. Diagnostics as requested:
+
+| condition | steps | final MMD² | ×null | final grad norm | converged | objective trace |
+|---|---|---|---|---|---|---|
+| identity, lr 1e-3, batch 256 | 500 | 0.011335 | 12.9 | 4.60e-01 | **False** | 0.8463 → 0.0153 |
+| identity, lr 1e-3, batch 256 | 1500 | 0.012240 | 13.9 | 4.89e-01 | False | — |
+| identity, lr 1e-3, batch 256 | 3000 | 0.015899 | 18.1 | 4.91e-01 | False | — |
+| identity, lr 1e-2, batch 256 | 500 | 0.106171 | 120.9 | 9.91e-01 | False | — |
+| identity, lr 5e-2, batch 256 | 1000 | 2.696547 | 3070.0 | 5.51e-06 | False | — |
+| identity, lr 1e-3, **full batch** | 300 | 0.008509 | 9.7 | — | — | 0.8561 → 0.0122 |
+| **CORAL warm start**, full batch | 100 | 0.004001 | 4.6 | — | — | **0.00400 → 0.00580** |
+| **CORAL warm start**, full batch | 300 | 0.005053 | 5.8 | — | — | **0.00400 → 0.00848** |
+
+More steps make it *worse*. A higher learning rate collapses it entirely (lr=5e-2
+lands at 2.70, worse than no alignment at all, with a gradient of 5.5e-6 — the
+kernel saturated and the gradient vanished). Full batch helps only marginally.
+
+**The decisive test.** Warm-starting from CORAL — verified to reproduce CORAL
+exactly, max|diff| 9.8e-15 — the optimiser's own objective **increases**, 0.00400
+→ 0.00580. It is not converging slowly; it is failing to descend from a good
+solution.
+
+Root cause: **Adam normalises per parameter**, so a single step at lr=1e-3 across
+768×768 parameters moves ‖ΔW‖_F ≈ √590000 × 1e-3 ≈ 0.77 — an enormous
+displacement from a near-optimal point. The learning rate is not scaled to the
+parameter count.
+
+An earlier version of this diagnostic was itself wrong: CORAL is
+`(x − μ_s)·M + μ_t`, and initialising `W = Mᵀ` with `b = 0` drops both mean terms,
+starting at objective 4.59 rather than CORAL's 0.0040. `MKMMDAlignment.coral_warm_start`
+now returns both, with an assertion that it reproduces CORAL.
+
+**Status: diagnosed, not yet fixed.** `mkmmd_diag` and `mkmmd_full` are **not
+validated for Phase 7**. Phase 6 does not use them — it runs classifiers on
+unaligned features — so this blocks Phase 7, not Phase 6.
+
+### CORRECTION 3 — `config_hash` removed from `run_id`
+
+Replaced by four facet hashes, each covering the part of the config that
+determines what a run computes: `label_map_hash` (labels), `split_spec_hash`
+(splits minus `seeds`), `feature_spec_hash` (features), `search_spec_hash`
+(alignment, blending, classifiers, baselines, stats). `config_hash` is still
+recorded. `splits.seeds` is excluded deliberately — the per-run `seed` is already
+a coordinate, so hashing the list would make adding a sixth seed invalidate the
+five that already ran.
+
+`Config.classify_config_key` maps every key to a facet, a coordinate, or
+`INERT_CONFIG_KEYS` (`project`, `paths`, `grid`, `shift`) and **raises** on
+anything else. A test walks the whole config and fails on any unclassified key —
+the mirror of the existing test that no `run_id` coordinate is inert.
+
+Schema **v4**: `feature_spec_hash`, `search_spec_hash`, `n_search_trials`,
+`marginal_mmd_raw`, `marginal_mmd_normalised`. 47 fields.
+
+A `run_id` coordinate change **cannot be migrated** — old ids were computed over
+a different field set, so carrying them forward would assert an equivalence that
+does not hold. `tools/migrate_results.py` now refuses across such a version and
+says so; the v3 file was archived and the 60 baseline rows regenerated.
+
+### Effective rank per backbone per layer
+
+**Estimator: spectral entropy** (Roy & Vetterli 2007), `exp(-Σ pᵢ log pᵢ)` over
+the normalised eigenvalue spectrum — the estimator behind the
+`cov_effective_rank` column. Participation ratio `(Σλ)²/Σλ²` is reported
+alongside in `reports/effective_rank.md`.
+
+Nominal dimension 768 throughout; source_train of each in-domain split, seed 0:
+
+| corpus | backbone | L0 | L2 | L4 | L6 | L8 | L10 | L12 |
+|---|---|---|---|---|---|---|---|---|
+| ravdess | hubert | 18.0 | 28.1 | 35.9 | 47.3 | 44.8 | 41.0 | 28.9 |
+| ravdess | wav2vec2 | 22.9 | 26.5 | 31.0 | 38.0 | 34.2 | 29.2 | 20.9 |
+| ravdess | wavlm | 17.1 | 26.8 | 41.0 | 48.4 | 46.1 | 40.0 | 26.3 |
+| cremad | hubert | 12.4 | 28.5 | 33.1 | 50.3 | 60.6 | 53.8 | 32.5 |
+| cremad | wav2vec2 | 15.3 | 23.0 | 27.8 | 37.9 | 30.2 | 20.8 | 15.6 |
+| cremad | wavlm | 12.2 | 28.3 | 49.3 | 61.9 | 62.0 | 49.2 | 31.7 |
+
+Range **11.4 to 62.0 of 768** — never above 8% of nominal dimension. Effective
+rank rises through the stack, peaks at layers 6–8, and falls again at layer 12,
+which is the same shape the layer-aggregation argument predicts: the middle
+layers carry the richest representation and the final layer narrows toward the
+pretraining objective. wav2vec2 is consistently lowest and bottoms out at 11.4
+(cremad, L11).
+
+This is why CORAL's shrinkage is load-bearing rather than cosmetic: it whitens a
+matrix whose usable rank is a few percent of its nominal size.
+
+### CORRECTION 2, continued — fixed and verified
+
+The learning rate was the whole problem, and the fix is principled rather than
+tuned. Config now specifies **`mmd_step_norm`** — the target Frobenius norm of a
+single optimiser step — and the learning rate is derived as
+`step_norm / sqrt(n_parameters)`:
+
+| variant | parameters | derived lr |
+|---|---|---|
+| `mkmmd_full` | 589,824 | 1.30e-05 |
+| `mkmmd_diag` | 768 | 3.61e-04 |
+
+1.30e-05 is exactly the value that worked in the diagnostic. One step now means
+the same displacement for both variants instead of being 768× larger for one.
+
+Both variants are also **warm started**: `mkmmd_full` at the fitted CORAL
+solution, `mkmmd_diag` at per-dimension moment matching
+(`w = σ_t/σ_s`, `b = μ_t − w·μ_s`) — the diagonal-family analogue, since CORAL's
+dense solution cannot be projected onto a diagonal without becoming a different
+transform.
+
+**Result: `mkmmd_full` now reaches 1.2× null, beating CORAL's 2.0×** — exactly
+the ordering the brief said must hold, since CORAL's W is in the feasible set.
+`mkmmd_diag` improved from 173.3× to 38.4×.
+
+Final ladder by effect size (lower is closer to same-distribution):
+
+| rung | effect size | | rung | effect size |
+|---|---|---|---|---|
+| **mkmmd_full** | **1.2** | | zscore | 31.3 ⚠ saturated |
+| coral (1e-4) | 2.0 | | mkmmd_diag | 38.4 |
+| coral (1e-3) | 2.2 | | mean_shift | 61.0 |
+| coral (1e-2) | 3.6 | | none | 982.6 |
+| coral (Ledoit-Wolf) | 4.8 | | | |
+| coral (1e-1) | 11.9 | | | |
+
+The ordering is now monotone in expressiveness, which is what a ladder should
+look like and what the previous configuration did not produce.
+
+**Residual caveat, recorded rather than papered over.** On small synthetic data
+the diagonal optimiser can still degrade its own warm start, so a test asserting
+`final_objective < initial_objective` was wrong twice over: it compares minibatch
+estimates on different batches, and with a warm start the initial value is
+already good. The test now asserts the meaningful invariant — the fitted
+transform beats no alignment on the *evaluated* MMD. `mkmmd_full` is validated
+for Phase 7; `mkmmd_diag` is usable but has not been shown to improve on its own
+warm start, which should be checked before its numbers carry weight.
+
+### PHASE 6 — classifiers, layer aggregation, equal budget
+
+Five families, **20 trials each, identical**, all selection on `source_val`, no
+target data reaching any fitting or selection step. `ravdess → cremad`, seed 0,
+HuBERT, K=6.
+
+| family | layer agg | trials | source_val | target | epochs | sec |
+|---|---|---|---|---|---|---|
+| logreg | last | 20 | 0.7580 | 0.3674 | — | 45 |
+| logreg | layer:6 | 20 | 0.8110 | 0.2190 | — | 22 |
+| svm_linear | last | 20 | 0.7383 | 0.3178 | — | 39 |
+| svm_linear | layer:6 | 20 | 0.8043 | 0.1987 | — | 17 |
+| svm_rbf | last | 20 | 0.7345 | 0.3326 | — | 21 |
+| svm_rbf | layer:6 | 20 | 0.8270 | 0.2871 | — | 22 |
+| mlp | last | 20 | 0.7997 | 0.3833 | 47 | 194 |
+| mlp | layer:6 | 20 | 0.8453 | 0.2445 | 16 | 215 |
+| mlp | weighted | 20 | 0.8152 | 0.3742 | 34 | 138 |
+| transformer | last | 20 | 0.8225 | **0.4137** | 19 | 1365 |
+| transformer | layer:6 | 20 | **0.8614** | 0.3353 | 36 | 724 |
+
+Chance at K=6 is 0.167, so every condition clears its floor comfortably —
+unlike the original study's sub-chance aggregates.
+
+**The finding: `source_val` and target disagree systematically.** In every one of
+the five families, `layer:6` scores *higher* on `source_val` than `last` and
+*lower* on target. The middle layers fit the source better and transfer worse.
+This inverts the usual "middle layers carry the paralinguistic signal" reasoning
+for the cross-corpus case — it holds in-domain, and reverses across corpora.
+
+Consequence: **selection on `source_val` actively prefers the worse-transferring
+representation.** Validated protocol picks `transformer/layer:6` (source_val
+0.8614) whose target is 0.3353; the oracle is `transformer/last` at 0.4137.
+**Gap: +0.078 macro-F1, about 23% relative** — and this is with a *correct*
+selection protocol, on one pair with one backbone. It is the Phase 8
+validated-vs-oracle result appearing early, and it is not an artefact of a bad
+selection rule; it is what an honest selection rule costs.
+
+**Two expectations of mine that the data refuted.** I predicted the Transformer
+would lose to the MLP at these data sizes — it is the best condition on target
+(0.4137 vs 0.3833). And I expected middle layers to help; they help only
+in-domain.
+
+Early stopping is real: 16–47 epochs against a 200-epoch cap, different per
+condition, never a fixed count.
+
+**Equal budget is enforced, not asserted.** `n_search_trials` is recorded on
+every row, and a test builds every family and asserts the trial counts are
+identical. A failed trial is recorded and scored −∞ rather than retried, so a
+fragile family cannot quietly buy extra attempts.
+
+`weighted` is offered only to the torch families: the softmax over 13 layers is a
+classifier parameter, and a closed-form sklearn model has none to learn it with.
+Requesting it on logreg raises rather than silently substituting something else.
+
+**No standardisation inside any classifier.** The obvious `StandardScaler` in
+front of every sklearn model — which the original had — would make the `zscore`
+rung a no-op and the `none` rung unmeasurable, silently collapsing two conditions
+the paper reports as distinct.
+
+---
+
 ## 2026-08-15 — Phase 5: the alignment ladder
 
 Status: **complete for `{ravdess, cremad}`.** `pytest` → 316 passed. End-to-end

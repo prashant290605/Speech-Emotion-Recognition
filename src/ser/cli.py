@@ -37,7 +37,6 @@ from .utils.seeding import set_all_seeds
 # Phase that owns each not-yet-built command. `ser <cmd>` exits 2 with a
 # pointer rather than a traceback or, worse, a partial result.
 PENDING = {
-    "classify-check": (6, "equal-budget classifier search on one corpus pair"),
     "run-grid": (7, "the full resumable grid"),
     "select": (8, "validated vs oracle selection protocols + headline tables"),
     "label-shift": (9, "prior-shift analysis and EM correction"),
@@ -77,6 +76,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "verify-cache": _cmd_verify_cache,
         "baselines": _cmd_baselines,
         "align-check": _cmd_align_check,
+        "effective-rank": _cmd_effective_rank,
+        "classify-check": _cmd_classify_check,
     }[args.command]
 
     try:
@@ -183,6 +184,22 @@ def _build_parser() -> argparse.ArgumentParser:
     align.add_argument("--seed", type=int, default=0)
     align.add_argument("--backbone", default="hubert")
     align.add_argument("--layer-spec", default="layer:6")
+    clf = sub.add_parser(
+        "classify-check", help="[6] every family at equal budget, selection on source_val"
+    )
+    clf.add_argument("--source", default="ravdess")
+    clf.add_argument("--target", default="cremad")
+    clf.add_argument("--seed", type=int, default=0)
+    clf.add_argument("--backbone", default="hubert")
+    clf.add_argument("--layer", type=int, default=6)
+    clf.add_argument("--families", default=None, help="Comma-separated subset")
+
+    rank = sub.add_parser(
+        "effective-rank", help="[5] effective rank per backbone per layer"
+    )
+    rank.add_argument("--corpora", default=None, help="Comma-separated subset")
+    rank.add_argument("--seed", type=int, default=0)
+
     align.add_argument(
         "--lambdas",
         default=None,
@@ -297,9 +314,10 @@ def _cmd_smoke(args: argparse.Namespace) -> int:
     class_names = list(config.labels.spaces["six"])
 
     coords = {
-        "config_hash": config.config_hash,
         "label_map_hash": config.label_map_hash,
         "split_spec_hash": config.split_spec_hash,
+        "feature_spec_hash": config.feature_spec_hash,
+        "search_spec_hash": config.search_spec_hash,
         "seed": seed,
         "source_corpus": SMOKE_CORPUS,
         "target_corpus": SMOKE_CORPUS,
@@ -318,6 +336,8 @@ def _cmd_smoke(args: argparse.Namespace) -> int:
     # coords and the provenance stamp both carry config_hash; merge rather than
     # splat so the duplicate key resolves instead of raising.
     row = new_row(
+        # coords carries the run_id facets; meta.as_row_fields() supplies
+        # config_hash, which is recorded but is no longer a coordinate.
         **{**coords, **meta.as_row_fields()},
         run_id=make_run_id(coords),
         n_classes=len(class_names),
@@ -336,6 +356,11 @@ def _cmd_smoke(args: argparse.Namespace) -> int:
         majority_macro_f1=None,
         prior_matched_macro_f1=None,
         selection_source_val_macro_f1=None,
+        cov_condition_number=None,
+        cov_effective_rank=None,
+        n_search_trials=None,
+        marginal_mmd_raw=None,
+        marginal_mmd_normalised=None,
         wall_seconds=round(time.perf_counter() - started, 6),
         status="ok",
         error=None,
@@ -580,6 +605,28 @@ def _cmd_align_check(args: argparse.Namespace) -> int:
         backbone=args.backbone,
         layer_spec=args.layer_spec,
         lambdas=lambdas,
+    )
+
+
+def _cmd_classify_check(args: argparse.Namespace) -> int:
+    """Phase 6: all families at equal budget, selection on source_val only."""
+    from .classifyrun import run_classifier_check  # noqa: PLC0415
+
+    config = load_config(args.config)
+    families = [f.strip() for f in args.families.split(",")] if args.families else None
+    return run_classifier_check(
+        config, args.source, args.target, seed=args.seed,
+        backbone=args.backbone, layer=args.layer, families=families,
+    )
+
+
+def _cmd_effective_rank(args: argparse.Namespace) -> int:
+    """Effective rank of source_train covariance, per backbone and layer."""
+    from .rankreport import run_rank_report  # noqa: PLC0415
+
+    config = load_config(args.config)
+    return run_rank_report(
+        config, _selected_corpora(config, args.corpora), seed=args.seed
     )
 
 
