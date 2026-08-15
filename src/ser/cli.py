@@ -37,9 +37,7 @@ from .utils.seeding import set_all_seeds
 # Phase that owns each not-yet-built command. `ser <cmd>` exits 2 with a
 # pointer rather than a traceback or, worse, a partial result.
 PENDING = {
-    "manifest": (2, "walk raw corpora -> data/manifest.csv"),
     "splits": (2, "speaker-disjoint splits, deterministic given a seed"),
-    "dataset-stats": (2, "reports/dataset_stats.{md,csv}"),
     "extract": (3, "all-layer SSL + MFCC feature caches"),
     "verify-cache": (3, "tools/verify_cache.py: shape, NaN, ordering assertions"),
     "baselines": (4, "chance, majority, and prior-matched floors"),
@@ -77,6 +75,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "schema": _cmd_schema,
         "smoke": _cmd_smoke,
         "check-refs": _cmd_check_refs,
+        "manifest": _cmd_manifest,
+        "dataset-stats": _cmd_dataset_stats,
     }[args.command]
 
     try:
@@ -119,6 +119,26 @@ def _build_parser() -> argparse.ArgumentParser:
     refs.add_argument("--cache", default=".cache/crossref.json")
     refs.add_argument("--mailto", default=None, help="Contact for Crossref's polite pool")
     refs.add_argument("--offline", action="store_true", help="Use the cache only")
+
+    manifest = sub.add_parser(
+        "manifest", help="[2] walk the raw corpora -> data/manifest.csv"
+    )
+    manifest.add_argument(
+        "--corpora",
+        default=None,
+        help="Comma-separated subset to build (default: grid.corpora)",
+    )
+    manifest.add_argument(
+        "--allow-count-mismatch",
+        action="store_true",
+        help="Record a corpus whose size disagrees with the published expectation "
+        "instead of halting. Use only when you know why it differs.",
+    )
+
+    stats = sub.add_parser(
+        "dataset-stats", help="[2] per-class counts, priors and prior KL from the manifest"
+    )
+    stats.add_argument("--corpora", default=None, help="Comma-separated subset")
 
     for name, (phase, description) in PENDING.items():
         sub.add_parser(name, help=f"[{phase}] {description}")
@@ -301,6 +321,78 @@ def _cmd_check_refs(args: argparse.Namespace) -> int:
         mailto=args.mailto,
         offline=args.offline,
     )
+
+
+_CORPUS_PATH_KEYS = {
+    "ravdess": "raw_ravdess",
+    "cremad": "raw_cremad",
+    "iemocap": "raw_iemocap",
+}
+
+
+def _selected_corpora(config, override: str | None) -> list[str]:
+    if override:
+        selected = [name.strip() for name in override.split(",") if name.strip()]
+    else:
+        selected = list(config.grid.corpora)
+    unknown = [name for name in selected if name not in _CORPUS_PATH_KEYS]
+    if unknown:
+        raise ConfigError(f"unknown corpus/corpora: {unknown}")
+    return selected
+
+
+def _cmd_manifest(args: argparse.Namespace) -> int:
+    """Phase 2: walk the raw corpora into data/manifest.csv."""
+    from .labels import LabelPolicy  # noqa: PLC0415
+    from .manifest import CountMismatch, build_manifest, write_manifest  # noqa: PLC0415
+
+    config = load_config(args.config)
+    seed = set_all_seeds(config.seed)
+    policy = LabelPolicy.from_config(config)
+
+    corpora = _selected_corpora(config, args.corpora)
+    roots = {
+        name: config.resolve(getattr(config.paths, _CORPUS_PATH_KEYS[name]))
+        for name in corpora
+    }
+
+    print(f"seed {seed} | label_map_hash {config.label_map_hash}")
+    for name, root in roots.items():
+        print(f"  {name:<8} {root}")
+    print()
+
+    def progress(corpus: str, count: int) -> None:
+        print(f"  {corpus}: {count} files...", flush=True)
+
+    try:
+        rows = build_manifest(
+            roots, policy, verify_counts=not args.allow_count_mismatch, progress=progress
+        )
+    except CountMismatch as exc:
+        print(f"\nHALTED: {exc}", file=sys.stderr)
+        return 1
+
+    out = config.resolve(config.paths.manifest)
+    written = write_manifest(rows, out)
+    print(f"\nwrote {written} rows to {out}")
+
+    for name in corpora:
+        subset = [r for r in rows if r.corpus == name]
+        speakers = {r.speaker_id for r in subset}
+        hours = sum(r.duration_s for r in subset) / 3600.0
+        print(
+            f"  {name:<8} {len(subset):>5} utterances | {len(speakers):>3} speakers "
+            f"| {hours:5.2f} h"
+        )
+    return 0
+
+
+def _cmd_dataset_stats(args: argparse.Namespace) -> int:
+    """Phase 2: per-class counts, priors, and the A8 prior-KL verification."""
+    from .datastats import run_dataset_stats  # noqa: PLC0415
+
+    config = load_config(args.config)
+    return run_dataset_stats(config, _selected_corpora(config, args.corpora))
 
 
 if __name__ == "__main__":  # pragma: no cover

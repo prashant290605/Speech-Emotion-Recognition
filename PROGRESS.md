@@ -9,6 +9,105 @@ file plus PHASES.md is the entire handover between them.
 
 ---
 
+## 2026-08-12 — Session 2: corpus acquisition, manifest, prior verification
+
+Status: **complete**. `pytest` → 190 passed. IEMOCAP untouched; no features extracted.
+
+### Acquired
+
+| corpus | source | size | files | speakers |
+|---|---|---|---|---|
+| RAVDESS speech | Zenodo record 1188976, `Audio_Speech_Actors_01-24.zip` | 208,468,073 B | 1440 wav | 24 actors |
+| CREMA-D | GitHub `CheyneyComputerScience/CREMA-D`, `AudioWAV/` | 578 MB | 7442 wav | 91 actors |
+
+RAVDESS zip `sha256 = 5d208e01632cc3e5242106fa2af3273e6dc5239fb8143131979ac74c4aa40657`,
+`testzip()` clean, 1440 wav entries.
+
+CREMA-D is a **Git LFS** repository — the tree is 15 MB of pointers, so a plain
+clone yields no audio. Acquired with `GIT_LFS_SKIP_SMUDGE=1`, a sparse checkout
+of `AudioWAV`, then `git lfs pull --include="AudioWAV/**"`. Verified zero files
+under 1 KB, i.e. no unresolved pointers left masquerading as audio. The temporary
+clone was deleted after the audio was moved (its `.git/lfs` held a second 578 MB
+copy).
+
+Both counts match the published sizes **exactly** — 1440/24 and 7442/91 — so the
+count guard passed without needing its tolerance.
+
+### Manifest
+
+`data/manifest.csv`, 8882 rows, 12 columns (the Phase 2 set plus `subset` for
+IEMOCAP later and one mapped-label column per space):
+
+```
+corpus, file_path, utterance_id, speaker_id, session_id, subset,
+original_label, label_six, label_four, duration_s, sample_rate, sha256
+```
+
+RAVDESS 1.48 h, CREMA-D 5.26 h. Duration and sample rate come from the file
+header; audio content is read only for the integrity hash.
+
+Two design points worth keeping:
+
+- **One mapped-label column per label space**, not a single "mapped label".
+  Which space applies depends on the *pair*, so a single column would be
+  ambiguous the moment IEMOCAP arrives.
+- **`CORPUS_EXPECTATIONS` is a module constant, not config.** A verification
+  threshold a user can edit is not a verification. A partial download halts the
+  build rather than silently shrinking the experiment.
+- RAVDESS **song** (`channel == 02`) is explicitly skipped. It is a separate
+  Zenodo download, and letting it in would inflate counts past the guard.
+
+### A8 verified against real data
+
+The near-zero prior shift that reframed all of Phase 9 was computed from
+*published counts*. Recomputed from the manifest:
+
+| source → target | K | KL (nats) | JS | A8 predicted | agrees |
+|---|---|---|---|---|---|
+| ravdess → cremad | 6 | 0.0252 | 0.0769 | 0.0252 | yes |
+| cremad → ravdess | 6 | 0.0224 | 0.0769 | 0.0224 | yes |
+
+Agreement to four decimal places. Per-class counts reproduce the published
+figures exactly: RAVDESS 192 each for angry/disgust/fear/happy/sad and 288
+neutral (96 + 192 calm), 1248 in the 6-class space with 192 surprised excluded;
+CREMA-D 1271 each and 1087 neutral, all 7442 retained.
+
+**The "RAVDESS is exactly balanced" correction is now demonstrated, not asserted:**
+priors are 0.231 neutral against 0.154 for every other class. There is a test
+named for it.
+
+`ser dataset-stats` exits non-zero and prints HALT if any pair disagrees with A8
+by more than 0.002 nats. Per A9 this is the **corpus-level** integrity check;
+split-level KL per seed remains a Phase 8 quantity.
+
+### Files created / modified
+
+```
+src/ser/labels.py          pure map_label + LabelPolicy (no default policy)
+src/ser/manifest.py        parsers, build, count guard, CSV round trip
+src/ser/datastats.py       counts, priors, KL/JS, the A8 guard, report
+src/ser/cli.py             `ser manifest`, `ser dataset-stats`
+tests/test_labelmap.py     table-driven over every raw label x space x corpus
+tests/test_manifest.py     building, guards, divergence maths, real-data checks
+data/manifest.csv          8882 rows (gitignored: derived, and paths are local)
+reports/dataset_stats.{md,csv}
+```
+
+`map_label` takes an explicit `LabelPolicy` rather than reading config itself —
+that is what makes the purity assertion meaningful and stops any run from
+quietly adopting a default. An unrecognised raw label **raises** instead of
+returning `None`, so `None` can only ever mean "deliberately excluded".
+
+### Deferred
+
+- IEMOCAP: untouched, as instructed. Its manifest parser is not written; the
+  `subset` and `session_id` columns exist and are empty.
+- No features extracted (Phase 3).
+- `data/manifest.csv` is gitignored: it is derived, and `file_path` holds
+  machine-local absolute paths. Regenerate with `ser manifest`.
+
+---
+
 ## 2026-08-12 — Phase 1: reference integrity checker
 
 Status: **script complete; manual resolution outstanding.** `pytest` → 107 passed.
