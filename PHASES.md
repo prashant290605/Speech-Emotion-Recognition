@@ -520,6 +520,35 @@ re-extraction. This is what fixes the final-layer-pooling problem cheaply.
 Same for every corpus and backbone. Record the exact torchaudio/transformers versions
 in the cache metadata.
 
+> **Implementation notes from the 2026-08-15 build.** Three things a later
+> session will otherwise rediscover the hard way:
+>
+> - **Cache keys are per corpus**, not over the whole manifest. Same intent —
+>   each cache is keyed by exactly the rows it covers, including each row's audio
+>   sha256 — but adding IEMOCAP later then costs only IEMOCAP's extraction rather
+>   than invalidating RAVDESS and CREMA-D. On CPU that is the difference between
+>   an afternoon and a day.
+>
+> - **Batch size is 1 on purpose.** Batching needs padding, and a padded frame
+>   reaching the mean corrupts the pooled vector silently, worst for the shortest
+>   utterances. Masking would fix it, but `facebook/wav2vec2-base` is documented
+>   as degrading under masked batched inference (pretrained without an attention
+>   mask; its feature extractor sets `return_attention_mask=False`). Treating one
+>   backbone differently would put an unmeasured confound into the backbone
+>   comparison. Recover wall time with **process-level parallelism** — one
+>   process per backbone, `--threads` split across cores — which changes nothing
+>   numerically.
+>
+> - **OpenMP ordering, Windows/conda.** conda's numpy+MKL and pip's torch each
+>   ship `libiomp5md.dll`. If torch's OpenMP initialises first, the first call
+>   into librosa's MFCC path aborts the process with `OMP: Error #15`.
+>   `ser.features.audio.warm_up_audio_stack()` runs the **full** MFCC path
+>   (including `librosa.feature.delta`, which is separately linked through scipy
+>   — a warm-up that skips it still aborts) before torch is imported. Import
+>   ordering only, no numerical effect. Do **not** reach for
+>   `KMP_DUPLICATE_LIB_OK=TRUE`: Intel documents it as able to "silently produce
+>   incorrect results", which this project cannot accept.
+
 **Acceptance.** `tools/verify_cache.py` passes for all three backbones. Cache sizes
 and extraction wall time recorded in `PROGRESS.md`. Re-running extraction is a no-op.
 

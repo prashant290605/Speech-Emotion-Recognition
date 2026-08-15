@@ -215,3 +215,86 @@ def test_peak_normalise_scales_to_unit_peak():
 
     out = peak_normalise(np.array([0.0, -0.25, 0.5], dtype=np.float32))
     assert float(np.max(np.abs(out))) == pytest.approx(1.0)
+
+
+# -- against real caches ---------------------------------------------------
+# These catch what the shape/finiteness assertions cannot: features that are
+# well-formed but wrong.
+def _real_ssl_entries(config):
+    import glob
+
+    from ser.features.cache import load_entry
+
+    entries = []
+    for path in sorted(glob.glob(str(config.resolve(config.paths.cache_dir) / "*"))):
+        try:
+            entry = load_entry(path)
+        except FileNotFoundError:
+            continue
+        if entry.meta.get("backbone") not in (None, "mfcc"):
+            entries.append(entry)
+    return entries
+
+
+def test_cached_layers_are_thirteen_distinct_states(config):
+    """Guards against storing one hidden state 13 times, which would pass every
+    shape check while making the whole layer-aggregation axis meaningless."""
+    entries = _real_ssl_entries(config)
+    if not entries:
+        pytest.skip("no SSL caches built yet")
+
+    for entry in entries:
+        layers = np.asarray(entry.array("layers")[:100], dtype=np.float32)
+        adjacent = [
+            float(np.abs(layers[:, i] - layers[:, i + 1]).mean())
+            for i in range(layers.shape[1] - 1)
+        ]
+        assert min(adjacent) > 1e-3, f"{entry.meta['backbone']}: layers not distinct"
+
+
+def test_segment_pooling_averages_back_to_mean_pooling(config):
+    """mean over segments must reconstruct the mean-pooled vector.
+
+    Segments are uniform, so this holds up to float16 rounding and the small
+    remainder when frame count is not divisible by 8. It is the check that both
+    poolings really came from the same forward pass.
+    """
+    entries = [e for e in _real_ssl_entries(config) if e.has("segments")]
+    if not entries:
+        pytest.skip("no segment caches built yet")
+
+    for entry in entries:
+        layers = np.asarray(entry.array("layers")[:100], dtype=np.float32)
+        segments = np.asarray(entry.array("segments")[:100], dtype=np.float32)
+        assert np.abs(segments.mean(axis=2) - layers).mean() < 0.02
+
+
+def test_different_backbones_produce_different_features(config):
+    entries = {e.meta["backbone"]: e for e in _real_ssl_entries(config)
+               if e.meta["corpus"] == "ravdess"}
+    if len(entries) < 2:
+        pytest.skip("need two SSL caches for the same corpus")
+
+    names = sorted(entries)
+    a = np.asarray(entries[names[0]].array("layers")[:50], dtype=np.float32)
+    b = np.asarray(entries[names[1]].array("layers")[:50], dtype=np.float32)
+    assert float(np.abs(a - b).mean()) > 1e-2
+
+
+def test_cache_ordering_matches_the_manifest(config):
+    """The silent one: every split and label lookup assumes row i of the cache
+    is row i of the corpus in the manifest."""
+    from ser.manifest import read_manifest
+
+    manifest_path = config.resolve(config.paths.manifest)
+    if not manifest_path.exists():
+        pytest.skip("manifest not built")
+    rows = read_manifest(manifest_path)
+
+    entries = _real_ssl_entries(config)
+    if not entries:
+        pytest.skip("no SSL caches built yet")
+
+    for entry in entries:
+        expected = [r.utterance_id for r in rows if r.corpus == entry.meta["corpus"]]
+        assert entry.utterance_ids == expected
