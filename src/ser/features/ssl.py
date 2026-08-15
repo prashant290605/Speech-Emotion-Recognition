@@ -67,6 +67,7 @@ class SSLExtractor:
     model: object
     feature_extractor: object
     input_normalised: bool
+    expected_sample_rate: int
 
     @classmethod
     def load(cls, backbone: str, config) -> "SSLExtractor":
@@ -90,11 +91,29 @@ class SSLExtractor:
             # Model-specific input scaling belongs to the model, not to our
             # preprocessing contract. Recorded so it is never ambiguous.
             input_normalised=bool(getattr(feature_extractor, "do_normalize", False)),
+            # Taken from the checkpoint, then cross-checked against the config,
+            # so a config change cannot quietly feed a model the wrong rate.
+            expected_sample_rate=int(
+                getattr(feature_extractor, "sampling_rate", config.features.sample_rate)
+            ),
         )
 
-    def encode(self, waveform: np.ndarray, sample_rate: int) -> Tuple[np.ndarray, np.ndarray]:
-        """Return ``(layers (13, 768), segments (13, 8, 768))`` for one utterance."""
+    def encode(
+        self, waveform: np.ndarray, sample_rate: int
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Return ``(layers (13, 768), segments (13, 8, 768))`` for one utterance.
+
+        Raises if ``sample_rate`` is not the model's expected rate. Passing
+        48 kHz audio would not error inside the model -- it would silently encode
+        time-distorted speech.
+        """
         import torch
+
+        if int(sample_rate) != int(self.expected_sample_rate):
+            raise ValueError(
+                f"{self.backbone} expects {self.expected_sample_rate} Hz, got "
+                f"{sample_rate} Hz. Resample before extraction."
+            )
 
         inputs = self.feature_extractor(
             waveform, sampling_rate=sample_rate, return_tensors="pt"

@@ -61,15 +61,44 @@ def peak_normalise(waveform: np.ndarray) -> np.ndarray:
     return waveform.astype(np.float32)
 
 
+def assert_target_sample_rate(sample_rate: int, config) -> None:
+    """Refuse any rate other than the configured one.
+
+    RAVDESS ships at 48 kHz and CREMA-D at 16 kHz, and every SSL backbone here
+    expects 16 kHz. Feeding 48 kHz audio to the model would not error -- it would
+    silently produce features for speech running at a third of its true rate,
+    and the numbers would look plausible. Timing evidence says the resampling is
+    correct today; this makes it structural so it cannot regress.
+    """
+    expected = config.features.sample_rate
+    if int(sample_rate) != int(expected):
+        raise ValueError(
+            f"sample rate {sample_rate} != required {expected}. Audio must be "
+            "resampled before feature extraction; a mismatch here would produce "
+            "plausible-looking features for time-distorted speech."
+        )
+
+
 def load_audio(path: str | Path, config) -> np.ndarray:
-    """Load one file under the fixed contract, as float32 mono at the target rate."""
+    """Load one file under the fixed contract, as float32 mono at the target rate.
+
+    ``librosa.load`` resamples to ``sr``; the assertion below is a guard against
+    the config being changed to disable resampling, not against librosa.
+    """
     import librosa
 
-    waveform, _ = librosa.load(
-        str(path),
-        sr=config.features.sample_rate if config.features.sample_rate else None,
-        mono=config.features.mono,
+    target_rate = config.features.sample_rate
+    if not target_rate:
+        raise ValueError(
+            "features.sample_rate must be set. Loading at native rate would mix "
+            "48 kHz RAVDESS and 16 kHz CREMA-D in one feature space."
+        )
+
+    waveform, sample_rate = librosa.load(
+        str(path), sr=target_rate, mono=config.features.mono
     )
+    assert_target_sample_rate(sample_rate, config)
+
     waveform = np.asarray(waveform, dtype=np.float32).reshape(-1)
     if config.features.peak_normalise:
         waveform = peak_normalise(waveform)

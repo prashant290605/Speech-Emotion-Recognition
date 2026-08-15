@@ -40,7 +40,7 @@ decided, and deferred.
 | 1 | Reference integrity checker | script complete; manual DOI resolution outstanding |
 | 2 | Manifest, label map, splits, leakage tests | complete for {RAVDESS, CREMA-D}; IEMOCAP pending |
 | 3 | Feature extraction and caching | complete for {RAVDESS, CREMA-D}; IEMOCAP pending |
-| 4 | Metrics and trivial baselines | not started |
+| 4 | Metrics and trivial baselines | complete for {RAVDESS, CREMA-D} |
 | 5 | Alignment and blending | not started |
 | 6 | Classifiers with equal-budget search | not started |
 | 7 | Grid runner | not started |

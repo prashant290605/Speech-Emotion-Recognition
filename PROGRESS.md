@@ -9,6 +9,108 @@ file plus PHASES.md is the entire handover between them.
 
 ---
 
+## 2026-08-15 — Phase 4: metrics, chance floors, and statistics
+
+Status: **complete for `{ravdess, cremad}`.** `pytest` → 264 passed.
+`results/runs.jsonl` holds **60 baseline rows** (3 floors × 4 pairs × 5 seeds),
+all schema-valid; re-running is idempotent (0 written, 60 skipped).
+
+### The sample-rate guard is now structural
+
+RAVDESS ships at 48 kHz and CREMA-D at 16 kHz; every backbone expects 16 kHz.
+Feeding 48 kHz audio to the model would **not error** — it would silently encode
+speech running at a third of its true rate and produce plausible features. Timing
+evidence said resampling was correct; it is now enforced in three places:
+
+- `assert_target_sample_rate()` — the shared check.
+- `load_audio()` — asserts after resampling, and refuses outright if
+  `features.sample_rate` is unset, since loading at native rate would mix 48 kHz
+  and 16 kHz audio in one feature space.
+- `SSLExtractor.encode()` — rejects any rate other than the checkpoint's own
+  `sampling_rate`, so a config change cannot quietly feed a model the wrong rate.
+
+Four tests, including one that writes a real 48 kHz file and asserts it resamples
+to 16 kHz with duration preserved, and one asserting `encode` raises on 48 kHz.
+
+### Floors, computed per pair and per seed
+
+All three are computed against the **realised `target_test` label distribution**,
+never an assumed uniform one.
+
+| pair | K | uniform | analytic | majority | stratified |
+|---|---|---|---|---|---|
+| ravdess → ravdess | 6 | 0.1629–0.1662 | 0.1656 | 0.0625 | 0.1649–0.1672 |
+| ravdess → cremad | 6 | 0.1663–0.1669 | 0.1665 | 0.0424–0.0426 | 0.1644–0.1648 |
+| cremad → ravdess | 6 | 0.1646–0.1665 | 0.1656 | 0.0444 | 0.1636–0.1650 |
+| cremad → cremad | 6 | 0.1660–0.1664 | 0.1665 | 0.0486–0.0487 | 0.1662–0.1669 |
+
+Closed forms were derived rather than assumed, and each is checked against a
+1000-draw empirical estimate with a 95% CI:
+
+- uniform: `F1_k = 2·p_k·(1/K) / (p_k + 1/K)`, which reduces to `1/K` for a
+  balanced target — 0.167 at K=6, 0.250 at K=4.
+- majority: only the predicted class scores, `F1_m = 2·p_m/(p_m+1)`, everything
+  else 0 — ~0.048 at K=6, the collapse floor.
+- stratified: `F1_k = 2·p_k·q_k / (p_k + q_k)` with `q` the source-train prior.
+
+The analytic values are a ratio of expectations, not the expectation of a ratio,
+so agreement with the empirical mean is a real check rather than a tautology. A
+test asserts the analytic value falls inside the empirical CI.
+
+**Two observations worth carrying into the paper.**
+
+*Majority depends on the target, not just K.* The same constant predictor scores
+0.0625 against a RAVDESS target but 0.0425 against CREMA-D, because the source
+majority class is `neutral` — 23% of RAVDESS but 15% of CREMA-D. A single global
+"majority floor" would be wrong for half the grid.
+
+*Stratified ≈ uniform here*, because both corpora are near-uniform in the 6-class
+space. That is a direct consequence of the near-zero prior shift established in
+A8, showing up independently in a second measurement.
+
+### Metrics
+
+`src/ser/metrics.py`: macro-F1, accuracy, UAR, per-class F1, confusion matrix,
+and the class-collapse count. Verified against sklearn (`f1_score`,
+`accuracy_score`, `balanced_accuracy_score`, `confusion_matrix`) on synthetic
+data.
+
+Every function scores over **all** `class_names`, so a class the model never
+predicts contributes 0 rather than vanishing from the average — dropping
+unpredicted classes is exactly what makes a collapsed model look competent. UAR
+is the one deliberate exception: it averages recall only over classes present in
+`y_true`, since a class absent from the evaluation set has no recall to average
+and counting it as 0 would penalise the split rather than the model.
+
+### Statistics
+
+`src/ser/stats.py`: percentile bootstrap CI over **test utterances** (not runs),
+paired Wilcoxon signed-rank across matched (pair, seed) observations, and
+Holm-Bonferroni with monotone adjusted p-values. Wilcoxon returns p=1 on
+identical inputs rather than raising, which scipy does.
+
+### Files created / modified
+
+```
+src/ser/metrics.py             macro-F1, accuracy, UAR, per-class, confusion, collapse
+src/ser/baselines.py           three floors, analytic + empirical with CIs
+src/ser/stats.py               bootstrap CI, Wilcoxon, Holm-Bonferroni
+src/ser/baselinerun.py         per pair/seed -> results/runs.jsonl + report
+src/ser/features/audio.py      assert_target_sample_rate, stricter load_audio
+src/ser/features/ssl.py        expected_sample_rate + encode guard
+src/ser/cli.py                 `ser baselines`
+tests/test_metrics.py          26 tests
+reports/baselines.md
+```
+
+### Deferred
+
+- IEMOCAP pairs (K=4, chance 0.250) will be added when the corpus arrives; the
+  code is already pair-generic and needs no change.
+- No classifier is trained (Phase 6) and no alignment is fitted (Phase 5).
+
+---
+
 ## 2026-08-15 — Phase 3: feature extraction and caching
 
 Status: **complete for `{ravdess, cremad}`.** `pytest` → 238 passed.
