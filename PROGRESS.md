@@ -220,7 +220,8 @@ HuBERT, K=6.
 | mlp | layer:6 | 20 | 0.8453 | 0.2445 | 16 | 215 |
 | mlp | weighted | 20 | 0.8152 | 0.3742 | 34 | 138 |
 | transformer | last | 20 | 0.8225 | **0.4137** | 19 | 1365 |
-| transformer | layer:6 | 20 | **0.8614** | 0.3353 | 36 | 724 |
+| transformer | layer:6 | 20 | 0.8614 | 0.3353 | 36 | 724 |
+| transformer | weighted | 20 | **0.8894** | 0.3737 | 28 | 1229 |
 
 Chance at K=6 is 0.167, so every condition clears its floor comfortably —
 unlike the original study's sub-chance aggregates.
@@ -231,18 +232,33 @@ the five families, `layer:6` scores *higher* on `source_val` than `last` and
 This inverts the usual "middle layers carry the paralinguistic signal" reasoning
 for the cross-corpus case — it holds in-domain, and reverses across corpora.
 
-Consequence: **selection on `source_val` actively prefers the worse-transferring
-representation.** Validated protocol picks `transformer/layer:6` (source_val
-0.8614) whose target is 0.3353; the oracle is `transformer/last` at 0.4137.
-**Gap: +0.078 macro-F1, about 23% relative** — and this is with a *correct*
-selection protocol, on one pair with one backbone. It is the Phase 8
-validated-vs-oracle result appearing early, and it is not an artefact of a bad
-selection rule; it is what an honest selection rule costs.
+Consequence: **selection on `source_val` does not pick the best transferring
+condition.** Over all twelve conditions the validated protocol picks
+`transformer/weighted` (source_val 0.8894, the highest) whose target is 0.3737;
+the oracle is `transformer/last` at 0.4137.
+
+**Validated 0.3737 vs oracle 0.4137 — gap +0.0400 macro-F1, about 11%
+relative** — with a *correct* selection protocol, on one pair with one backbone.
+This is the Phase 8 validated-vs-oracle result appearing early, and it is not an
+artefact of a bad selection rule; it is what an honest selection rule costs.
+
+*(An earlier version of this entry, committed before the final condition
+finished, reported the validated pick as `transformer/layer:6` and the gap as
++0.078. `transformer/weighted` then landed with a higher `source_val`, which
+moves the validated pick and narrows the gap. The numbers above are the complete
+twelve-condition result.)*
+
+**The learnable weighting avoids the mid-layer trap.** `weighted` beats
+`layer:6` on target in both families that can use it — MLP 0.3742 vs 0.2445,
+Transformer 0.3737 vs 0.3353 — while also scoring highest on `source_val`. A
+learned softmax over all 13 states recovers most of what committing to a fixed
+middle layer throws away, which is the concrete argument for caching every layer
+in Phase 3.
 
 **Two expectations of mine that the data refuted.** I predicted the Transformer
 would lose to the MLP at these data sizes — it is the best condition on target
-(0.4137 vs 0.3833). And I expected middle layers to help; they help only
-in-domain.
+(0.4137 vs 0.3833) and on `source_val`. And I expected middle layers to help;
+they help only in-domain.
 
 Early stopping is real: 16–47 epochs against a 200-epoch cap, different per
 condition, never a fixed count.
