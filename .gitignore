@@ -16,6 +16,7 @@ data/cache/*
 # and figure is generated from. Scratch outputs are not.
 results/scratch/
 results/*.tmp
+results/*.bak
 
 # --- third-party API caches ---------------------------------------------
 # Crossref responses. Regenerable, and a stale copy would hide a correction

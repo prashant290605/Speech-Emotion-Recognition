@@ -37,7 +37,6 @@ from .utils.seeding import set_all_seeds
 # Phase that owns each not-yet-built command. `ser <cmd>` exits 2 with a
 # pointer rather than a traceback or, worse, a partial result.
 PENDING = {
-    "align-check": (5, "end-to-end alignment sanity run on one corpus pair"),
     "classify-check": (6, "equal-budget classifier search on one corpus pair"),
     "run-grid": (7, "the full resumable grid"),
     "select": (8, "validated vs oracle selection protocols + headline tables"),
@@ -77,6 +76,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "extract": _cmd_extract,
         "verify-cache": _cmd_verify_cache,
         "baselines": _cmd_baselines,
+        "align-check": _cmd_align_check,
     }[args.command]
 
     try:
@@ -173,6 +173,20 @@ def _build_parser() -> argparse.ArgumentParser:
     baselines.add_argument("--corpora", default=None, help="Comma-separated subset")
     baselines.add_argument(
         "--force", action="store_true", help="Recompute rows that already exist"
+    )
+
+    align = sub.add_parser(
+        "align-check", help="[5] fit every ladder rung on one pair and report shift"
+    )
+    align.add_argument("--source", default="ravdess")
+    align.add_argument("--target", default="cremad")
+    align.add_argument("--seed", type=int, default=0)
+    align.add_argument("--backbone", default="hubert")
+    align.add_argument("--layer-spec", default="layer:6")
+    align.add_argument(
+        "--lambdas",
+        default=None,
+        help="Comma-separated subset of the MMD lambda grid, to keep a check quick",
     )
 
     for name, (phase, description) in PENDING.items():
@@ -543,6 +557,29 @@ def _cmd_baselines(args: argparse.Namespace) -> int:
     set_all_seeds(config.seed)
     return run_baselines(
         config, _selected_corpora(config, args.corpora), force=args.force
+    )
+
+
+def _cmd_align_check(args: argparse.Namespace) -> int:
+    """Phase 5: fit every ladder rung on one pair. Trains and selects nothing."""
+    from .features.audio import warm_up_audio_stack  # noqa: PLC0415
+
+    warm_up_audio_stack()
+
+    from .alignrun import run_alignment_check  # noqa: PLC0415
+
+    config = load_config(args.config)
+    lambdas = (
+        [float(v) for v in args.lambdas.split(",")] if args.lambdas else None
+    )
+    return run_alignment_check(
+        config,
+        args.source,
+        args.target,
+        seed=args.seed,
+        backbone=args.backbone,
+        layer_spec=args.layer_spec,
+        lambdas=lambdas,
     )
 
 

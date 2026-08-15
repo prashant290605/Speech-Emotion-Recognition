@@ -55,7 +55,15 @@ __all__ = [
 # coordinates. Without them a changed label decision or split ratio leaves
 # run_id unchanged, and a Phase 7 resume silently merges runs scored against
 # different label spaces. Bumped before any experimental run existed.
-SCHEMA_VERSION = 2
+#
+# v3 (2026-08-15): added cov_condition_number and cov_effective_rank. With
+# d=768 and ~1000 source-train samples, every covariance this project forms is
+# rank-deficient, so how badly conditioned it was is part of what a result
+# means -- not a debugging detail. Explicit columns rather than a corner of
+# hyperparams_json, because "which runs were near-singular?" has to be
+# answerable by filtering. Bumped before any alignment run existed; the 60
+# baseline rows were regenerated.
+SCHEMA_VERSION = 3
 
 VALID_STATUSES = ("ok", "failed")
 
@@ -113,6 +121,19 @@ FIELDS: tuple[Field, ...] = (
     # -- classifier ---------------------------------------------------------
     _f("classifier", str, False, "logreg | svm | mlp | transformer | baseline_*."),
     _f("hyperparams_json", str, False, "JSON of the config selected on source_val."),
+    # -- numerical conditioning (null when no covariance was formed) --------
+    _f(
+        "cov_condition_number",
+        (float, int),
+        True,
+        "Worst condition number over covariances formed, after regularisation.",
+    ),
+    _f(
+        "cov_effective_rank",
+        (float, int),
+        True,
+        "Entropy-based effective rank of the source covariance (Roy & Vetterli).",
+    ),
     # -- splits -------------------------------------------------------------
     _f("split_id", str, False, "Identifies the speaker-disjoint split realisation."),
     _f("n_train", int, False, "Utterances in source_train."),

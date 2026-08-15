@@ -9,6 +9,145 @@ file plus PHASES.md is the entire handover between them.
 
 ---
 
+## 2026-08-15 — Phase 5: the alignment ladder
+
+Status: **complete for `{ravdess, cremad}`.** `pytest` → 316 passed. End-to-end
+sanity run over all six rungs on `ravdess → cremad`, every rung passing the
+Phase 2 leakage assertion against a real fitted object.
+
+### The ladder, measured
+
+`ravdess → cremad`, seed 0, HuBERT `layer:6`. `source_train` is **(988, 768)** —
+n < d, so the covariance is rank-deficient by construction, exactly as the brief
+warned.
+
+| rung | marginal MMD² after | reduction | cond. number | effective rank |
+|---|---|---|---|---|
+| *(before)* | 0.863419 | — | — | — |
+| none | 0.863419 | 0.0% | — | — |
+| zscore | 0.020602 | **97.6%** | — | — |
+| mean_shift | 0.053957 | 93.8% | — | — |
+| coral (eps=1e-4) | 0.001843 | **99.8%** | 1.82e+06 | 57.2 |
+| coral (eps=1e-3) | 0.002016 | 99.8% | 1.82e+05 | 57.2 |
+| coral (eps=1e-2) | 0.003303 | 99.6% | 1.82e+04 | 57.2 |
+| coral (eps=1e-1) | 0.010546 | 98.8% | 1.82e+03 | 57.2 |
+| coral (Ledoit-Wolf) | 0.004548 | 99.5% | 4.40e+04 | 57.2 |
+| mkmmd_diag (λ=1e-3) | 0.051186 | 94.1% | — | — |
+| mkmmd_diag (λ=1) | 0.080392 | 90.7% | — | — |
+| mkmmd_diag (λ=100) | 0.081528 | 90.6% | — | — |
+| mkmmd_full (λ=1e-3) | 0.017479 | 98.0% | — | — |
+| mkmmd_full (λ=1) | 0.058600 | 93.2% | — | — |
+| mkmmd_full (λ=100) | 0.080016 | 90.7% | — | — |
+
+**Three findings, all provisional until a classifier exists (Phase 6).**
+
+*Effective rank is 57.2 out of 768.* The source covariance concentrates
+essentially all of its energy in ~57 directions. This is far more extreme than
+"n < d" alone implies and it reframes what CORAL is doing: whitening a matrix
+whose usable rank is 7% of its nominal dimension. It is also the strongest
+argument yet that regularisation is not a numerical nicety here.
+
+*z-scoring alone removes 97.6% of marginal MMD* — more than `mean_shift`, and
+more than either MK-MMD variant. If transfer macro-F1 does not track this, the
+paper's central claim (A8: alignment minimises marginal discrepancy while
+conditional discrepancy moves the boundary) has its cleanest possible evidence.
+
+*MK-MMD underperforms CORAL on the very objective it optimises.* Expected, and
+worth stating plainly: it is minibatched at 256 with 500 steps and anchored by
+λ‖W−I‖²_F, while CORAL solves second-moment matching in closed form. λ behaves
+exactly as designed — larger λ means less MMD reduction and a W closer to
+identity, so the rung degrades towards `none` rather than towards noise.
+
+### Numerics
+
+`src/ser/numerics.py` is the load-bearing module.
+
+- **float64 or refuse.** `require_float64` raises rather than silently upcasting,
+  so a caller that handed over a float16 cache slice and believed it was fitting
+  in double precision finds out. Asserted at the entry to every `fit`; two
+  parametrised tests confirm float16 and float32 are both rejected.
+- **Conditioning is measured, not assumed.** Condition number, entropy-based
+  effective rank (Roy & Vetterli), numerical rank, and eigenvalue extremes are
+  computed for every covariance and the first two land on the run row as
+  explicit columns.
+- **Singular means fail, not pseudo-invert.** A regularised covariance worse
+  than 1e12 raises `SingularCovariance`. Silently pseudo-inverting would produce
+  a number that looks like a result.
+- **Shrinkage is scale-aware:** `Cov + eps · trace(Cov)/d · I`. The original
+  added a fixed `1e-5 · I` regardless of feature scale, so the same nominal
+  epsilon meant something different for every backbone and layer. Anchoring to
+  the mean eigenvalue makes `eps` comparable across the grid — there is a test
+  asserting the shrinkage ratio is invariant to feature scaling.
+
+### CORAL and MK-MMD specifics
+
+CORAL cannot be constructed unregularised — `CoralAlignment()` with no `eps` and
+no `ledoit_wolf` raises. `eps` is a searched axis (1e-4 … 1e-1) recorded in the
+run row, and Ledoit-Wolf is a parameter-free second variant whose analytic
+shrinkage lands between eps=1e-3 and 1e-2 here.
+
+MK-MMD learns `W, b` minimising `MMD²_k(WX+b, X_tgt) + λ‖W−I‖²_F` with the RBF
+sum at `{0.25,0.5,1,2,4}×σ_median`. λ spans 1e-3…1e2. W initialises at the
+identity, so step 0 is exactly the `none` rung and any improvement is
+attributable to optimisation rather than initialisation. The diagonal variant is
+a separate rung with 768 parameters against ~590k.
+
+### Two traps caught
+
+**YAML 1.1 numeric parsing.** `1.0e1` parses as the *string* `"1.0e1"` because
+YAML only recognises scientific notation when the exponent carries a sign, while
+`1.0e-1` parses as a float. The λ grid was silently half strings until the
+validator rejected it. Rewritten as plain decimals with a comment, and the whole
+config scanned for other instances (none).
+
+**`config_hash` is a `run_id` coordinate, so any config edit orphans every run.**
+Editing the `alignment` section made the 60 baseline rows re-run rather than
+resume; `results/runs.jsonl` now holds three `config_hash` generations, 121 rows,
+zero collisions. The append-only discipline held and nothing was corrupted, but
+at grid scale this is the difference between resuming and restarting. Written
+into PHASES.md A6: **freeze the config before the grid, and filter analysis by
+`config_hash`.**
+
+### Schema v3 and a real migration
+
+`cov_condition_number` and `cov_effective_rank` added as explicit columns rather
+than a corner of `hyperparams_json`, because "which runs were near-singular?" has
+to be answerable by filtering. 44 fields.
+
+`tools/migrate_results.py` migrates v2 → v3 in place with a backup, adding both
+fields as null (no pre-v3 row formed a covariance, so null is truthful rather
+than a placeholder). Regenerating would also have worked for cheap baseline rows,
+but it would have replaced provenance — new timestamps, new git SHA — for rows
+whose numbers did not change. All 61 `run_id`s preserved.
+
+### Files created / modified
+
+```
+src/ser/numerics.py        dtype discipline, conditioning, shrinkage, PSD roots
+src/ser/mmd.py             multi-kernel MMD + the affine map that minimises it
+src/ser/alignment.py       six rungs behind one contract
+src/ser/blending.py        scalar and group-wise blending + enumeration rule
+src/ser/alignrun.py        `ser align-check`
+src/ser/features/load.py   split ids -> cache rows, by id and never by position
+src/ser/utils/results.py   schema v3
+tools/migrate_results.py   v2 -> v3
+configs/default.yaml       six rungs, searched eps and lambda grids
+tests/test_alignment.py    49 tests
+reports/alignment_check.md
+```
+
+### Deferred
+
+- **No selection.** Choosing `eps`, `λ`, or `α` on `source_val` needs a
+  classifier: Phase 6. Nothing here is tuned.
+- Blending transforms and the enumeration rule are implemented and tested, but α
+  selection is Phase 6/7.
+- `marginal_mmd` before/after is collected per rung and is the covariate-shift
+  column Phase 9 needs; conditional-shift MMD stays behind the A10 firewall and
+  is not computed here.
+
+---
+
 ## 2026-08-15 — Phase 4: metrics, chance floors, and statistics
 
 Status: **complete for `{ravdess, cremad}`.** `pytest` → 264 passed.

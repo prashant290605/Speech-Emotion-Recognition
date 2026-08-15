@@ -277,6 +277,24 @@ Pruning is scored on the **source-side validation split, never on target test** 
 otherwise the screening pass reinvents the exact leak Phase 2 exists to prevent.
 A designed ablation is a contribution; an exhaustive sweep is a table.
 
+> **FREEZE THE CONFIG BEFORE THE GRID RUNS.** `config_hash` is a `run_id`
+> coordinate, so **any** edit to `configs/default.yaml` — even to a section the
+> run never reads, such as `stats.bootstrap_resamples` — changes every `run_id`
+> and orphans every completed run. Observed for real in Phase 5: editing the
+> `alignment` section made the 60 baseline rows re-run rather than resume, and
+> `results/runs.jsonl` now holds three `config_hash` generations.
+>
+> That is the conservative behaviour and it is deliberate — two runs under
+> different configs must never be conflated — but at grid scale it is the
+> difference between resuming and restarting. So:
+>
+> - Freeze the config, run the screening pass, freeze again, then run the grid.
+> - Analysis **must filter by `config_hash`**; superseded generations stay in
+>   the file, because the file is append-only by design.
+> - If a late config fix is genuinely required mid-grid, that is a decision to
+>   take deliberately and record, not something to discover from a resume that
+>   silently redoes 40 hours of work.
+
 ---
 
 ## Phase map

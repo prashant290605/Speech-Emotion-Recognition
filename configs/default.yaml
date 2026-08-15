@@ -158,12 +158,24 @@ alignment:
   # Reported as one ordered ablation, not as scattered points. If performance
   # is flat across the ladder, the shift is demonstrably not covariate -- shown
   # with an ordered series rather than two arbitrary comparisons.
-  methods: [none, zscore, mean_shift, coral, mmd]
+  methods: [none, zscore, mean_shift, coral, mkmmd_diag, mkmmd_full]
 
-  # Covariance regularisation: C + eps*I.
-  coral_eps: 1.0e-5
-  # Sensitivity is reported at exactly three settings.
-  coral_eps_sensitivity: [1.0e-6, 1.0e-5, 1.0e-4]
+  # CORAL covariance regularisation, scale-aware: Cov + eps * trace(Cov)/d * I.
+  #
+  # d=768 with ~1000 source-train samples means the sample covariance is
+  # rank-deficient by construction, so shrinkage is mandatory and eps is a
+  # SEARCHED axis, selected on source_val and recorded in the run row. An
+  # unreported eps makes CORAL unreproducible, which is one of the defects this
+  # rebuild exists to fix.
+  #
+  # Anchoring to trace/d (the mean eigenvalue) rather than a bare eps*I matters:
+  # the original added a fixed 1e-5*I regardless of feature scale, so the same
+  # nominal epsilon meant something different for every backbone and layer.
+  coral_shrinkage: [1.0e-4, 1.0e-3, 1.0e-2, 1.0e-1]
+  # Ledoit-Wolf as a second, parameter-free variant. If it matches the best
+  # searched eps, the search is not buying anything a principled estimator
+  # would not give for free.
+  coral_ledoit_wolf: true
 
   # MMD operator, fully specified (Decision B). Learn an affine map (W, b)
   # minimising
@@ -180,9 +192,26 @@ alignment:
   mmd_kernel: gaussian_multikernel
   mmd_bandwidth_multipliers: [0.25, 0.5, 1.0, 2.0, 4.0]
   mmd_fit_bias: true
-  mmd_identity_penalty: 0.1     # lambda on ||W - I||_F^2
+
+  # lambda on ||W - I||_F^2, a SEARCHED axis over a wide range.
+  #
+  # Full W is 768x768 ~= 590k parameters fitted on ~1000 samples. Without strong
+  # regularisation it interpolates source into target and generalises to
+  # nothing. The identity anchor means lambda -> infinity recovers the identity
+  # map, so the ladder degrades towards `none` rather than towards noise. The
+  # selected value is recorded in the run row.
+  # NOTE: written as plain decimals on purpose. YAML 1.1 only recognises
+  # scientific notation when the exponent carries a sign, so `1.0e1` parses as
+  # the *string* "1.0e1" while `1.0e-1` parses as a float. Mixed types here
+  # would fail the config validator at best and silently skew a searched axis at
+  # worst.
+  mmd_lambda_grid: [0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
+
   mmd_steps: 500
   mmd_learning_rate: 1.0e-3
+  # Minibatch for the kernel matrices. Full matrices over several thousand
+  # target samples would dominate runtime without improving the gradient.
+  mmd_batch_size: 256
 
 blending:
   modes: [none, scalar, gaa]

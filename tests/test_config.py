@@ -53,8 +53,11 @@ def test_default_config_matches_the_brief():
 
     assert config.blending.alpha_grid == [0.0, 0.25, 0.5, 0.75, 1.0]
     assert config.alignment.mmd_bandwidth_multipliers == [0.25, 0.5, 1.0, 2.0, 4.0]
-    assert len(config.alignment.coral_eps_sensitivity) == 3
-    assert config.alignment.mmd_identity_penalty >= 0.0
+    # Regularisation is a searched axis on both rungs that need it.
+    assert len(config.alignment.coral_shrinkage) >= 2
+    assert config.alignment.coral_ledoit_wolf is True
+    assert len(config.alignment.mmd_lambda_grid) >= 2
+    assert all(isinstance(v, float) for v in config.alignment.mmd_lambda_grid)
 
     assert config.classifiers.search_budget == 20
     assert "last" in config.classifiers.layer_agg_options
@@ -115,9 +118,12 @@ def test_missing_file_rejected():
         ("splits", "iemocap_split_unit", "utterance", "session"),
         ("splits", "seeds", [0, 1], "at least 5 seeds"),
         ("splits", "seeds", [0, 0, 1, 2, 3], "duplicates"),
-        ("alignment", "coral_eps", 0.0, "must be positive"),
+        ("alignment", "coral_shrinkage", [0.0], "must be positive"),
+        ("alignment", "coral_shrinkage", [], "at least one epsilon"),
         ("alignment", "methods", ["none", "gfk"], "unknown method"),
-        ("alignment", "coral_eps_sensitivity", [1e-5], "exactly 3"),
+        ("alignment", "mmd_lambda_grid", [0.1], "searched axis"),
+        ("alignment", "mmd_lambda_grid", [-1.0, 1.0], "non-negative"),
+        ("alignment", "mmd_batch_size", 2, "at least 4"),
         ("blending", "alpha_grid", [0.0, 1.5], r"\[0, 1\]"),
         ("blending", "n_groups", 1, "at least 2"),
         ("classifiers", "families", ["logreg", "randomforest"], "unknown family"),
@@ -166,7 +172,8 @@ def test_ladder_is_ordered_by_moments_matched():
         "zscore",
         "mean_shift",
         "coral",
-        "mmd",
+        "mkmmd_diag",
+        "mkmmd_full",
     ]
 
 
@@ -176,7 +183,7 @@ def test_mean_shift_is_a_distinct_condition_not_an_mmd_alias(raw, tmp_path):
     and neither may stand in for the other."""
     config = load_config()
     assert "mean_shift" in config.alignment.methods
-    assert "mmd" in config.alignment.methods
+    assert "mkmmd_full" in config.alignment.methods
 
     raw["alignment"]["methods"] = ["none", "mmd_mean_shift"]
     with pytest.raises(ConfigError, match="unknown method"):
@@ -184,9 +191,9 @@ def test_mean_shift_is_a_distinct_condition_not_an_mmd_alias(raw, tmp_path):
 
 
 def test_ladder_order_ignores_config_ordering(raw, tmp_path):
-    raw["alignment"]["methods"] = ["mmd", "none", "coral"]
+    raw["alignment"]["methods"] = ["mkmmd_full", "none", "coral"]
     config = load_config(_write(tmp_path, raw))
-    assert config.alignment.ladder_order() == ["none", "coral", "mmd"]
+    assert config.alignment.ladder_order() == ["none", "coral", "mkmmd_full"]
 
 
 # -- label decisions -------------------------------------------------------

@@ -70,6 +70,8 @@ def _row(**overrides):
         majority_macro_f1=0.05,
         prior_matched_macro_f1=0.16,
         selection_source_val_macro_f1=0.61,
+        cov_condition_number=1.5e4,
+        cov_effective_rank=57.2,
         wall_seconds=12.5,
         status="ok",
         error=None,
@@ -97,8 +99,8 @@ def test_every_field_from_the_brief_is_present():
 
 
 def test_schema_version_is_pinned():
-    assert SCHEMA_VERSION == 2
-    assert _row()["schema_version"] == 2
+    assert SCHEMA_VERSION == 3
+    assert _row()["schema_version"] == 3
 
 
 def test_label_map_and_split_spec_are_run_id_coordinates():

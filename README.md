@@ -41,7 +41,7 @@ decided, and deferred.
 | 2 | Manifest, label map, splits, leakage tests | complete for {RAVDESS, CREMA-D}; IEMOCAP pending |
 | 3 | Feature extraction and caching | complete for {RAVDESS, CREMA-D}; IEMOCAP pending |
 | 4 | Metrics and trivial baselines | complete for {RAVDESS, CREMA-D} |
-| 5 | Alignment and blending | not started |
+| 5 | Alignment and blending | complete for {RAVDESS, CREMA-D} |
 | 6 | Classifiers with equal-budget search | not started |
 | 7 | Grid runner | not started |
 | 8 | Selection protocol and headline tables | not started |

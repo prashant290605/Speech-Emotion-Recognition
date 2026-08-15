@@ -204,17 +204,18 @@ class AlignmentConfig:
     """
 
     methods: List[str]
-    coral_eps: float
-    coral_eps_sensitivity: List[float]
+    coral_shrinkage: List[float]
+    coral_ledoit_wolf: bool
     mmd_kernel: str
     mmd_bandwidth_multipliers: List[float]
+    mmd_lambda_grid: List[float]
     mmd_fit_bias: bool
-    mmd_identity_penalty: float
     mmd_steps: int
     mmd_learning_rate: float
+    mmd_batch_size: int
 
     # Ordered by moments matched. Used to order the ablation table.
-    LADDER = ("none", "zscore", "mean_shift", "coral", "mmd")
+    LADDER = ("none", "zscore", "mean_shift", "coral", "mkmmd_diag", "mkmmd_full")
 
     def __post_init__(self) -> None:
         unknown = sorted(set(self.methods) - set(self.LADDER))
@@ -223,17 +224,26 @@ class AlignmentConfig:
                 f"alignment.methods contains unknown method(s): {unknown}. "
                 f"The ladder is {list(self.LADDER)}."
             )
-        if self.coral_eps <= 0:
-            raise ConfigError("alignment.coral_eps must be positive")
-        if len(self.coral_eps_sensitivity) != 3:
+        if not self.coral_shrinkage:
             raise ConfigError(
-                "alignment.coral_eps_sensitivity must list exactly 3 values; "
-                "the paper reports epsilon sensitivity at three settings"
+                "alignment.coral_shrinkage must list at least one epsilon. "
+                "With d=768 and ~1000 samples the source covariance is "
+                "rank-deficient; regularisation is mandatory, not optional."
             )
+        if any(eps <= 0 for eps in self.coral_shrinkage):
+            raise ConfigError("alignment.coral_shrinkage values must be positive")
         if self.mmd_kernel != "gaussian_multikernel":
             raise ConfigError("alignment.mmd_kernel must be 'gaussian_multikernel'")
-        if self.mmd_identity_penalty < 0:
-            raise ConfigError("alignment.mmd_identity_penalty must be non-negative")
+        if any(lam < 0 for lam in self.mmd_lambda_grid):
+            raise ConfigError("alignment.mmd_lambda_grid values must be non-negative")
+        if len(self.mmd_lambda_grid) < 2:
+            raise ConfigError(
+                "alignment.mmd_lambda_grid must be a searched axis, not a single "
+                "value: W is ~590k parameters fitted on ~1000 samples and the "
+                "regularisation strength decides whether it generalises at all"
+            )
+        if self.mmd_batch_size < 4:
+            raise ConfigError("alignment.mmd_batch_size must be at least 4")
 
     def ladder_order(self) -> List[str]:
         """Configured methods, in ladder order."""
