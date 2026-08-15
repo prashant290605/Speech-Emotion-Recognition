@@ -37,8 +37,6 @@ from .utils.seeding import set_all_seeds
 # Phase that owns each not-yet-built command. `ser <cmd>` exits 2 with a
 # pointer rather than a traceback or, worse, a partial result.
 PENDING = {
-    "extract": (3, "all-layer SSL + MFCC feature caches"),
-    "verify-cache": (3, "tools/verify_cache.py: shape, NaN, ordering assertions"),
     "baselines": (4, "chance, majority, and prior-matched floors"),
     "align-check": (5, "end-to-end alignment sanity run on one corpus pair"),
     "classify-check": (6, "equal-budget classifier search on one corpus pair"),
@@ -77,6 +75,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "manifest": _cmd_manifest,
         "dataset-stats": _cmd_dataset_stats,
         "splits": _cmd_splits,
+        "extract": _cmd_extract,
+        "verify-cache": _cmd_verify_cache,
     }[args.command]
 
     try:
@@ -144,6 +144,28 @@ def _build_parser() -> argparse.ArgumentParser:
         "splits", help="[2] build every split, run the leakage assertions, report priors"
     )
     splits.add_argument("--corpora", default=None, help="Comma-separated subset")
+
+    extract = sub.add_parser("extract", help="[3] build the all-layer feature caches")
+    extract.add_argument("--corpora", default=None, help="Comma-separated subset")
+    extract.add_argument(
+        "--backbones",
+        default=None,
+        help="Comma-separated subset of features.backbones plus 'mfcc' "
+        "(default: all of them)",
+    )
+    extract.add_argument(
+        "--threads",
+        type=int,
+        default=None,
+        help="torch CPU threads. Lower it when running one process per backbone.",
+    )
+    extract.add_argument(
+        "--plan", action="store_true", help="Show the work plan and exit"
+    )
+
+    verify = sub.add_parser("verify-cache", help="[3] shape, finiteness, ordering assertions")
+    verify.add_argument("--corpora", default=None, help="Comma-separated subset")
+    verify.add_argument("--backbones", default=None, help="Comma-separated subset")
 
     for name, (phase, description) in PENDING.items():
         sub.add_parser(name, help=f"[{phase}] {description}")
@@ -399,6 +421,110 @@ def _cmd_splits(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     set_all_seeds(config.seed)
     return run_splits_report(config, _selected_corpora(config, args.corpora))
+
+
+def _selected_backbones(config, override: str | None) -> list[str]:
+    from .features.extract import MFCC_BACKBONE  # noqa: PLC0415
+
+    available = list(config.features.backbones) + [MFCC_BACKBONE]
+    if override:
+        selected = [name.strip() for name in override.split(",") if name.strip()]
+    else:
+        selected = available
+    unknown = [name for name in selected if name not in available]
+    if unknown:
+        raise ConfigError(f"unknown backbone(s) {unknown}; available: {available}")
+    return selected
+
+
+def _cmd_extract(args: argparse.Namespace) -> int:
+    """Phase 3: build the feature caches. A key hit is a no-op."""
+    from .features.audio import warm_up_audio_stack  # noqa: PLC0415
+
+    # MUST precede anything that imports torch. See warm_up_audio_stack.
+    warm_up_audio_stack()
+
+    from .features.extract import plan_extraction, extract_one  # noqa: PLC0415
+    from .manifest import read_manifest  # noqa: PLC0415
+
+    config = load_config(args.config)
+    set_all_seeds(config.seed)
+
+    if args.threads:
+        import torch  # noqa: PLC0415
+
+        torch.set_num_threads(args.threads)
+
+    rows = read_manifest(config.resolve(config.paths.manifest))
+    corpora = _selected_corpora(config, args.corpora)
+    backbones = _selected_backbones(config, args.backbones)
+
+    plan = plan_extraction(rows, config, corpora, backbones)
+    todo = [unit for unit in plan if not unit["exists"]]
+
+    print(f"{len(plan)} work unit(s); {len(todo)} to extract, {len(plan)-len(todo)} cached")
+    for unit in plan:
+        state = "cached" if unit["exists"] else "TO EXTRACT"
+        print(f"  {unit['corpus']:<8} {unit['backbone']:<10} {unit['n_rows']:>5} utts  {state}")
+    if args.plan:
+        return 0
+    print()
+
+    def progress(corpus, backbone, done, total, elapsed):
+        rate = done / elapsed if elapsed else 0
+        remaining = (total - done) / rate if rate else 0
+        print(
+            f"  [{corpus}/{backbone}] {done}/{total} "
+            f"({done/total:5.1%}) {rate:5.2f} utt/s  eta {remaining/60:5.1f} min",
+            flush=True,
+        )
+
+    total_wall = 0.0
+    for unit in plan:
+        result = extract_one(
+            rows, config, unit["corpus"], unit["backbone"], progress=progress
+        )
+        total_wall += result["wall_seconds"]
+        verb = "cached  " if result["status"] == "cached" else "extracted"
+        print(
+            f"{verb} {result['corpus']:<8} {result['backbone']:<10} "
+            f"n={result['n']:<5} {result['wall_seconds']/60:6.1f} min  {result['path'].name}",
+            flush=True,
+        )
+
+    print(f"\ntotal extraction wall time this invocation: {total_wall/60:.1f} min")
+    return 0
+
+
+def _cmd_verify_cache(args: argparse.Namespace) -> int:
+    """Phase 3: assert count, finiteness, shapes, and manifest ordering."""
+    from .features.verify import verify_all  # noqa: PLC0415
+    from .manifest import read_manifest  # noqa: PLC0415
+
+    config = load_config(args.config)
+    rows = read_manifest(config.resolve(config.paths.manifest))
+    corpora = _selected_corpora(config, args.corpora)
+    backbones = _selected_backbones(config, args.backbones)
+
+    results = verify_all(rows, config, corpora, backbones)
+    failures = [r for r in results if r["problems"]]
+    total_bytes = sum(r["bytes"] for r in results)
+
+    for result in results:
+        status = "OK" if not result["problems"] else "FAIL"
+        print(
+            f"  {result['corpus']:<8} {result['backbone']:<10} "
+            f"{result['bytes']/1e6:8.1f} MB  {status}"
+        )
+        for problem in result["problems"]:
+            print(f"      - {problem}")
+
+    print(f"\n{len(results) - len(failures)}/{len(results)} caches verified"
+          f" | {total_bytes/1e9:.2f} GB total")
+    if failures:
+        print("VERIFICATION FAILED", file=sys.stderr)
+        return 1
+    return 0
 
 
 def _cmd_dataset_stats(args: argparse.Namespace) -> int:
