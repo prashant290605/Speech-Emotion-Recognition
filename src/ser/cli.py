@@ -37,7 +37,6 @@ from .utils.seeding import set_all_seeds
 # Phase that owns each not-yet-built command. `ser <cmd>` exits 2 with a
 # pointer rather than a traceback or, worse, a partial result.
 PENDING = {
-    "splits": (2, "speaker-disjoint splits, deterministic given a seed"),
     "extract": (3, "all-layer SSL + MFCC feature caches"),
     "verify-cache": (3, "tools/verify_cache.py: shape, NaN, ordering assertions"),
     "baselines": (4, "chance, majority, and prior-matched floors"),
@@ -77,6 +76,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "check-refs": _cmd_check_refs,
         "manifest": _cmd_manifest,
         "dataset-stats": _cmd_dataset_stats,
+        "splits": _cmd_splits,
     }[args.command]
 
     try:
@@ -139,6 +139,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "dataset-stats", help="[2] per-class counts, priors and prior KL from the manifest"
     )
     stats.add_argument("--corpora", default=None, help="Comma-separated subset")
+
+    splits = sub.add_parser(
+        "splits", help="[2] build every split, run the leakage assertions, report priors"
+    )
+    splits.add_argument("--corpora", default=None, help="Comma-separated subset")
 
     for name, (phase, description) in PENDING.items():
         sub.add_parser(name, help=f"[{phase}] {description}")
@@ -385,6 +390,15 @@ def _cmd_manifest(args: argparse.Namespace) -> int:
             f"| {hours:5.2f} h"
         )
     return 0
+
+
+def _cmd_splits(args: argparse.Namespace) -> int:
+    """Phase 2: build every split and run the leakage assertions."""
+    from .splitreport import run_splits_report  # noqa: PLC0415
+
+    config = load_config(args.config)
+    set_all_seeds(config.seed)
+    return run_splits_report(config, _selected_corpora(config, args.corpora))
 
 
 def _cmd_dataset_stats(args: argparse.Namespace) -> int:

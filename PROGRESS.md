@@ -9,6 +9,98 @@ file plus PHASES.md is the entire handover between them.
 
 ---
 
+## 2026-08-12 — Session 3: Phase 2 splits and the leakage assertion suite
+
+Status: **complete for `{ravdess, cremad}`.** `pytest` → 205 passed.
+`ser splits` → 20 splits (4 pairs × 5 seeds), **all leakage assertions pass**.
+
+### The leakage suite, built before anything else
+
+Three of the brief's four assertions are in `src/ser/leakage.py`; the fourth
+(`map_label` purity) was asserted in Session 2. All run over *every* pair and
+seed, not a sample.
+
+1. **Speaker disjointness** — no speaker or session in two roles of a corpus.
+2. **No utterance on both sides** — nothing in a source split and a target split.
+3. **`target_test` never reaches a fitted alignment.** This is a **contract on
+   Phase 5**, not an option: `assert_alignment_blind_to_target_test` rejects an
+   object that has no `fitted_on_indices` at all, so an alignment that cannot be
+   checked cannot be used. It also rejects fitting on anything outside the split.
+4. `map_label` purity — `tests/test_labelmap.py`.
+
+Each assertion has a paired test proving it **fails** on a violating input. An
+assertion never observed to fail proves nothing, and this suite exists precisely
+because the original study's equivalent checks did not exist.
+
+### In-domain pairs needed a four-way partition
+
+Running the source and target splits independently over one corpus would place
+the same speakers in `source_train` and `target_test`, so every in-domain number
+would silently report training data. Instead an in-domain pair divides the corpus
+into a source side and a target side first (`splits.in_domain_source_ratio`, new
+config key), then carves the roles out within each side. Tested explicitly, with
+a companion test that the assertion catches the naive version.
+
+Splits are keyed on `(seed, corpus, side)` rather than a shared RNG stream, so a
+corpus gets the **same source-side partition in every pair where it is the
+source**. Results stay comparable across targets, and adding a pair does not
+perturb existing ones. There is a test for that too.
+
+### A9 measured — and the prediction is wrong for these corpora
+
+A9 predicted split-level prior KL would be *larger* than corpus-level and would
+*vary across seeds*. Measured over all 20 splits:
+
+| pair | corpus-level | split-level mean | spread over 5 seeds |
+|---|---|---|---|
+| ravdess → cremad | 0.0252 | 0.0251 | 0.0003 |
+| cremad → ravdess | 0.0224 | 0.0224 | 0.0000 |
+| ravdess → ravdess | 0.0000 | 0.0000 | 0.0000 |
+| cremad → cremad | 0.0000 | 0.0000 | 0.0000 |
+
+Verified as real, not a degenerate split: group sets are disjoint, sizes differ
+by seed, and CREMA-D's in-domain KL is 1e-6 rather than exactly 0.
+
+The cause is structural. Both are **acted corpora with a fixed per-actor
+recording protocol** — every RAVDESS actor records the same 60 trials, every
+CREMA-D actor the same sentence × emotion grid — so class proportions are
+invariant under any speaker-disjoint partition. RAVDESS is exactly 0 by
+construction.
+
+A9's *reasoning* was about IEMOCAP's non-uniform per-session distributions, which
+remains plausible and **remains untested**. What is now known is that it does not
+generalise to the acted corpora. PHASES.md A9 has been annotated with the
+measurement, and the procedural requirement — report both columns — is kept,
+since reporting both is what made this checkable.
+
+**For the thesis:** prior shift on these pairs is not merely near-zero at corpus
+level, it is *invariant to splitting*. The label-shift explanation is dead for
+RAVDESS↔CREMA-D in a stronger sense than A8 established.
+
+### Files created / modified
+
+```
+src/ser/splits.py        Split/PairSplit, deterministic speaker-disjoint splits,
+                         four-way in-domain partition
+src/ser/leakage.py       the assertion suite + the Phase 5 alignment contract
+src/ser/splitreport.py   `ser splits` report, split-level priors per seed
+src/ser/config.py        splits.in_domain_source_ratio
+configs/default.yaml     same
+src/ser/cli.py           `ser splits`
+tests/test_leakage.py    15 tests
+reports/splits.md
+```
+
+### Deferred
+
+- IEMOCAP: session-level splitting is implemented and config-driven
+  (`grouping_key_for`) but **untested against data** — no IEMOCAP on disk.
+- The A9 seed-variance question is open until IEMOCAP lands.
+- Phase 2's `reports/dataset_stats.md` currently covers two corpora; it must be
+  regenerated when IEMOCAP arrives.
+
+---
+
 ## 2026-08-12 — Session 2: corpus acquisition, manifest, prior verification
 
 Status: **complete**. `pytest` → 190 passed. IEMOCAP untouched; no features extracted.

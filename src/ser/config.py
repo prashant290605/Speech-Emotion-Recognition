@@ -141,11 +141,12 @@ class SplitsConfig:
     split_spec_version: str
     source_train_ratio: float
     target_adapt_ratio: float
+    in_domain_source_ratio: float
     iemocap_split_unit: str
     seeds: List[int]
 
     def __post_init__(self) -> None:
-        for name in ("source_train_ratio", "target_adapt_ratio"):
+        for name in ("source_train_ratio", "target_adapt_ratio", "in_domain_source_ratio"):
             value = getattr(self, name)
             if not 0.0 < value < 1.0:
                 raise ConfigError(f"splits.{name} must be strictly between 0 and 1")

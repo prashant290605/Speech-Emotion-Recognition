@@ -209,6 +209,33 @@ proportions by several points — and moves them differently per seed. Split-lev
 KL will therefore be **larger than corpus-level KL and will vary across the five
 seeds**.
 
+> **MEASURED 2026-08-12 — the prediction is wrong for RAVDESS and CREMA-D.**
+> Over all 20 splits (4 pairs × 5 seeds), split-level KL sits within 0.0003 nats
+> of the corpus-level figure, and in-domain pairs come out at ~0:
+>
+> | pair | corpus-level | split-level mean | spread over 5 seeds |
+> |---|---|---|---|
+> | ravdess → cremad | 0.0252 | 0.0251 | 0.0003 |
+> | cremad → ravdess | 0.0224 | 0.0224 | 0.0000 |
+> | ravdess → ravdess | 0.0000 | 0.0000 | 0.0000 |
+> | cremad → cremad | 0.0000 | 0.0000 | 0.0000 |
+>
+> The cause is structural, not accidental: both are **acted corpora with a fixed
+> per-actor recording protocol** — every RAVDESS actor records the same 60
+> trials, every CREMA-D actor the same sentence × emotion grid — so class
+> proportions are invariant under any speaker-disjoint partition. RAVDESS is
+> exactly 0 by construction.
+>
+> A9's *reasoning* was specifically about IEMOCAP's non-uniform per-session
+> distributions. That remains plausible and **remains untested** — it must be
+> re-measured when IEMOCAP arrives. What is now known is that it does not
+> generalise to the acted corpora.
+>
+> **The procedural requirement below still stands.** Reporting split-level and
+> corpus-level side by side is what let this be checked at all; it simply turns
+> out they coincide here. Do not drop the split-level column on the strength of
+> two corpora.
+
 This does not rescue the label-shift thesis and must not be used to. But "label
 shift is near zero" asserted at corpus level and tested at split level is a
 mismatch a careful reviewer will find.

@@ -105,6 +105,14 @@ splits:
   # Target corpus -> target_adapt / target_test, speaker-disjoint.
   # target_adapt is the ONLY target data any alignment method may see.
   target_adapt_ratio: 0.5
+
+  # In-domain pairs (source == target) partition ONE corpus four ways. Speakers
+  # are first divided into a source side and a target side by this ratio, and
+  # the two ratios above then apply within each side. Without this, running the
+  # source and target splits independently over the same corpus would place the
+  # same speakers in source_train and target_test -- an in-domain result that
+  # silently reports training data.
+  in_domain_source_ratio: 0.5
   # IEMOCAP splits on session, the standard unit for that corpus.
   iemocap_split_unit: session
   # One split realisation per seed. Minimum five.
