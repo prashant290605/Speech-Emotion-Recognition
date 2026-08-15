@@ -9,6 +9,127 @@ file plus PHASES.md is the entire handover between them.
 
 ---
 
+## 2026-08-15 — Phase 3: feature extraction and caching
+
+Status: **complete for `{ravdess, cremad}`.** `pytest` → 238 passed.
+`ser verify-cache` → **8/8 caches OK, 4.79 GB**. Re-running `ser extract` is a
+confirmed no-op (0.0 min, every unit reported `cached`).
+
+### What was extracted
+
+All **13 hidden states** per utterance, not just the last — the design point that
+makes layer aggregation a free experimental condition downstream instead of an
+unexamined default. Mean-pooled and 8-segment-pooled come from a **single forward
+pass** and are stored as separate arrays, so the segment cache stays skippable.
+
+| corpus | backbone | n | wall | s/utt | size |
+|---|---|---|---|---|---|
+| ravdess | hubert | 1440 | 39.3 min | 1.637 | 258.8 MB |
+| ravdess | wav2vec2 | 1440 | 39.9 min | 1.662 | 258.8 MB |
+| ravdess | wavlm | 1440 | 42.2 min | 1.759 | 258.8 MB |
+| ravdess | mfcc | 1440 | 1.0 min | 0.043 | 0.5 MB |
+| cremad | hubert | 7442 | 159.4 min | 1.285 | 1337.6 MB |
+| cremad | wav2vec2 | 7442 | 158.2 min | 1.275 | 1337.6 MB |
+| cremad | wavlm | 7442 | 160.0 min | 1.290 | 1337.6 MB |
+| cremad | mfcc | 7442 | 4.0 min | 0.032 | 2.5 MB |
+| **total** | | | **604 min = 10.07 CPU-h** | | **4.79 GB** |
+
+Wall clock was **~3.4 h**, not 10, because the three backbones ran as parallel
+processes. RAVDESS costs more per utterance (1.64–1.76 s) than CREMA-D
+(1.28–1.29 s) simply because its clips are longer — 3.7 s mean against 2.5 s.
+
+Shapes: `layers (n, 13, 768)` and `segments (n, 13, 8, 768)`, float16;
+`mfcc (n, 78)` float32. **No GPU on this machine** — torch is CPU-only, so these
+are CPU numbers and a CUDA box would be far faster.
+
+### Three implementation decisions
+
+**Batch size 1, deliberately.** Batching needs padding, and a padded frame that
+reaches the mean corrupts the pooled vector silently, worst for the shortest
+utterances. Masking fixes that in principle, but `facebook/wav2vec2-base` is
+documented as degrading under masked batched inference — it was pretrained
+without an attention mask and its feature extractor sets
+`return_attention_mask=False`. Treating one backbone differently from the other
+two would put an unmeasured confound directly into the backbone comparison.
+Wall time was recovered with process-level parallelism instead, which has no
+numerical consequences at all.
+
+**Cache keys are per corpus**, a deliberate deviation from the brief's
+`sha256(manifest_rows)` over the whole manifest. The intent is unchanged — a
+cache is keyed by exactly the rows it covers, including each row's audio sha256 —
+but adding IEMOCAP later then costs only IEMOCAP's extraction instead of
+invalidating 4.79 GB. Writes are atomic through a staging directory, so a killed
+run leaves nothing or a whole cache, never a half-written one that would later
+read as valid. A key hit is never overwritten.
+
+**`weighted` returns the unreduced stack.** Layer weights are learnable
+parameters owned by the classifier (Phase 6); baking them into the cache would
+turn them into a preprocessing constant and remove the very thing being measured.
+
+### A platform trap, resolved without touching numerics
+
+Extraction aborted with `OMP: Error #15` — conda's numpy+MKL and pip's torch each
+ship `libiomp5md.dll`. The documented workaround, `KMP_DUPLICATE_LIB_OK=TRUE`, is
+described by Intel as able to "silently produce incorrect results", which is not
+a trade this project can make.
+
+Traced instead: the clash only occurs when torch's OpenMP initialises **before**
+librosa's; the reverse order coexists fine, including MFCC calls made after torch
+is loaded. `warm_up_audio_stack()` now initialises librosa first.
+
+The first fix still aborted, because it warmed only `librosa.feature.mfcc` and
+not `librosa.feature.delta`, which routes through scipy and links its own OpenMP
+separately. Warming the **full** path fixed it. Import ordering only — no
+numerical effect. Recorded in PHASES.md Phase 3.
+
+### Verification
+
+`tools/verify_cache.py` / `ser verify-cache` asserts row count, finiteness,
+shapes, and that **utterance ordering matches the manifest exactly**. Ordering is
+the silent failure: every split and label lookup assumes row *i* of the cache is
+row *i* of the corpus, and a reordering would misalign features and labels
+everywhere while still producing plausible numbers.
+
+Four further tests run against the real caches and catch what shape and
+finiteness checks cannot — features that are well-formed but wrong:
+
+- **The 13 layers are distinct states.** Storing one hidden state 13 times would
+  pass every shape assertion while making the entire layer axis meaningless.
+  Measured: adjacent layers differ by 0.04–0.17, and layer norms grow with depth
+  (HuBERT 2.3 → 3.0 → 5.5).
+- **`mean(segments)` reconstructs `layers` to 0.0005** (float16 rounding), which
+  is what proves both poolings came from the same forward pass.
+- Two backbones differ (HuBERT vs wav2vec2: 0.107).
+- Cache row order equals manifest row order.
+
+### Files created
+
+```
+src/ser/features/__init__.py
+src/ser/features/audio.py      fixed preprocessing + the OpenMP warm-up
+src/ser/features/cache.py      per-corpus keys, atomic writes, metadata
+src/ser/features/ssl.py        per-layer mean + segment pooling, one pass
+src/ser/features/mfcc.py       78-dim, documented slice layout
+src/ser/features/aggregate.py  last | layer:k | mean:a-b | weighted
+src/ser/features/extract.py    driver, skip-on-hit
+src/ser/features/verify.py     the four assertions
+tools/verify_cache.py
+tests/test_features.py         33 tests
+src/ser/cli.py                 `ser extract`, `ser verify-cache`
+```
+
+### Deferred
+
+- IEMOCAP: not extracted, not acquired. Per-corpus keys mean it will cost only
+  its own extraction.
+- `data/cache/` is gitignored — 4.79 GB of derived data. Rebuild with
+  `ser extract`; expect ~3.4 h wall on a 16-core CPU box, minutes on a GPU.
+- Standardisation is deliberately **not** applied at extraction time. It is a
+  Phase 5 experimental condition (`zscore`), and baking it in would make the
+  `none` rung of the ladder unmeasurable.
+
+---
+
 ## 2026-08-12 — Session 3: Phase 2 splits and the leakage assertion suite
 
 Status: **complete for `{ravdess, cremad}`.** `pytest` → 205 passed.
