@@ -9,6 +9,121 @@ file plus PHASES.md is the entire handover between them.
 
 ---
 
+## 2026-08-16 — Items 1–3: MK-MMD invariants, bandwidth robustness, config freeze
+
+### ITEM 1 — `mkmmd_diag`, and an invariant that turns out not to hold
+
+**The warm start was already correct.** It computes exactly
+`W = σ_tgt/σ_src`, `b = μ_tgt − W·μ_src`, the diagonal moment match as specified.
+So the violation was not a wrong initialisation.
+
+**A fallback now enforces the invariant that *is* valid.** After fitting, the
+warm-start transform and the fitted transform are evaluated on the same data at
+the same bandwidth, and the better one is kept
+(`alignment.mmd_fallback_to_warm_start`). Shipping a fitted map that is worse
+than its own starting point would report the optimiser's failure as the method's
+performance. When the fallback fires it is recorded in `diagnostics` and printed
+in the report — "the optimiser did not beat its own starting point" is a fact
+about the method, not something to hide.
+
+**The proposed invariant `mkmmd_diag ≤ zscore` is not valid, and measurement
+says so.** The reasoning was that the diagonal warm start differs from z-scoring
+only by a global affine map, which a scale-invariant effect size cannot see.
+Measured on `ravdess → cremad`:
+
+| transform | effect size |
+|---|---|
+| `zscore` | **33.4** |
+| diagonal moment match (the warm start itself) | **47.5** |
+| `mkmmd_diag` fitted | 45.4 |
+
+The warm start is **already worse than z-score before any optimisation**, so no
+optimiser could have satisfied the invariant. The cause is geometric:
+
+* `zscore` rescales **both** domains to isotropic unit variance.
+* `mkmmd_diag` rescales **only the source**, onto the target's per-dimension
+  variances — which stay anisotropic. Measured spread of target per-dimension
+  std on this pair: **17.8×** (0.0144 to 0.2564).
+
+An isotropic RBF kernel is invariant to a *global* scale but not to
+*per-dimension* reweighting, so the effect size cannot equate the two. They are
+different families and neither contains the other: a source-only diagonal map
+cannot reach z-score's geometry because it cannot touch the target.
+
+Note the fitted diagonal (45.4) *does* improve on its warm start (47.5), so
+invariant (a) holds for it. It is `mkmmd_full` whose fallback fires.
+
+### ITEM 2 — bandwidth robustness
+
+Every rung measured at {0.25, 0.5, 1, 2, 4} × its own median heuristic, with the
+saturation diagnostic at each. Effect size (lower is closer to
+same-distribution):
+
+| rung | 0.25× | 0.5× | 1× | 2× | 4× |
+|---|---|---|---|---|---|
+| none | 950.0 | 1034.1 | 1059.3 | 1215.2 | 1724.4 |
+| zscore | 39.8 | 34.7 | 33.4 | 31.3 | 12.6 |
+| mean_shift | 73.2 | 67.3 | 65.7 | 64.6 | 35.0 |
+| coral (eps=1e-4) | 2.6 | 2.0 | 1.9 | 1.4 | −0.7 |
+| coral (Ledoit-Wolf) | 5.6 | 4.9 | 4.7 | 3.8 | 0.2 |
+| mkmmd_diag | 51.9 | 46.8 | 45.4 | 44.1 | 23.1 |
+| mkmmd_full | 2.6 | 2.0 | 1.9 | 1.4 | −0.7 |
+
+**The ordering is stable across all five bandwidths** — every rung has an
+identical rank vector:
+
+| rung | ranks at 0.25× / 0.5× / 1× / 2× / 4× |
+|---|---|
+| coral (eps=1e-4) | 1, 1, 1, 1, 1 |
+| mkmmd_full | 1, 1, 1, 1, 1 |
+| coral (Ledoit-Wolf) | 3, 3, 3, 3, 3 |
+| zscore | 4, 4, 4, 4, 4 |
+| mkmmd_diag | 5, 5, 5, 5, 5 |
+| mean_shift | 6, 6, 6, 6, 6 |
+| none | 7, 7, 7, 7, 7 |
+
+So the ordering is a property of the data, not of one bandwidth choice — which
+is what had to be shown before this table goes in a paper.
+
+The first run reported `coral` and `mkmmd_full` swapping ranks 1↔2. That was an
+artefact of the ranking code, not the data: `mkmmd_full` had fallen back to its
+CORAL warm start, so the two are **the same transform** and their values are
+identical to every digit. Ranking now treats values within 1% as tied, and they
+share rank 1.
+
+**`mkmmd_full`'s fallback fires under the default budget.** At 500 steps,
+step-norm 0.01 and batch 256 the optimiser does not beat its CORAL warm start, so
+the warm start is what gets reported — and the report says so explicitly rather
+than presenting it as a fitted result. The earlier standalone diagnostic that did
+beat CORAL (1.2× vs 2.0×) used 200 steps at a hand-set lr=1e-5 and measured
+against the *fixed* bandwidth; under the per-rung bandwidth and the derived step
+size it does not reproduce. **`mkmmd_full` is therefore currently CORAL by
+another name, and must be labelled that way in any table until the optimiser
+budget is revisited.**
+
+Negative effect sizes at 4× are expected and not a bug: the unbiased MMD²
+estimator is signed, and a value at or below the same-distribution null means the
+two samples are statistically indistinguishable at this sample size.
+
+### ITEM 3 — the config freeze, made mechanical
+
+`configs/FROZEN` holds a git tag name; the tagged commit's
+`configs/default.yaml` is the frozen config. `ser.freeze.assert_config_frozen`
+compares the **parsed** working config against it, so reformatting and comment
+changes are not drift while a value change is. The Phase 7 runner refuses to
+start when the config is unfrozen or has drifted.
+
+This matters more since schema v4 than it did before: with `config_hash` no
+longer a `run_id` coordinate, a mid-grid edit no longer *orphans* completed runs —
+it silently produces rows that are not comparable to earlier ones **under the
+same ids**. The freeze is what closes that gap.
+
+Schema **v5** adds `freeze_tag`, recorded on every row but deliberately **not** a
+`run_id` coordinate, so re-freezing does not invalidate completed work. Migrated
+v4 → v5 in place; 60 rows, 50 fields, all `run_id`s preserved.
+
+---
+
 ## 2026-08-16 — Corrections 1–3, effective rank, and Phase 6
 
 ### CORRECTION 1 — the MMD diagnostic, and a Phase 5 claim overturned

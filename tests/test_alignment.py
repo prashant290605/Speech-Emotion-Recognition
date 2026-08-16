@@ -296,15 +296,36 @@ def test_mkmmd_diagonal_has_far_fewer_parameters(config, data):
     assert diag.result.W.size < full.result.W.size
 
 
-def test_large_lambda_keeps_the_map_near_identity(config, data):
+def test_large_lambda_keeps_the_map_near_identity(config, data, tmp_path):
     """The identity anchor means lambda -> infinity degrades towards `none`
-    rather than towards noise."""
+    rather than towards noise.
+
+    Tested with the CORAL warm start and the fallback both disabled, so this
+    isolates the penalty's effect on the optimiser. With a warm start, W begins
+    at CORAL rather than the identity and the deviation is dominated by the
+    starting point; with the fallback on, two lambdas that both revert produce
+    literally the same map.
+    """
+    import copy
+
+    import yaml
+
+    from ser.config import load_config as _load
+
+    raw = copy.deepcopy(config.raw)
+    raw["alignment"]["mmd_warm_start"] = "identity"
+    raw["alignment"]["mmd_fallback_to_warm_start"] = False
+    path = tmp_path / "c.yaml"
+    path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    isolated = _load(str(path))
+
     A, B = data
-    weak = build_alignment("mkmmd_full", config, lam=1e-3, seed=0)
-    strong = build_alignment("mkmmd_full", config, lam=1e3, seed=0)
+    weak = build_alignment("mkmmd_full", isolated, lam=1e-3, seed=0)
+    strong = build_alignment("mkmmd_full", isolated, lam=1e3, seed=0)
     weak.fit(A, B, _ids(len(B)), _ids(len(A), "s"))
     strong.fit(A, B, _ids(len(B)), _ids(len(A), "s"))
 
+    assert weak.diagnostics["warm_start"] == "identity"
     assert (
         strong.diagnostics["W_deviation_from_identity"]
         < weak.diagnostics["W_deviation_from_identity"]

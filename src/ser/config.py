@@ -213,6 +213,7 @@ class AlignmentConfig:
     mmd_steps: int
     mmd_step_norm: float
     mmd_warm_start: str
+    mmd_fallback_to_warm_start: bool
     mmd_batch_size: int
 
     # Ordered by moments matched. Used to order the ablation table.

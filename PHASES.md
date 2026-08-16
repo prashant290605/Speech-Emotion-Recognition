@@ -306,9 +306,22 @@ A designed ablation is a contribution; an exhaustive sweep is a table.
 > can change a result without changing `run_id`. This is the mirror of the
 > existing test that no `run_id` coordinate is inert.
 >
-> **Freeze the config before the grid anyway.** The facets make an unrelated edit
+> **The freeze is now mechanical (schema v5).** The facets make an unrelated edit
 > harmless, but an edit *within* a facet still invalidates that facet's runs, and
-> `search_spec_hash` is deliberately broad. Freeze, screen, freeze, run.
+> `search_spec_hash` is deliberately broad. Worse: with `config_hash` no longer a
+> coordinate, a mid-grid edit no longer *orphans* completed runs — it silently
+> produces rows that are not comparable to earlier ones under the same ids. So:
+>
+> - `configs/FROZEN` holds a git tag name; the tagged commit's
+>   `configs/default.yaml` is the frozen config.
+> - `ser.freeze.assert_config_frozen` compares the **parsed** working config
+>   against it, so reformatting and comments are not drift but a value change is.
+> - **The Phase 7 runner refuses to start** when the config is unfrozen or has
+>   drifted. A convention would not survive a two-week run.
+> - `freeze_tag` is recorded on every row — but is deliberately **not** a `run_id`
+>   coordinate, so re-freezing does not invalidate completed work.
+>
+> Freeze, screen, freeze, run.
 >
 > A `run_id` coordinate change cannot be migrated — old ids were computed over a
 > different field set, so carrying them forward would assert an equivalence that

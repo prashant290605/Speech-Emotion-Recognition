@@ -224,6 +224,13 @@ alignment:
   # objective attainable?". With this and the step-norm fix, mkmmd_full reaches
   # 1.3x the same-distribution null against CORAL's 2.1x.
   mmd_warm_start: coral
+
+  # Keep the warm start if optimisation makes it worse, and record that it did.
+  # The warm start is a valid transform in its own right -- CORAL for the full
+  # map, per-dimension moment matching for the diagonal -- so shipping a fitted
+  # map that is worse than its own starting point would report the optimiser's
+  # failure as the method's performance.
+  mmd_fallback_to_warm_start: true
   # Minibatch for the kernel matrices. Full matrices over several thousand
   # target samples would dominate runtime without improving the gradient.
   mmd_batch_size: 256

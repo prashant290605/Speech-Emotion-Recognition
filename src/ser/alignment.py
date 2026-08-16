@@ -34,7 +34,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set
 
 import numpy as np
 
-from .mmd import fit_affine_mmd, marginal_mmd
+from .mmd import fit_affine_mmd, marginal_mmd, multi_kernel_mmd2
 from .numerics import (
     CovarianceDiagnostics,
     covariance,
@@ -296,6 +296,16 @@ class MKMMDAlignment(Alignment):
         self.seed = seed
         self.result = None
 
+    def _evaluate(self, X_source, X_target, W, b, *, max_samples: int = 400) -> float:
+        """MMD^2 of a candidate (W, b) on the fit data, at the fit bandwidth."""
+        transformed = X_source * W + b if self.diagonal else X_source @ W.T + b
+        return multi_kernel_mmd2(
+            transformed[:max_samples],
+            X_target[:max_samples],
+            multipliers=tuple(self.config.alignment.mmd_bandwidth_multipliers),
+            bandwidth=self.result.bandwidth,
+        )
+
     def coral_warm_start(self, coral: "CoralAlignment"):
         """(W, b) equivalent to a fitted CORAL, for warm starting.
 
@@ -342,10 +352,24 @@ class MKMMDAlignment(Alignment):
             W_init=W_init,
             b_init=b_init,
         )
+        # Invariant: the fitted map must not be worse than its own warm start.
+        # Both are evaluated on the fit data at the fit bandwidth, so the
+        # comparison is like-for-like.
+        reverted = False
+        if W_init is not None and self.config.alignment.mmd_fallback_to_warm_start:
+            warm_mmd = self._evaluate(X_source, X_target_adapt, W_init, b_init)
+            fitted_mmd = self._evaluate(
+                X_source, X_target_adapt, self.result.W, self.result.b
+            )
+            if fitted_mmd > warm_mmd:
+                self.result.W, self.result.b = W_init, b_init
+                reverted = True
+
         self.diagnostics = {
             "lambda": self.lam,
             "diagonal": self.diagonal,
             "warm_start": warm_start,
+            "reverted_to_warm_start": reverted,
             "learning_rate": self.result.learning_rate,
             "converged": self.result.converged,
             "final_grad_norm": self.result.final_grad_norm,

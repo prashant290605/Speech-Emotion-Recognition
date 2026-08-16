@@ -78,6 +78,13 @@ def _row(**overrides):
         n_search_trials=20,
         marginal_mmd_raw=0.0018,
         marginal_mmd_normalised=2.0,
+        freeze_tag="grid-freeze-v1",
+        per_class_precision_json=json.dumps({c: 0.4 for c in CLASS_NAMES}),
+        per_class_recall_json=json.dumps({c: 0.4 for c in CLASS_NAMES}),
+        per_class_support_json=json.dumps({c: 10 for c in CLASS_NAMES}),
+        n_collapsed_classes=0,
+        epochs_run=47,
+        predictions_path="predictions/abc123.json.gz",
         wall_seconds=12.5,
         status="ok",
         error=None,
@@ -105,8 +112,8 @@ def test_every_field_from_the_brief_is_present():
 
 
 def test_schema_version_is_pinned():
-    assert SCHEMA_VERSION == 4
-    assert _row()["schema_version"] == 4
+    assert SCHEMA_VERSION == 6
+    assert _row()["schema_version"] == 6
 
 
 def test_the_four_facets_are_run_id_coordinates_and_config_hash_is_not():
@@ -180,7 +187,12 @@ def test_failed_run_can_be_recorded_with_null_metrics():
         accuracy=None,
         uar=None,
         per_class_f1_json=None,
+        per_class_precision_json=None,
+        per_class_recall_json=None,
+        per_class_support_json=None,
         confusion_json=None,
+        n_collapsed_classes=None,
+        predictions_path=None,
     )
     validate_row(row)
 

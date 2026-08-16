@@ -69,7 +69,23 @@ __all__ = [
 # marginal_mmd_raw, marginal_mmd_normalised and n_search_trials added.
 # config_hash as a coordinate meant editing any unrelated config section
 # orphaned every completed run -- observed for real in Phase 5.
-SCHEMA_VERSION = 4
+#
+# v5 (2026-08-16): added freeze_tag. The grid runs against a git-tagged config
+# and refuses to start if the working config has drifted; the tag is recorded so
+# a row states which frozen config produced it. Nullable: rows written before
+# the freeze legitimately have none.
+#
+# v6 (2026-08-16): everything Phase 8/9 will want, added BEFORE the grid runs
+# because none of it can be recovered afterwards without re-running. Per-class
+# precision/recall/support alongside F1; the collapse count; epochs to early
+# stop; and predictions_path, pointing at the per-utterance predictions.
+#
+# The predictions are the important one. Storing utterance_id -> predicted_label
+# per run costs ~15 KB gzipped and makes every downstream analysis free:
+# per-class transfer, confusion structure, McNemar and bootstrap paired tests,
+# all without a single rerun. They live in their own files rather than in the
+# row because a 3677-entry vector inline would bloat the JSONL by ~100x.
+SCHEMA_VERSION = 6
 
 VALID_STATUSES = ("ok", "failed")
 
@@ -107,6 +123,7 @@ FIELDS: tuple[Field, ...] = (
     _f("split_spec_hash", str, False, "Hash of the split specification."),
     _f("feature_spec_hash", str, False, "Hash of the feature extraction spec."),
     _f("search_spec_hash", str, False, "Hash of the searched space and reported statistics."),
+    _f("freeze_tag", str, True, "Git tag of the frozen config this run used."),
     _f("timestamp", str, False, "ISO-8601 UTC completion time."),
     _f("hostname", str, False, "Machine that ran it."),
     _f("lib_versions_json", str, False, "JSON map of tracked library versions."),
@@ -172,7 +189,18 @@ FIELDS: tuple[Field, ...] = (
     _f("accuracy", (float, int), True, "Accuracy on target_test."),
     _f("uar", (float, int), True, "Unweighted average recall on target_test."),
     _f("per_class_f1_json", str, True, "JSON map class name -> F1."),
+    _f("per_class_precision_json", str, True, "JSON map class name -> precision."),
+    _f("per_class_recall_json", str, True, "JSON map class name -> recall."),
+    _f("per_class_support_json", str, True, "JSON map class name -> target_test count."),
     _f("confusion_json", str, True, "JSON nested list, rows=true, cols=predicted."),
+    _f("n_collapsed_classes", int, True, "Classes never predicted. The collapse diagnostic."),
+    _f("epochs_run", int, True, "Epochs to early stop, for the torch families."),
+    _f(
+        "predictions_path",
+        str,
+        True,
+        "Path to per-utterance predictions, relative to the results file.",
+    ),
     # -- floors -------------------------------------------------------------
     _f("chance_macro_f1", (float, int), True, "Uniform-random macro-F1 floor."),
     _f("majority_macro_f1", (float, int), True, "Majority-class collapse floor."),

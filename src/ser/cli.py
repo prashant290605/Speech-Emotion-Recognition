@@ -77,6 +77,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "baselines": _cmd_baselines,
         "align-check": _cmd_align_check,
         "effective-rank": _cmd_effective_rank,
+        "ladder-table": _cmd_ladder_table,
         "classify-check": _cmd_classify_check,
     }[args.command]
 
@@ -193,6 +194,15 @@ def _build_parser() -> argparse.ArgumentParser:
     clf.add_argument("--backbone", default="hubert")
     clf.add_argument("--layer", type=int, default=6)
     clf.add_argument("--families", default=None, help="Comma-separated subset")
+
+    ladder = sub.add_parser(
+        "ladder-table", help="[5] effect size per rung at 5 bandwidths + invariants"
+    )
+    ladder.add_argument("--source", default="ravdess")
+    ladder.add_argument("--target", default="cremad")
+    ladder.add_argument("--seed", type=int, default=0)
+    ladder.add_argument("--backbone", default="hubert")
+    ladder.add_argument("--layer-spec", default="layer:6")
 
     rank = sub.add_parser(
         "effective-rank", help="[5] effective rank per backbone per layer"
@@ -361,6 +371,13 @@ def _cmd_smoke(args: argparse.Namespace) -> int:
         n_search_trials=None,
         marginal_mmd_raw=None,
         marginal_mmd_normalised=None,
+        freeze_tag=None,
+        per_class_precision_json=None,
+        per_class_recall_json=None,
+        per_class_support_json=None,
+        n_collapsed_classes=None,
+        epochs_run=None,
+        predictions_path=None,
         wall_seconds=round(time.perf_counter() - started, 6),
         status="ok",
         error=None,
@@ -617,6 +634,17 @@ def _cmd_classify_check(args: argparse.Namespace) -> int:
     return run_classifier_check(
         config, args.source, args.target, seed=args.seed,
         backbone=args.backbone, layer=args.layer, families=families,
+    )
+
+
+def _cmd_ladder_table(args: argparse.Namespace) -> int:
+    """Phase 5: the paper's ladder table, with bandwidth robustness."""
+    from .ladderreport import run_ladder_table  # noqa: PLC0415
+
+    config = load_config(args.config)
+    return run_ladder_table(
+        config, args.source, args.target, seed=args.seed,
+        backbone=args.backbone, layer_spec=args.layer_spec,
     )
 
 

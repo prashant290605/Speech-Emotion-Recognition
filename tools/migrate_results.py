@@ -33,6 +33,18 @@ from ser.utils.results import SCHEMA_VERSION, FIELD_NAMES, validate_row  # noqa:
 
 MIGRATIONS = {
     2: {"to": 3, "adds": {"cov_condition_number": None, "cov_effective_rank": None}},
+    4: {"to": 5, "adds": {"freeze_tag": None}},
+    5: {
+        "to": 6,
+        "adds": {
+            "per_class_precision_json": None,
+            "per_class_recall_json": None,
+            "per_class_support_json": None,
+            "n_collapsed_classes": None,
+            "epochs_run": None,
+            "predictions_path": None,
+        },
+    },
 }
 
 # Versions whose run_id *coordinates* changed. Adding columns can be migrated;
