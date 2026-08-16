@@ -93,6 +93,8 @@ def run_baselines(config, corpora: Sequence[str], *, force: bool = False) -> int
                     "layer_index": None,
                     "feature_branch": "none",
                     "alignment": "none",
+                    "alignment_eps": None,
+                    "alignment_lambda": None,
                     "blending": "none",
                     "blend_alpha": None,
                     "n_groups": None,

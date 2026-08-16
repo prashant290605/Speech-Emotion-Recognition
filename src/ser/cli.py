@@ -37,7 +37,6 @@ from .utils.seeding import set_all_seeds
 # Phase that owns each not-yet-built command. `ser <cmd>` exits 2 with a
 # pointer rather than a traceback or, worse, a partial result.
 PENDING = {
-    "run-grid": (7, "the full resumable grid"),
     "select": (8, "validated vs oracle selection protocols + headline tables"),
     "label-shift": (9, "prior-shift analysis and EM correction"),
     "figures": (10, "regenerate every figure from results"),
@@ -79,6 +78,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "effective-rank": _cmd_effective_rank,
         "ladder-table": _cmd_ladder_table,
         "classify-check": _cmd_classify_check,
+        "run-grid": _cmd_run_grid,
     }[args.command]
 
     try:
@@ -194,6 +194,17 @@ def _build_parser() -> argparse.ArgumentParser:
     clf.add_argument("--backbone", default="hubert")
     clf.add_argument("--layer", type=int, default=6)
     clf.add_argument("--families", default=None, help="Comma-separated subset")
+
+    grid = sub.add_parser("run-grid", help="[7] the staged, resumable grid")
+    grid.add_argument("--stage", type=int, required=True, choices=[0, 1, 2])
+    grid.add_argument("--corpora", default=None, help="Comma-separated subset")
+    grid.add_argument("--dry-run", action="store_true", help="Enumerate and exit")
+    grid.add_argument(
+        "--no-freeze",
+        action="store_true",
+        help="Allow an unfrozen config. For development only; the grid proper "
+        "must run against a tagged config.",
+    )
 
     ladder = sub.add_parser(
         "ladder-table", help="[5] effect size per rung at 5 bandwidths + invariants"
@@ -336,6 +347,8 @@ def _cmd_smoke(args: argparse.Namespace) -> int:
         "layer_index": None,
         "feature_branch": "ssl",
         "alignment": "none",
+        "alignment_eps": None,
+        "alignment_lambda": None,
         "blending": "none",
         "blend_alpha": None,
         "n_groups": None,
@@ -623,6 +636,29 @@ def _cmd_align_check(args: argparse.Namespace) -> int:
         layer_spec=args.layer_spec,
         lambdas=lambdas,
     )
+
+
+def _cmd_run_grid(args: argparse.Namespace) -> int:
+    """Phase 7: the staged grid. Refuses to start against a drifted config."""
+    from .features.audio import warm_up_audio_stack  # noqa: PLC0415
+
+    warm_up_audio_stack()
+
+    from .freeze import ConfigDrift  # noqa: PLC0415
+    from .run_grid import run_grid  # noqa: PLC0415
+
+    config = load_config(args.config)
+    try:
+        return run_grid(
+            config,
+            args.stage,
+            corpora=_selected_corpora(config, args.corpora),
+            dry_run=args.dry_run,
+            require_freeze=not args.no_freeze,
+        )
+    except ConfigDrift as exc:
+        print(f"REFUSING TO RUN: {exc}", file=sys.stderr)
+        return 2
 
 
 def _cmd_classify_check(args: argparse.Namespace) -> int:

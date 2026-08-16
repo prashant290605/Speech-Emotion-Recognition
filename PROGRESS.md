@@ -9,6 +9,86 @@ file plus PHASES.md is the entire handover between them.
 
 ---
 
+## 2026-08-16 — Phase 7 Stage 0: the smoke gate
+
+Status: **PASS.** 6 runs, 0 failed, 4.3 min (43 s/run). Every rung clears its
+pair's own chance floor. `ravdess → cremad`, seed 0, HuBERT, `last`, logreg.
+
+| alignment | source_val | target | chance | effect size |
+|---|---|---|---|---|
+| none | 0.7580 | 0.3674 | 0.1665 | **834.8** |
+| zscore | 0.7447 | **0.3864** | 0.1665 | 36.4 |
+| mean_shift | 0.7580 | 0.3840 | 0.1665 | 45.2 |
+| coral | 0.5921 | 0.3798 | 0.1665 | **3.8** |
+| mkmmd_diag | 0.7559 | **0.3864** | 0.1665 | 39.4 |
+| mkmmd_full | 0.6090 | 0.3809 | 0.1665 | **3.7** |
+
+### This is the A8 question, answered in miniature
+
+**Marginal discrepancy spans 226× — 834.8 down to 3.7. Target macro-F1 spans
+0.019.**
+
+The shape matters more than the span. Reading it as a dose-response curve:
+
+| step | discrepancy | target |
+|---|---|---|
+| `none` → `zscore` | 834.8 → 36.4 (**23× down**) | 0.3674 → 0.3864 (**+0.019**) |
+| `zscore` → `coral` | 36.4 → 3.8 (**10× further down**) | 0.3864 → 0.3798 (**−0.007**) |
+
+The first, cheapest step buys the entire gain. A further order of magnitude of
+covariate-shift removal buys **nothing, or slightly less than nothing**. The two
+rungs with the lowest discrepancy on the ladder (`coral` 3.8, `mkmmd_full` 3.7)
+transfer no better than the two with the highest (`zscore` 36.4, `mkmmd_diag`
+39.4), and the best target score is tied between `zscore` and `mkmmd_diag` —
+whose effect sizes are among the worst.
+
+Note also what CORAL costs on the source side: `source_val` drops from 0.758 to
+0.592. Matching the target's covariance actively degrades source-domain fit, and
+buys nothing on target. `mkmmd_full` shows the same pattern (0.609), which is
+expected since its fallback makes it CORAL.
+
+This is one pair, one backbone, one seed and one classifier, so it is a
+direction rather than a result. But it is the direction A8 predicted, measured on
+a dose-response axis rather than two arbitrary points, and it is what Stage 1 is
+now designed to test properly.
+
+### A bug the tests caught before the grid ran
+
+`test_every_enumerated_run_has_a_distinct_run_id` failed on Stage 1's
+enumeration: **480 runs collapsed onto 144 `run_id`s.** `alignment_eps` and
+`alignment_lambda` were neither recorded nor coordinates, so all four CORAL
+epsilons and all six MK-MMD lambdas shared one id. A resume would have skipped
+three of every four CORAL runs *and reported the grid complete*.
+
+Schema **v7** adds both as columns and as `run_id` coordinates. Since this
+redefines identity it cannot be migrated — `tools/migrate_results.py` refuses
+across it — so results were archived and the 60 baseline rows regenerated.
+
+Also fixed: the effect size is now computed for **every** rung including `none`.
+It was skipped when no alignment was fitted, which left a hole in the
+covariate-shift column at exactly the reference point the ladder is read against.
+
+### The runner
+
+`ser run-grid --stage N`, resumable, append-only, one prediction file per run.
+
+- **Refuses to start** unless the working config matches `grid-freeze-v1`.
+  Verified: the guard is exercised in `tests/test_grid.py`, and the freeze
+  survives schema changes because the schema is not part of the config.
+- A crashed run writes `status="failed"` with its traceback and the runner
+  continues; a silent skip leaves a hole nobody can see.
+- Every run records per-class precision/recall/F1/support, the confusion matrix,
+  collapse count, selected hyperparameters, trial count, `source_val` and target
+  scores **separately**, epochs to early stop, the alignment effect size, wall
+  time, and the per-utterance predictions.
+- `assert_alignment_blind_to_target_test` runs against the real fitted object on
+  **every** run, not just in tests.
+
+Stage 2 enumeration deliberately raises until Stage 1 has recorded its pruning
+decisions — the surviving axes are an input a human has to supply.
+
+---
+
 ## 2026-08-16 — Items 1–3: MK-MMD invariants, bandwidth robustness, config freeze
 
 ### ITEM 1 — `mkmmd_diag`, and an invariant that turns out not to hold

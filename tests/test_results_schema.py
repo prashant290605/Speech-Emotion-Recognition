@@ -39,6 +39,8 @@ COORDS = {
     "layer_index": None,
     "feature_branch": "ssl",
     "alignment": "coral",
+    "alignment_eps": 1e-4,
+    "alignment_lambda": None,
     "blending": "scalar",
     "blend_alpha": 0.5,
     "n_groups": None,
@@ -112,8 +114,8 @@ def test_every_field_from_the_brief_is_present():
 
 
 def test_schema_version_is_pinned():
-    assert SCHEMA_VERSION == 6
-    assert _row()["schema_version"] == 6
+    assert SCHEMA_VERSION == 7
+    assert _row()["schema_version"] == 7
 
 
 def test_the_four_facets_are_run_id_coordinates_and_config_hash_is_not():
@@ -228,6 +230,8 @@ def test_run_id_changes_with_every_coordinate():
         "layer_index": 6,
         "feature_branch": "fused",
         "alignment": "mmd",
+        "alignment_eps": 1e-2,
+        "alignment_lambda": 1.0,
         "blending": "gaa",
         "blend_alpha": 0.75,
         "n_groups": 16,

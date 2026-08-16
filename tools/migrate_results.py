@@ -52,7 +52,7 @@ MIGRATIONS = {
 # set, so carrying it forward would assert an equivalence that does not hold --
 # two rows could share an id while meaning different things, or differ in id
 # while meaning the same thing. Those versions must be regenerated.
-IDENTITY_CHANGED_AT = {4}
+IDENTITY_CHANGED_AT = {4, 7}
 
 
 def migrate_row(row: dict) -> dict:

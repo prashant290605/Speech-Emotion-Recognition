@@ -43,7 +43,7 @@ decided, and deferred.
 | 4 | Metrics and trivial baselines | complete for {RAVDESS, CREMA-D} |
 | 5 | Alignment and blending | complete for {RAVDESS, CREMA-D} |
 | 6 | Classifiers with equal-budget search | complete for {RAVDESS, CREMA-D} |
-| 7 | Grid runner | not started |
+| 7 | Grid runner | Stage 0 gate passed; Stage 1 next |
 | 8 | Selection protocol and headline tables | not started |
 | 9 | Shift decomposition: label, covariate, conditional | not started |
 | 10 | Per-class analysis and figures | not started |

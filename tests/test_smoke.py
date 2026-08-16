@@ -58,8 +58,8 @@ def test_smoke_is_append_only(tmp_path):
 
 def test_unbuilt_phase_commands_exit_two(capsys):
     """Running a future phase fails loudly and names the phase that owns it."""
-    assert main(["run-grid"]) == 2
-    assert "Phase 7" in capsys.readouterr().err
+    assert main(["select"]) == 2
+    assert "Phase 8" in capsys.readouterr().err
 
 
 def test_inventory_runs(capsys):

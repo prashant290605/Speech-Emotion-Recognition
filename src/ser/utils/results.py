@@ -85,7 +85,14 @@ __all__ = [
 # per-class transfer, confusion structure, McNemar and bootstrap paired tests,
 # all without a single rerun. They live in their own files rather than in the
 # row because a 3677-entry vector inline would bloat the JSONL by ~100x.
-SCHEMA_VERSION = 6
+#
+# v7 (2026-08-16): alignment_eps and alignment_lambda added, and made run_id
+# COORDINATES. They were neither, so all four CORAL epsilons and all six MMD
+# lambdas collapsed onto one run_id -- 480 enumerated Stage 1 runs mapped to 144
+# ids, and a resume would silently have skipped three of every four CORAL runs
+# while reporting the grid complete. Caught by the "every enumerated run has a
+# distinct run_id" test before any grid ran.
+SCHEMA_VERSION = 7
 
 VALID_STATUSES = ("ok", "failed")
 
@@ -144,6 +151,8 @@ FIELDS: tuple[Field, ...] = (
     _f("blend_alpha", (float, int), True, "Scalar alpha, or null for none/gaa."),
     _f("n_groups", int, True, "Group count when blending='gaa', else null."),
     # -- classifier ---------------------------------------------------------
+    _f("alignment_eps", (float, int), True, "CORAL shrinkage epsilon, or null."),
+    _f("alignment_lambda", (float, int), True, "MK-MMD identity penalty, or null."),
     _f("classifier", str, False, "logreg | svm | mlp | transformer | baseline_*."),
     _f("hyperparams_json", str, False, "JSON of the config selected on source_val."),
     # -- numerical conditioning (null when no covariance was formed) --------
@@ -251,6 +260,8 @@ RUN_ID_FIELDS: tuple[str, ...] = (
     "layer_index",
     "feature_branch",
     "alignment",
+    "alignment_eps",
+    "alignment_lambda",
     "blending",
     "blend_alpha",
     "n_groups",

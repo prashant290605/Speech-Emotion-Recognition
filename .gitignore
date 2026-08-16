@@ -54,3 +54,6 @@ Thumbs.db
 
 # Derived: rebuild with `ser manifest` (file_path is machine-local)
 data/manifest.csv
+
+# Per-run predictions: regenerable, and large in aggregate.
+results/predictions/
