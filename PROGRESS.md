@@ -9,6 +9,90 @@ file plus PHASES.md is the entire handover between them.
 
 ---
 
+## 2026-08-16 — Items A–D, and the Stage 1 pre-flight
+
+### ITEM A — the MK-MMD fallback is feature-dependent, not budget-dependent
+
+Set out to raise the budget; the measurement said the budget was not the
+problem.
+
+| features | warm start | fitted, 200 steps | fitted, 500 steps | fell back |
+|---|---|---|---|---|
+| `last` | 3.76 | **3.45** | 3.69 | never |
+| `layer:6` | 1.93 | 1.93 | 1.93 | always |
+
+On `last` the optimiser beats its CORAL warm start at every budget tried (100,
+200, 300, 500) and never reverts. On `layer:6` it reverts at every budget —
+because the warm start is *already* at 1.93× the same-distribution null. There is
+essentially nothing left to gain, so no budget can find any.
+
+**The finding is not "the budget was wrong". It is that MK-MMD has nothing to add
+once CORAL has taken the discrepancy to within about 2× of the noise floor.**
+That is a statement about the method's practical value on this data, and it is
+now measurable rather than anecdotal: `mmd_fallback_fired` is a column, and the
+Stage 1 report computes the rate per rung. Any table containing `mkmmd_*` must
+state that rate.
+
+Budget set to the validated **200 steps** — as good or better than 500 at half
+the cost. Config re-frozen at **`grid-freeze-v2`**.
+
+### ITEM B — fixed reference geometry
+
+One ZCA map derived **once** from the unaligned `source_train` covariance
+(shrinkage 1e-2, chosen because an effective rank near 57 of 768 would otherwise
+make the reference frame itself noise-dominated), applied identically to every
+rung's output before the MMD. Recorded as `marginal_mmd_reference` beside the
+per-rung-geometry figure.
+
+Being one fixed linear map it cannot undo any rung's alignment, and being the
+same for all rungs it removes the *choice of frame* as a degree of freedom.
+Stated honestly in the docstring: it does **not** equalise the anisotropy each
+rung produces. The coarse ladder claim (hundreds-fold vs single-digit) survives
+either statistic; the fine ordering is what this column exists to arbitrate.
+
+### ITEM C — Stage 0 framing corrected
+
+The dose-response reading has been retracted in place. The claim is now only
+what survives error bars: **target macro-F1 is flat across 226× of marginal
+discrepancy.** No ordering may be asserted among rungs from a single seed, and
+`zscore` / `mkmmd_diag` / `mean_shift` are explicitly a tie band.
+
+### ITEM D — CORAL's source_val cost is a question, not a conclusion
+
+The Stage 1 report tabulates `source_val` against `alignment_eps` for CORAL,
+with the note that if it recovers at larger eps while target stays flat, the
+0.166 cost is a property of the **regularisation** and not of CORAL — and the
+paper has to say which.
+
+### Stage 1 pre-flight
+
+Run **before** launching, as required:
+
+| check | result |
+|---|---|
+| `run_id` uniqueness across the full enumeration | **480 runs → 480 ids, OK** |
+| predictions written for every completed run | **6/6, 0 missing, OK** |
+| config frozen | `grid-freeze-v2`, matches |
+
+**Projected wall time: 46.6 h** (480 runs, 350 s/run mean). Under the 72 h
+ceiling, but the distribution is lopsided:
+
+| family | hours | share | runs |
+|---|---|---|---|
+| transformer | 37.3 | **80.0%** | 120 |
+| mlp | 6.5 | 14.0% | 120 |
+| logreg | 1.1 | 2.3% | 80 |
+| svm_linear | 0.9 | 2.0% | 80 |
+| svm_rbf | 0.8 | 1.7% | 80 |
+
+Flagged rather than silently accepted: a *screening* pass spending four fifths of
+its budget on one family is poor economics, since Stage 2 re-runs that family
+anyway and the pruning decisions for every other axis are available from the
+remaining 9.3 h. Dropping the Transformer from screening only would cut Stage 1
+to ~9 h. That is a call for a human, not for the runner.
+
+---
+
 ## 2026-08-16 — Phase 7 Stage 0: the smoke gate
 
 Status: **PASS.** 6 runs, 0 failed, 4.3 min (43 s/run). Every rung clears its
