@@ -34,6 +34,10 @@ from ser.utils.results import SCHEMA_VERSION, FIELD_NAMES, validate_row  # noqa:
 MIGRATIONS = {
     2: {"to": 3, "adds": {"cov_condition_number": None, "cov_effective_rank": None}},
     4: {"to": 5, "adds": {"freeze_tag": None}},
+    7: {
+        "to": 8,
+        "adds": {"marginal_mmd_reference": None, "mmd_fallback_fired": None},
+    },
     5: {
         "to": 6,
         "adds": {

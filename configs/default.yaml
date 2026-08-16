@@ -207,7 +207,15 @@ alignment:
   # worst.
   mmd_lambda_grid: [0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
 
-  mmd_steps: 500
+  # 200, the validated setting. Measured on ravdess->cremad HuBERT `last`:
+  # 200 steps reaches 3.45x null against the CORAL warm start's 3.76, and 500
+  # steps reaches only 3.69 -- so 200 is as good or better at half the cost.
+  #
+  # The fallback is FEATURE-dependent, not budget-dependent. On `layer:6` the
+  # warm start is already at 1.93x null, close enough to the same-distribution
+  # floor that no budget can improve on it, and the optimiser reverts at both
+  # 200 and 500 steps. That is the guard working, not a budget to raise.
+  mmd_steps: 200
 
   # Target Frobenius norm of ONE optimiser step on W. Adam normalises per
   # parameter, so a raw learning rate moves ||dW||_F ~= lr * sqrt(P) -- at

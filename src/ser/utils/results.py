@@ -92,7 +92,20 @@ __all__ = [
 # ids, and a resume would silently have skipped three of every four CORAL runs
 # while reporting the grid complete. Caught by the "every enumerated run has a
 # distinct run_id" test before any grid ran.
-SCHEMA_VERSION = 7
+#
+# v8 (2026-08-16): mmd_fallback_fired and marginal_mmd_reference.
+#
+# The first makes "did the optimiser beat its own warm start?" a filterable
+# column rather than a note, so the fallback RATE across the grid can be
+# reported -- a rung that silently reverts most of the time is CORAL wearing a
+# different label, and that has to be measurable.
+#
+# The second is the effect size measured in a fixed reference geometry (one ZCA
+# map derived from the unaligned source_train, applied identically to every
+# rung). The per-rung geometry statistic carries ~1.5-2x of variation unrelated
+# to domain overlap; the coarse ladder claim survives it, the fine ordering does
+# not, so both are reported.
+SCHEMA_VERSION = 8
 
 VALID_STATUSES = ("ok", "failed")
 
@@ -181,6 +194,13 @@ FIELDS: tuple[Field, ...] = (
         True,
         "Marginal MMD^2 between aligned source and target.",
     ),
+    _f(
+        "marginal_mmd_reference",
+        (float, int),
+        True,
+        "Effect size in a FIXED reference geometry (ZCA from unaligned source).",
+    ),
+    _f("mmd_fallback_fired", bool, True, "True if MK-MMD reverted to its warm start."),
     _f(
         "marginal_mmd_normalised",
         (float, int),

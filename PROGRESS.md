@@ -25,22 +25,26 @@ pair's own chance floor. `ravdess → cremad`, seed 0, HuBERT, `last`, logreg.
 
 ### This is the A8 question, answered in miniature
 
-**Marginal discrepancy spans 226× — 834.8 down to 3.7. Target macro-F1 spans
-0.019.**
+**Target macro-F1 is flat across 226× of marginal discrepancy** — 834.8 down to
+3.7, with every rung between 0.3674 and 0.3864.
 
-The shape matters more than the span. Reading it as a dose-response curve:
+That is the entire claim, and it is the only one this data supports.
 
-| step | discrepancy | target |
-|---|---|---|
-| `none` → `zscore` | 834.8 → 36.4 (**23× down**) | 0.3674 → 0.3864 (**+0.019**) |
-| `zscore` → `coral` | 36.4 → 3.8 (**10× further down**) | 0.3864 → 0.3798 (**−0.007**) |
+**CORRECTED 2026-08-16.** An earlier version of this entry read the 0.019 spread
+as a dose-response curve and asserted that "the first, cheapest step buys the
+entire gain" (`none → zscore` +0.019, then `zscore → coral` −0.007). That
+over-reads the data. On **one seed**, at 6-class macro-F1 over ~1500 target
+utterances, 0.019 and 0.007 are both well inside what a seed change will move,
+and there is no variance estimate here at all. Any internal structure attributed
+to that spread is an argument five seeds could dismantle.
 
-The first, cheapest step buys the entire gain. A further order of magnitude of
-covariate-shift removal buys **nothing, or slightly less than nothing**. The two
-rungs with the lowest discrepancy on the ladder (`coral` 3.8, `mkmmd_full` 3.7)
-transfer no better than the two with the highest (`zscore` 36.4, `mkmmd_diag`
-39.4), and the best target score is tied between `zscore` and `mkmmd_diag` —
-whose effect sizes are among the worst.
+Nothing may be claimed about the *ordering* of rungs from Stage 0. In particular
+`zscore` (36.4), `mkmmd_diag` (39.4) and `mean_shift` (45.2) are **within the
+tie band** of the effect-size metric (see Item B below) and must not be ranked
+against each other. Stage 2, with five seeds, decides whether any step is real.
+
+What does survive: the flatness itself. A 226-fold reduction in marginal
+discrepancy produced no change in transfer that is distinguishable from noise.
 
 Note also what CORAL costs on the source side: `source_val` drops from 0.758 to
 0.592. Matching the target's covariance actively degrades source-domain fit, and

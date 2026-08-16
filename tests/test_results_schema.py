@@ -80,6 +80,8 @@ def _row(**overrides):
         n_search_trials=20,
         marginal_mmd_raw=0.0018,
         marginal_mmd_normalised=2.0,
+        marginal_mmd_reference=2.4,
+        mmd_fallback_fired=False,
         freeze_tag="grid-freeze-v1",
         per_class_precision_json=json.dumps({c: 0.4 for c in CLASS_NAMES}),
         per_class_recall_json=json.dumps({c: 0.4 for c in CLASS_NAMES}),
@@ -114,8 +116,8 @@ def test_every_field_from_the_brief_is_present():
 
 
 def test_schema_version_is_pinned():
-    assert SCHEMA_VERSION == 7
-    assert _row()["schema_version"] == 7
+    assert SCHEMA_VERSION == 8
+    assert _row()["schema_version"] == 8
 
 
 def test_the_four_facets_are_run_id_coordinates_and_config_hash_is_not():

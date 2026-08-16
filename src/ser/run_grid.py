@@ -47,13 +47,19 @@ from .freeze import assert_config_frozen, read_freeze_tag
 from .leakage import assert_alignment_blind_to_target_test
 from .manifest import read_manifest
 from .metrics import all_metrics, confusion_matrix, macro_f1
-from .mmd import marginal_mmd, median_bandwidth, null_mmd_scale
+from .mmd import marginal_mmd, median_bandwidth, null_mmd_scale, reference_geometry
 from .splits import make_pair_split
 from .utils.results import append_row, completed_run_ids, make_run_id, new_row
 from .utils.runmeta import capture_runmeta
 from .utils.seeding import set_all_seeds
 
-__all__ = ["GridRun", "enumerate_stage", "run_grid"]
+__all__ = ["GridRun", "enumerate_stage", "run_grid", "REFERENCE_GEOMETRY_EPS"]
+
+# Shrinkage for the fixed reference geometry. Strong on purpose: the source
+# covariance has an effective rank near 57 of 768, so a weak shrinkage would
+# amplify hundreds of near-null directions and make the reference frame itself
+# noise-dominated.
+REFERENCE_GEOMETRY_EPS = 1e-2
 
 
 @dataclass(frozen=True)
@@ -352,11 +358,17 @@ def execute_run(run: GridRun, context: _Context, freeze_tag: str) -> Dict:
         y_test = context.labels(pair, "target_test")
 
         # -- alignment. Fitted on source_train and target_adapt only. --------
-        effect_size = raw_mmd = None
+        effect_size = raw_mmd = reference_effect = None
         condition_number = effective_rank = None
+        fallback_fired = None
         flat_train = _flatten(X_train)
         flat_adapt = _flatten(X_adapt)
         aligned_adapt = flat_adapt
+
+        # ITEM B: one ZCA map from the UNALIGNED source_train, derived before any
+        # rung touches the features, so it is identical for every rung and
+        # cannot undo any rung's alignment.
+        geometry = reference_geometry(flat_train, eps=REFERENCE_GEOMETRY_EPS)
 
         if run.alignment != "none":
             alignment = build_alignment(
@@ -388,6 +400,7 @@ def execute_run(run: GridRun, context: _Context, freeze_tag: str) -> Dict:
             fields = alignment.row_fields()
             condition_number = fields["cov_condition_number"]
             effective_rank = fields["cov_effective_rank"]
+            fallback_fired = alignment.diagnostics.get("reverted_to_warm_start")
 
         # Effect size for EVERY rung including `none` -- the unaligned value is
         # the reference the whole ladder is read against, so leaving it null
@@ -402,6 +415,24 @@ def execute_run(run: GridRun, context: _Context, freeze_tag: str) -> Dict:
             aligned_train, config, bandwidth=bandwidth, n_repeats=5, seed=run.seed
         )["scale"]
         effect_size = raw_mmd / null if null > 0 else None
+
+        # Same measurement in the fixed reference geometry, so between-rung
+        # comparison does not depend on which frame each rung happened to leave
+        # the features in.
+        ref_source = geometry(aligned_train)
+        ref_target = geometry(aligned_adapt)
+        ref_bandwidth = median_bandwidth(ref_source, ref_target, seed=run.seed)
+        ref_null = null_mmd_scale(
+            ref_source, config, bandwidth=ref_bandwidth, n_repeats=5, seed=run.seed
+        )["scale"]
+        reference_effect = (
+            marginal_mmd(
+                ref_source, ref_target, config, bandwidth=ref_bandwidth, seed=run.seed
+            )
+            / ref_null
+            if ref_null > 0
+            else None
+        )
 
         # -- classifier. Selection on source_val only. -----------------------
         selection = fit_and_select(
@@ -462,6 +493,8 @@ def execute_run(run: GridRun, context: _Context, freeze_tag: str) -> Dict:
             cov_effective_rank=effective_rank,
             marginal_mmd_raw=raw_mmd,
             marginal_mmd_normalised=effect_size,
+            marginal_mmd_reference=reference_effect,
+            mmd_fallback_fired=fallback_fired,
             status="ok",
             error=None,
         )
@@ -495,6 +528,8 @@ def execute_run(run: GridRun, context: _Context, freeze_tag: str) -> Dict:
             cov_effective_rank=None,
             marginal_mmd_raw=None,
             marginal_mmd_normalised=None,
+            marginal_mmd_reference=None,
+            mmd_fallback_fired=None,
             status="failed",
             error=traceback.format_exc()[:4000],
         )
@@ -569,7 +604,130 @@ def run_grid(
 
     if stage == 0:
         return _smoke_gate(context, config, ok, failed)
+    if stage == 1:
+        _stage1_report(config)
     return 1 if failed else 0
+
+
+def _stage1_report(config) -> None:
+    """Screening summary. Every number here is `source_val` or a diagnostic.
+
+    Target scores are deliberately absent: pruning an axis on target
+    performance is the Phase 2 leak moved one level up.
+    """
+    from statistics import fmean
+
+    from .utils.results import read_rows
+
+    rows = [
+        r
+        for r in read_rows(config.results_path)
+        if r["status"] == "ok"
+        and not r["classifier"].startswith("baseline")
+        and r["selection_source_val_macro_f1"] is not None
+    ]
+    if not rows:
+        return
+
+    lines = ["# Stage 1 screening", ""]
+    lines.append(
+        "**Every figure here is `source_val` or a diagnostic. Target scores are "
+        "deliberately excluded** — pruning an axis on target performance is the "
+        "leak Phase 2 exists to prevent, moved one level up."
+    )
+    lines.append("")
+
+    def _by(key, label):
+        groups: Dict[object, List[float]] = {}
+        for row in rows:
+            groups.setdefault(row[key], []).append(
+                row["selection_source_val_macro_f1"]
+            )
+        lines.append(f"## {label}")
+        lines.append("")
+        lines.append(f"| {label} | n | mean source_val | min | max |")
+        lines.append("|---|---|---|---|---|")
+        for value, scores in sorted(groups.items(), key=lambda kv: str(kv[0])):
+            lines.append(
+                f"| {value} | {len(scores)} | {fmean(scores):.4f} | "
+                f"{min(scores):.4f} | {max(scores):.4f} |"
+            )
+        lines.append("")
+        return groups
+
+    _by("alignment", "alignment")
+    _by("classifier", "classifier")
+    _by("layer_agg", "layer_agg")
+
+    # ITEM D: does CORAL's source_val cost recover as shrinkage increases?
+    coral = [r for r in rows if r["alignment"] == "coral"]
+    if coral:
+        lines.append("## CORAL: source_val against shrinkage epsilon")
+        lines.append("")
+        lines.append(
+            "CORAL cost 0.166 of `source_val` at eps=1e-4 in Stage 0. At an "
+            "effective rank near 57 of 768, weak shrinkage amplifies hundreds of "
+            "near-null directions, so that cost may be a property of the "
+            "regularisation rather than of CORAL. **If `source_val` recovers at "
+            "larger eps while target stays flat, the paper must say so.**"
+        )
+        lines.append("")
+        lines.append("| eps | n | mean source_val | mean effect size |")
+        lines.append("|---|---|---|---|")
+        groups: Dict[object, List[Dict]] = {}
+        for row in coral:
+            groups.setdefault(row["alignment_eps"], []).append(row)
+        for eps, group in sorted(groups.items(), key=lambda kv: (kv[0] is None, kv[0])):
+            effects = [
+                r["marginal_mmd_normalised"]
+                for r in group
+                if r["marginal_mmd_normalised"] is not None
+            ]
+            label = "ledoit-wolf" if eps is None else f"{eps:g}"
+            lines.append(
+                f"| {label} | {len(group)} | "
+                f"{fmean(r['selection_source_val_macro_f1'] for r in group):.4f} | "
+                f"{fmean(effects):.2f} |" if effects else
+                f"| {label} | {len(group)} | "
+                f"{fmean(r['selection_source_val_macro_f1'] for r in group):.4f} | — |"
+            )
+        lines.append("")
+
+    # ITEM A: the fallback rate is a measured property of the method.
+    mkmmd = [r for r in rows if r["alignment"].startswith("mkmmd")]
+    if mkmmd:
+        lines.append("## MK-MMD fallback rate")
+        lines.append("")
+        lines.append(
+            "How often the optimiser failed to beat its own warm start. A rung "
+            "that reverts most of the time is its warm start wearing a different "
+            "label, and any table containing it must state this rate."
+        )
+        lines.append("")
+        lines.append("| rung | n | fallback fired | rate |")
+        lines.append("|---|---|---|---|")
+        for name in ("mkmmd_diag", "mkmmd_full"):
+            group = [r for r in mkmmd if r["alignment"] == name]
+            if not group:
+                continue
+            fired = sum(1 for r in group if r["mmd_fallback_fired"])
+            lines.append(
+                f"| {name} | {len(group)} | {fired} | {fired/len(group):.1%} |"
+            )
+        lines.append("")
+
+    lines.append("## Pruning decisions")
+    lines.append("")
+    lines.append(
+        "_To be filled in by hand before Stage 2, with the rationale. An axis is "
+        "pruned only on the evidence above._"
+    )
+    lines.append("")
+
+    out = config.resolve(config.paths.reports_dir) / "stage1_screening.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"screening summary written to {out}")
 
 
 def _chance_for(context, run: GridRun, config) -> float:

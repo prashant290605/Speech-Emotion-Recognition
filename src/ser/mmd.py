@@ -153,6 +153,57 @@ def marginal_mmd(
     )
 
 
+@dataclass(frozen=True)
+class ReferenceGeometry:
+    """One ZCA whitening map, derived once and applied to every rung's output.
+
+    Why this exists: the per-rung effect size lets each rung be measured in the
+    geometry *it produced*, which is what makes the statistic scale-invariant —
+    but it also lets the geometry vary between rungs. Measured consequence:
+    ``zscore`` scores 33.4 and the diagonal moment match 47.5 despite both
+    matching first and second moments per dimension, purely because one leaves
+    the space isotropic and the other does not. That is roughly 1.5-2x of
+    variation with nothing to do with domain overlap.
+
+    So: whiten with ``Sigma_source^(-1/2)`` computed **once** on the unaligned
+    ``source_train`` covariance, and push every rung's output through that same
+    map before measuring. Being one fixed linear map it cannot undo any rung's
+    alignment, and being the same for all rungs it removes the choice of
+    geometry as a degree of freedom.
+
+    What it does **not** do: equalise the anisotropy each rung produces. It
+    removes the *freedom to be measured in a favourable frame*, not all
+    geometric variation. The coarse ladder claim (hundreds-fold versus
+    single-digit) survives either way; the fine ordering is what this column
+    exists to arbitrate.
+    """
+
+    mean: np.ndarray
+    whitener: np.ndarray
+    eps: float
+
+    def __call__(self, X: np.ndarray) -> np.ndarray:
+        return (np.asarray(X, dtype=np.float64) - self.mean) @ self.whitener
+
+
+def reference_geometry(X_source_train: np.ndarray, *, eps: float = 1e-2) -> ReferenceGeometry:
+    """ZCA whitening derived from the *unaligned* source-train covariance.
+
+    ``eps`` is a shrinkage on that covariance. It has to be reasonably strong:
+    the source covariance has an effective rank near 57 of 768, so a weak
+    shrinkage would amplify hundreds of near-null directions and make the
+    reference frame itself noise-dominated.
+    """
+    from .numerics import covariance, inverse_sqrt_psd, require_float64, shrink
+
+    require_float64(X_source_train, "reference_geometry.X")
+    cov = covariance(X_source_train, name="reference geometry covariance")
+    whitener = inverse_sqrt_psd(shrink(cov, eps), label="reference geometry")
+    return ReferenceGeometry(
+        mean=X_source_train.mean(axis=0), whitener=whitener, eps=eps
+    )
+
+
 def kernel_saturation(
     X: np.ndarray, Y: np.ndarray, bandwidth: float, multipliers, *, max_samples: int = 300
 ) -> float:

@@ -135,6 +135,8 @@ def test_schema_carries_everything_phase_8_and_9_need():
         "selection_source_val_macro_f1",
         "epochs_run",
         "marginal_mmd_normalised",
+        "marginal_mmd_reference",
+        "mmd_fallback_fired",
         "wall_seconds",
     }
     assert required <= set(FIELD_NAMES)
@@ -168,6 +170,44 @@ def test_floor_columns_are_computed_from_the_realised_distribution():
 
     skewed = _floor_columns(["angry"] * 70 + classes[1:] * 10, classes * 25, classes)
     assert skewed["chance_macro_f1"] != pytest.approx(0.25, abs=1e-3)
+
+
+def test_reference_geometry_is_one_fixed_map_for_every_rung():
+    """It must not be re-derived per rung, or it becomes another degree of
+    freedom rather than the thing that removes one."""
+    import numpy as np
+
+    from ser.mmd import reference_geometry
+
+    rng = np.random.default_rng(0)
+    source = rng.standard_normal((200, 12)) @ rng.standard_normal((12, 12))
+
+    geometry = reference_geometry(source, eps=1e-2)
+
+    # Same map applied twice gives the same answer, and it is linear, so it
+    # cannot undo an alignment applied before it.
+    a = rng.standard_normal((50, 12))
+    np.testing.assert_allclose(geometry(a), geometry(a))
+    np.testing.assert_allclose(
+        geometry(a + 3.0) - geometry(a),
+        (np.full_like(a, 3.0)) @ geometry.whitener,
+        atol=1e-9,
+    )
+
+
+def test_reference_geometry_whitens_its_own_source():
+    import numpy as np
+
+    from ser.mmd import reference_geometry
+    from ser.numerics import covariance
+
+    rng = np.random.default_rng(1)
+    source = rng.standard_normal((400, 8)) @ rng.standard_normal((8, 8))
+    whitened = reference_geometry(source, eps=1e-6)(source)
+
+    # Close to identity covariance: that is what makes it a reference frame.
+    cov = covariance(whitened)
+    np.testing.assert_allclose(np.diag(cov), np.ones(8), rtol=0.15)
 
 
 def test_flatten_round_trips_a_segment_sequence():

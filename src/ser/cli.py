@@ -384,6 +384,8 @@ def _cmd_smoke(args: argparse.Namespace) -> int:
         n_search_trials=None,
         marginal_mmd_raw=None,
         marginal_mmd_normalised=None,
+        marginal_mmd_reference=None,
+        mmd_fallback_fired=None,
         freeze_tag=None,
         per_class_precision_json=None,
         per_class_recall_json=None,
