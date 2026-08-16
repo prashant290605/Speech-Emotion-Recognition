@@ -57,3 +57,7 @@ data/manifest.csv
 
 # Per-run predictions: regenerable, and large in aggregate.
 results/predictions/
+
+# Stage shard outputs and worker logs: merged into runs.jsonl, then redundant.
+results/shards/
+logs/

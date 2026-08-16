@@ -210,12 +210,47 @@ def test_reference_geometry_whitens_its_own_source():
     np.testing.assert_allclose(np.diag(cov), np.ones(8), rtol=0.15)
 
 
-def test_flatten_round_trips_a_segment_sequence():
+def test_alignment_view_keeps_every_family_in_the_same_feature_space():
+    """Each 768-d vector is one observation, NOT (N, everything_else).
+
+    Concatenating the axes would fit the alignment in 6144 dimensions for the
+    transformer and 79872 for transformer+weighted -- the latter needs a ~51 GB
+    covariance and would OOM. It would also give each family a differently
+    conditioned covariance, so the alignment rung would not mean the same thing
+    across families.
+    """
+    import numpy as np
+
+    from ser.run_grid import _flatten, _unflatten
+
+    for shape in [(100, 768), (100, 8, 768), (100, 13, 768), (100, 13, 8, 768)]:
+        X = np.zeros(shape)
+        view = _flatten(X)
+        assert view.shape[-1] == 768, f"{shape} aligned in {view.shape[-1]} dims"
+        assert view.ndim == 2
+        np.testing.assert_array_equal(_unflatten(view, X), X)
+
+
+def test_alignment_view_round_trips_values_not_just_shapes():
     import numpy as np
 
     from ser.run_grid import _flatten, _unflatten
 
     X = np.arange(2 * 8 * 4, dtype=np.float64).reshape(2, 8, 4)
-    flat = _flatten(X)
-    assert flat.shape == (2, 32)
-    np.testing.assert_array_equal(_unflatten(flat, X), X)
+    assert _flatten(X).shape == (16, 4)
+    np.testing.assert_array_equal(_unflatten(_flatten(X), X), X)
+
+
+def test_mmd_view_gives_one_vector_per_utterance():
+    """Discrepancy compares distributions over utterances. Without pooling, the
+    transformer's effect size would come from 8x as many points drawn from a
+    within-utterance distribution and would not compare to any other family."""
+    import numpy as np
+
+    from ser.run_grid import _mmd_view
+
+    for shape in [(100, 768), (100, 8, 768), (100, 13, 768), (100, 13, 8, 768)]:
+        assert _mmd_view(np.zeros(shape)).shape == (100, 768)
+
+    X = np.stack([np.full((8, 4), i, dtype=np.float64) for i in range(3)])
+    np.testing.assert_allclose(_mmd_view(X), np.array([[0.0] * 4, [1.0] * 4, [2.0] * 4]))

@@ -53,7 +53,21 @@ from .utils.results import append_row, completed_run_ids, make_run_id, new_row
 from .utils.runmeta import capture_runmeta
 from .utils.seeding import set_all_seeds
 
-__all__ = ["GridRun", "enumerate_stage", "run_grid", "REFERENCE_GEOMETRY_EPS"]
+__all__ = [
+    "GridRun",
+    "enumerate_stage",
+    "enumerate_transformer_probe",
+    "run_grid",
+    "shard_of",
+    "REFERENCE_GEOMETRY_EPS",
+]
+
+
+def _stamp() -> str:
+    """UTC timestamp for log lines, so a heartbeat is locatable in wall time."""
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 # Shrinkage for the fixed reference geometry. Strong on purpose: the source
 # covariance has an effective rank near 57 of 768, so a weak shrinkage would
@@ -128,14 +142,70 @@ def _alignment_variants(config, method: str) -> List[Dict]:
     return [{"eps": None, "lam": None}]
 
 
+def enumerate_transformer_probe(config, *, corpora: Sequence[str]) -> List[GridRun]:
+    """A stratified transformer probe at the extremes of every axis screening prunes.
+
+    Screening runs on sklearn + MLP, which consume a pooled vector. The
+    transformer consumes an 8-segment sequence, so a pruning decision taken
+    without it might not transfer to the one family whose input differs. This
+    probe covers **both ends of the alignment ladder, every layer aggregation,
+    and both epsilon extremes** — 12 runs — so that any decision that would flip
+    for the transformer shows up before Stage 2 commits to it.
+
+    It is a validity check on the pruning, not a measurement of the transformer.
+    """
+    source, target = corpora[0], corpora[-1]
+    eps_low, eps_high = min(config.alignment.coral_shrinkage), max(
+        config.alignment.coral_shrinkage
+    )
+    conditions = [
+        ("none", None, None),
+        ("coral", eps_low, None),
+        ("coral", eps_high, None),
+        ("mkmmd_full", None, min(config.alignment.mmd_lambda_grid)),
+    ]
+    runs = []
+    for method, eps, lam in conditions:
+        for agg in config.classifiers.layer_agg_options:
+            runs.append(
+                GridRun(
+                    source=source,
+                    target=target,
+                    seed=config.splits.seeds[0],
+                    backbone=next(iter(config.features.backbones)),
+                    feature_branch="ssl",
+                    layer_agg=agg,
+                    layer_index=(
+                        config.classifiers.layer_candidates[1] if agg == "layer" else None
+                    ),
+                    alignment=method,
+                    alignment_eps=eps,
+                    alignment_lam=lam,
+                    blending="none",
+                    blend_alpha=None,
+                    n_groups=None,
+                    classifier="transformer",
+                )
+            )
+    return runs
+
+
 def enumerate_stage(
     config,
     stage: int,
     *,
     corpora: Sequence[str],
     surviving: Optional[Dict] = None,
+    families: Optional[Sequence[str]] = None,
 ) -> List[GridRun]:
-    """Enumerate the runs for one stage."""
+    """Enumerate the runs for one stage.
+
+    ``families`` restricts the classifier axis. Stage 1 runs without the
+    transformer: at measured timings it is 80% of the screening budget, Stage 2
+    re-runs it anyway, and every other axis's pruning decision is available
+    without it. The transformer's coverage comes from
+    :func:`enumerate_transformer_probe` instead.
+    """
     surviving = surviving or {}
 
     if stage == 0:
@@ -171,11 +241,12 @@ def enumerate_stage(
         backbone = next(iter(config.features.backbones))
         seeds = config.splits.seeds[:2]
         runs: List[GridRun] = []
+        selected = list(families) if families else list(config.classifiers.families)
         for seed, method, agg, family in product(
             seeds,
             config.alignment.ladder_order(),
             config.classifiers.layer_agg_options,
-            config.classifiers.families,
+            selected,
         ):
             if not supports_layer_agg(family, agg):
                 continue
@@ -368,7 +439,7 @@ def execute_run(run: GridRun, context: _Context, freeze_tag: str) -> Dict:
         # ITEM B: one ZCA map from the UNALIGNED source_train, derived before any
         # rung touches the features, so it is identical for every rung and
         # cannot undo any rung's alignment.
-        geometry = reference_geometry(flat_train, eps=REFERENCE_GEOMETRY_EPS)
+        geometry = reference_geometry(_mmd_view(X_train), eps=REFERENCE_GEOMETRY_EPS)
 
         if run.alignment != "none":
             alignment = build_alignment(
@@ -406,10 +477,11 @@ def execute_run(run: GridRun, context: _Context, freeze_tag: str) -> Dict:
         # the reference the whole ladder is read against, so leaving it null
         # would mean the covariate-shift column had a hole exactly where the
         # comparison starts.
-        aligned_train = _flatten(X_train)
-        bandwidth = median_bandwidth(aligned_train, aligned_adapt, seed=run.seed)
+        aligned_train = _mmd_view(X_train)
+        mmd_adapt = _mmd_view(_unflatten(aligned_adapt, X_adapt))
+        bandwidth = median_bandwidth(aligned_train, mmd_adapt, seed=run.seed)
         raw_mmd = marginal_mmd(
-            aligned_train, aligned_adapt, config, bandwidth=bandwidth, seed=run.seed
+            aligned_train, mmd_adapt, config, bandwidth=bandwidth, seed=run.seed
         )
         null = null_mmd_scale(
             aligned_train, config, bandwidth=bandwidth, n_repeats=5, seed=run.seed
@@ -420,7 +492,7 @@ def execute_run(run: GridRun, context: _Context, freeze_tag: str) -> Dict:
         # comparison does not depend on which frame each rung happened to leave
         # the features in.
         ref_source = geometry(aligned_train)
-        ref_target = geometry(aligned_adapt)
+        ref_target = geometry(mmd_adapt)
         ref_bandwidth = median_bandwidth(ref_source, ref_target, seed=run.seed)
         ref_null = null_mmd_scale(
             ref_source, config, bandwidth=ref_bandwidth, n_repeats=5, seed=run.seed
@@ -535,6 +607,16 @@ def execute_run(run: GridRun, context: _Context, freeze_tag: str) -> Dict:
         )
 
 
+def shard_of(run_id: str, n_shards: int) -> int:
+    """Which shard a run belongs to. Deterministic from the id alone.
+
+    Hashing the id rather than slicing the list means a shard's membership does
+    not change if the enumeration order changes, so a half-finished shard stays
+    resumable across code edits that reorder runs.
+    """
+    return int(run_id[:8], 16) % n_shards
+
+
 def run_grid(
     config,
     stage: int,
@@ -542,17 +624,35 @@ def run_grid(
     corpora: Sequence[str],
     dry_run: bool = False,
     require_freeze: bool = True,
+    families: Optional[Sequence[str]] = None,
+    probe: bool = False,
+    shard: Optional[int] = None,
+    n_shards: int = 1,
+    results_path: Optional[Path] = None,
+    heartbeat_every: int = 5,
 ) -> int:
-    """Execute one stage, resumably."""
+    """Execute one stage, resumably, optionally as one shard of several."""
     freeze_tag = assert_config_frozen(config, require=require_freeze)
-    print(f"config frozen at tag: {freeze_tag or '(not required)'}")
+    label = f"shard {shard}/{n_shards}" if shard is not None else "single worker"
+    print(f"[{_stamp()}] config frozen at tag: {freeze_tag or '(not required)'} | {label}",
+          flush=True)
 
     context = _Context(config)
     present = [c for c in corpora if any(r.corpus == c for r in context.rows)]
-    runs = enumerate_stage(config, stage, corpora=present)
+    runs = (
+        enumerate_transformer_probe(config, corpora=present)
+        if probe
+        else enumerate_stage(config, stage, corpora=present, families=families)
+    )
 
-    results_path = config.results_path
-    already = completed_run_ids(results_path)
+    results_path = Path(results_path) if results_path else config.results_path
+
+    # Resume reads the shard's OWN file plus the merged one, so a shard restarted
+    # after a merge does not redo work that is already committed.
+    already = completed_run_ids(results_path) | completed_run_ids(config.results_path)
+
+    if shard is not None:
+        runs = [r for r in runs if shard_of(make_run_id(r.coords(config)), n_shards) == shard]
     todo = [r for r in runs if make_run_id(r.coords(config)) not in already]
 
     print(f"stage {stage}: {len(runs)} runs enumerated, {len(todo)} to execute, "
@@ -573,10 +673,22 @@ def run_grid(
 
     completed: List[Dict] = []
     wall_start = time.perf_counter()
-    for run in todo:
+    for index, run in enumerate(todo, start=1):
         row = execute_run(run, context, freeze_tag)
         append_row(results_path, row)
         completed.append(row)
+
+        if index % heartbeat_every == 0 or index == len(todo):
+            elapsed = time.perf_counter() - wall_start
+            rate = elapsed / index
+            remaining = (len(todo) - index) * rate
+            n_failed = sum(1 for r in completed if r["status"] == "failed")
+            print(
+                f"[{_stamp()}] HEARTBEAT {index}/{len(todo)} "
+                f"({index/len(todo):5.1%}) elapsed {elapsed/60:6.1f} min "
+                f"eta {remaining/60:6.1f} min | {n_failed} failed",
+                flush=True,
+            )
 
         chance = _chance_for(context, run, config)
         if row["status"] == "ok":
@@ -604,7 +716,7 @@ def run_grid(
 
     if stage == 0:
         return _smoke_gate(context, config, ok, failed)
-    if stage == 1:
+    if stage == 1 and shard is None:
         _stage1_report(config)
     return 1 if failed else 0
 
@@ -784,14 +896,42 @@ def _smoke_gate(context, config, ok: List[Dict], failed: List[Dict]) -> int:
 
 
 def _flatten(X: np.ndarray) -> np.ndarray:
-    """Collapse everything but the sample axis, for alignment.
+    """View the input as ``(-1, D)`` -- every 768-d vector as one observation.
 
-    Alignment operates on a feature vector. A segment sequence or an unreduced
-    layer stack is flattened, aligned, and restored, so the same transform
-    applies uniformly across those axes rather than to one slice of them.
+    **Not** ``(N, everything_else)``. Concatenating the axes would fit the
+    alignment in the flattened space, and that is unworkable as well as wrong:
+
+        sklearn / MLP  `last`      768      covariance    768 x 768
+        transformer    `last`     6144      covariance   6144 x 6144  (0.3 GB)
+        MLP            `weighted` 9984      covariance   9984 x 9984  (0.8 GB)
+        transformer    `weighted` 79872     covariance  ~51 GB -- OOM
+
+    Stage 1 contains `mlp x weighted x coral`, so that would have failed hours
+    into the run. It is also statistically wrong: a 6144-dimensional covariance
+    from ~988 utterances has rank at most 987, and the conditioning would differ
+    per family, making the alignment rung mean something different for the
+    transformer than for everything else.
+
+    Collapsing to ``(-1, D)`` instead keeps every family's alignment in the same
+    768-dimensional space with the same conditioning, and the map is fitted on
+    exactly the distribution of vectors it is applied to.
     """
-    return X.reshape(X.shape[0], -1) if X.ndim > 2 else X
+    return X.reshape(-1, X.shape[-1]) if X.ndim > 2 else X
 
 
 def _unflatten(flat: np.ndarray, like: np.ndarray) -> np.ndarray:
     return flat.reshape(like.shape) if like.ndim > 2 else flat
+
+
+def _mmd_view(X: np.ndarray) -> np.ndarray:
+    """One 768-d vector per **utterance**, for the discrepancy measurement.
+
+    MMD compares distributions over utterances, so a segment sequence is
+    mean-pooled first. Without this the transformer's effect size would be
+    computed over 8x as many points drawn from a different (within-utterance)
+    distribution, and would not be comparable to any other family's.
+    """
+    if X.ndim == 2:
+        return X
+    axes = tuple(range(1, X.ndim - 1))
+    return X.mean(axis=axes)

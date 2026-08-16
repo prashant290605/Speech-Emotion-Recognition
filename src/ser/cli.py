@@ -199,6 +199,14 @@ def _build_parser() -> argparse.ArgumentParser:
     grid.add_argument("--stage", type=int, required=True, choices=[0, 1, 2])
     grid.add_argument("--corpora", default=None, help="Comma-separated subset")
     grid.add_argument("--dry-run", action="store_true", help="Enumerate and exit")
+    grid.add_argument("--families", default=None, help="Comma-separated subset")
+    grid.add_argument(
+        "--probe", action="store_true", help="Run the stratified transformer probe"
+    )
+    grid.add_argument("--shard", type=int, default=None)
+    grid.add_argument("--n-shards", type=int, default=1)
+    grid.add_argument("--results", default=None, help="Shard results file")
+    grid.add_argument("--heartbeat-every", type=int, default=5)
     grid.add_argument(
         "--no-freeze",
         action="store_true",
@@ -657,6 +665,14 @@ def _cmd_run_grid(args: argparse.Namespace) -> int:
             corpora=_selected_corpora(config, args.corpora),
             dry_run=args.dry_run,
             require_freeze=not args.no_freeze,
+            families=(
+                [f.strip() for f in args.families.split(",")] if args.families else None
+            ),
+            probe=args.probe,
+            shard=args.shard,
+            n_shards=args.n_shards,
+            results_path=args.results,
+            heartbeat_every=args.heartbeat_every,
         )
     except ConfigDrift as exc:
         print(f"REFUSING TO RUN: {exc}", file=sys.stderr)

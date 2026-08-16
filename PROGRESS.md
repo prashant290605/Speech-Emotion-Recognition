@@ -9,6 +9,161 @@ file plus PHASES.md is the entire handover between them.
 
 ---
 
+## FINDING — layer:6 has lower discrepancy than `last` and transfers worse
+
+**Promote to the paper. This is currently the strongest evidence in the
+project, and it is independent of every choice made in the MMD implementation.**
+
+Two measurements, from different phases, on the same pair and backbone:
+
+| representation | marginal discrepancy | target macro-F1 (Phase 6, all families) |
+|---|---|---|
+| `last` | **3.76× null** | logreg 0.367, svm_lin 0.318, svm_rbf 0.333, mlp 0.383, transformer 0.414 |
+| `layer:6` | **1.93× null** | logreg 0.219, svm_lin 0.199, svm_rbf 0.287, mlp 0.245, transformer 0.335 |
+
+`layer:6` is **closer** to the target distribution by the covariate-shift measure
+— roughly half the discrepancy — and transfers **worse in every one of the five
+classifier families**, by 0.05 to 0.14 macro-F1. It also scores *higher* on
+`source_val` in every family, so the effect is not that layer 6 is a poor
+representation; it is a better one in-domain and a worse one across corpora.
+
+Why this matters more than the ladder result:
+
+* **It does not involve the alignment ladder at all.** No CORAL, no MK-MMD, no
+  warm start, no optimiser, no bandwidth choice. Every methodological question
+  raised about the MMD implementation — saturation, geometry, the fallback, the
+  step size — is irrelevant to it. It is two cached representations and five
+  classifiers.
+* **It is a dose-response contradiction, not a null.** The ladder result says
+  reducing discrepancy does not help. This says the representation with *less*
+  discrepancy is reliably *worse*, which is a stronger and more surprising
+  statement.
+* **It is consistent across five independent classifier families**, including
+  one that consumes a different input representation entirely.
+* **The SUPERB-style layer-probing literature does not report it**, because that
+  literature is almost entirely in-domain — where layer 6 does win, as our own
+  `source_val` numbers show.
+
+Two caveats to carry with it: single seed, and `last`-vs-`layer:6` is one
+comparison rather than a sweep over all 13 layers. Stage 2 supplies the seeds.
+A full layer sweep is cheap from the existing cache and would turn this from a
+two-point contrast into a curve — worth doing before the paper.
+
+The learnable `weighted` aggregation avoids the trap (MLP 0.374, transformer
+0.374 against `layer:6`'s 0.245 and 0.335), which is the practical
+recommendation that falls out of it and the retrospective justification for
+caching all 13 layers in Phase 3.
+
+---
+
+## 2026-08-16 — Stage 1 pre-flight, handed off for launch
+
+### The transformer's alignment was applied in the wrong space — fixed
+
+`_flatten` collapsed everything but the sample axis, so alignment was fitted in
+the *flattened* space rather than the 768-dimensional feature space:
+
+| condition | alignment dim | CORAL covariance |
+|---|---|---|
+| sklearn / MLP `last` | 768 | 768² |
+| transformer `last` | 6144 | 0.30 GB each, 512× the eigendecomposition |
+| MLP `weighted` | 9984 | 0.8 GB each |
+| transformer `weighted` | 79872 | **~51 GB — would have OOM'd** |
+
+Stage 1 contains `mlp × weighted × coral`, so this would have failed hours in.
+It was also wrong on its own terms: a 6144-dimensional covariance from ~988
+utterances has rank at most 987, and the conditioning would have differed per
+family, making the alignment rung mean something different for the transformer
+than for everything else.
+
+**Fixed** by viewing the input as `(-1, D)` — every 768-d vector is one
+observation — so every family aligns in the same space with the same
+conditioning, and the map is fitted on exactly the distribution of vectors it is
+applied to. Discrepancy is measured on a separate `_mmd_view` that mean-pools to
+one vector per **utterance**, so the transformer's effect size is comparable to
+every other family's rather than being computed over 8× as many points from a
+within-utterance distribution.
+
+**Recorded asymmetry, as requested.** Even after the fix the transformer is not
+in quite the same position as the other families: its map is fitted on the
+segment marginal, while sklearn and MLP fit on the utterance-level pooled vector.
+Those are different distributions — segments have higher variance than their
+own mean — and no single choice makes them identical, because the two families
+consume different representations by construction. The map is at least fitted
+and applied on the *same* distribution within each family, which the previous
+code did not achieve for either.
+
+### Stage 2 projection — the transformer arm exceeds the ceiling alone
+
+Projected from measured per-family timings, under a reduced factorial of 4 pairs
+(both directions plus in-domain) × 3 SSL backbones + MFCC × 5 seeds:
+
+| surviving alignments | aggregations | sklearn | mlp | transformer | total |
+|---|---|---|---|---|---|
+| 2 | 1 | 6.4 | 9.0 | 50.0 | 65.4 |
+| 3 | 2 | 16.7 | 23.6 | **131.4** | **171.6** |
+| 4 | 3 | 31.8 | 44.9 | 250.2 | 326.9 |
+
+At the expected scenario (3 alignments, 2 aggregations) the total is **172 h**
+and the transformer arm alone is **131 h — 77% of the grid and well past the
+72 h ceiling.** Even the most aggressive pruning leaves it at 50 h.
+
+**Proposed trim, for a decision before Stage 2:**
+
+| trim to the transformer arm | arm | grid total |
+|---|---|---|
+| none | 131 h | 172 h |
+| 2 seeds instead of 5 | 53 h | 93 h |
+| cross-domain pairs only | 66 h | 106 h |
+| **2 seeds + cross-domain only** | **26 h** | **66 h** |
+| 2 seeds + cross-domain + hubert only | 8 h | 48 h |
+
+Recommended: **2 seeds, cross-domain pairs only** for the transformer, with
+sklearn and MLP at the full 5 seeds and 4 pairs. That keeps the headline claim —
+which is about alignment and rests on all families — at full statistical
+strength, and reduces only a baseline whose role is to not be a strawman. It
+must then be reported as such: the Transformer arm ran at reduced seed count for
+compute reasons and its intervals are correspondingly wider.
+
+### Scope of the launch
+
+**Screening without the transformer: 360 runs.** At measured timings the
+transformer was 80% of Stage 1, Stage 2 re-runs it anyway, and every other axis's
+pruning decision is available without it.
+
+**Stratified transformer probe: 12 runs** — both ends of the ladder (`none`,
+`mkmmd_full`), every layer aggregation (`last`, `layer:6`, `weighted`), and both
+epsilon extremes (1e-4, 1e-1). Purpose is to check that pruning decided on
+sklearn + MLP transfers to the one family consuming segments. **If any pruning
+decision would flip for the transformer, that axis is not pruned.**
+
+372 runs total, 372 unique `run_id`s.
+
+### Launch harness
+
+Four shards by `run_id` hash (79 / 102 / 93 / 98), each with capped BLAS threads,
+its own results file, and its own log with a timestamped heartbeat. Sharding is
+by hash rather than by list slice so a half-finished shard stays resumable across
+any code edit that reorders the enumeration.
+
+**No pipes anywhere** — output is redirected straight to files, because buffered
+pipes have swallowed output three times on this project.
+
+Verified before hand-off:
+
+| check | result |
+|---|---|
+| 372 runs → unique `run_id`s | **372/372 OK** |
+| resume after a mid-run kill | **7 enumerated, 4 already complete, 3 executed, no duplicates, no lost work** |
+| merge preserves uniqueness | **OK** |
+| merge refuses conflicting duplicates | **refuses, exit 2** |
+| config frozen | `grid-freeze-v2`, matches |
+
+Not launched. A 9–13 h job cannot survive a Claude Code session, and a permission
+prompt at hour three would stall it silently.
+
+---
+
 ## 2026-08-16 — Items A–D, and the Stage 1 pre-flight
 
 ### ITEM A — the MK-MMD fallback is feature-dependent, not budget-dependent
