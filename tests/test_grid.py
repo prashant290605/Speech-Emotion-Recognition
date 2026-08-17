@@ -221,6 +221,30 @@ def test_blending_arm_varies_alpha_and_runs_only_implemented_modes(config, stage
     assert len({r.seed for r in blended}) == 2
 
 
+def test_the_launcher_passes_partition_the_grid(config, surviving, stage2):
+    """The launcher runs sklearn+MLP, then transformer. The two passes must
+    tile the grid exactly -- no run in both, none in neither.
+
+    The blending arm was appended regardless of the --families filter, so
+    `--families transformer` enumerated 288 sklearn runs and the passes summed
+    to 5274 against a grid of 4986.
+    """
+    sklearn_pass = enumerate_stage(
+        config, 2, corpora=CORPORA, surviving=surviving,
+        families=["logreg", "svm_linear", "svm_rbf", "mlp"],
+    )
+    transformer_pass = enumerate_stage(
+        config, 2, corpora=CORPORA, surviving=surviving, families=["transformer"],
+    )
+
+    assert len(sklearn_pass) + len(transformer_pass) == len(stage2)
+    a = {make_run_id(r.coords(config)) for r in sklearn_pass}
+    b = {make_run_id(r.coords(config)) for r in transformer_pass}
+    assert not a & b, "a run enumerated by both passes would be run twice"
+    assert a | b == {make_run_id(r.coords(config)) for r in stage2}
+    assert not [r for r in transformer_pass if r.blending != "none"]
+
+
 def test_every_enumerated_blended_run_can_actually_be_run(config, stage2):
     """Guards the failure mode where a row is labelled with a blend_alpha whose
     features were never blended, which is what would have happened before the

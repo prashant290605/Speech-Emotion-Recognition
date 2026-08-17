@@ -487,12 +487,20 @@ def _enumerate_stage2(
                     )
                 )
 
-    runs.extend(_enumerate_blending_arm(config, surviving, directions=directions))
+    runs.extend(
+        _enumerate_blending_arm(
+            config, surviving, directions=directions, families=selected
+        )
+    )
     return runs
 
 
 def _enumerate_blending_arm(
-    config, surviving: Dict, *, directions: Sequence[tuple]
+    config,
+    surviving: Dict,
+    *,
+    directions: Sequence[tuple],
+    families: Sequence[str],
 ) -> List[GridRun]:
     """The scalar-alpha screening arm.
 
@@ -505,13 +513,20 @@ def _enumerate_blending_arm(
     if not arm:
         return []
 
+    # Respect the --families filter. Without this the arm is appended whatever
+    # families were asked for, so `--families transformer` would enumerate 288
+    # sklearn runs and the launcher's two passes would overlap.
+    arm_families = [f for f in arm["families"] if f in set(families)]
+    if not arm_families:
+        return []
+
     runs: List[GridRun] = []
     for (source, target), backbone, seed, method, family, agg, alpha in product(
         directions,
         arm["backbones"],
         arm["seeds"],
         arm["alignments"],
-        arm["families"],
+        arm_families,
         config.classifiers.layer_agg_options,
         arm["alphas"],
     ):
