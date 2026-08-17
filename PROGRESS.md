@@ -9,10 +9,70 @@ file plus PHASES.md is the entire handover between them.
 
 ---
 
-## FINDING — in-domain-optimal depth is 4–5 layers shallower than transfer-optimal depth
+## FINDING (b) — the discrepancy–transfer relationship has no sign until the measurement geometry is fixed
+
+**Promote to the paper. This is the methodological contribution, and it is the
+one no reviewer can attribute to our implementation, because it is a statement
+about the measurement rather than about any method we wrote.**
+
+The same 13 layers, the same target scores, two ways of measuring marginal
+discrepancy. Spearman ρ against target macro-F1:
+
+| backbone | ρ(effect, target) — rung's own geometry | ρ(effect, target) — fixed ZCA reference |
+|---|---|---|
+| hubert | **−0.769** | **+0.692** |
+| wav2vec2 | +0.445 | +0.341 |
+| wavlm | **−0.654** | **+0.670** |
+
+**The two frames disagree in sign on two of three backbones.** Measured in each
+representation's own geometry, less discrepancy goes with better transfer —
+the result the domain-adaptation literature assumes. Measured in a fixed
+reference frame derived once from unaligned source_train, *more* discrepancy
+does.
+
+Neither frame is picked out by theory:
+
+* The **per-rung geometry** uses a median-heuristic bandwidth computed on the
+  features being compared, so it adapts to whatever scale each representation
+  happens to be in. That adaptation is what makes rungs comparable at all, and
+  it is also what makes the statistic partly a measure of the frame rather than
+  of the overlap.
+* The **fixed reference geometry** removes that degree of freedom, but at the
+  cost of privileging one arbitrary frame — and it is far more sensitive to
+  uncorrected mean offsets, because ZCA-whitening by the source covariance
+  leaves a translation fully visible.
+
+The consequence for the field is direct: **reporting "our method reduces MMD by
+X%" is not a well-posed claim** unless the geometry the MMD was measured in is
+stated, and essentially nobody states it. Two honest researchers measuring the
+same alignment can report opposite relationships between discrepancy and
+transfer.
+
+What the paper must do: **report both frames side by side, always, and never
+one alone.** Every table carrying an effect size carries both columns. Where
+they disagree, that disagreement is the finding, not a defect to be resolved by
+picking the more convenient one.
+
+This also reframes the project's own headline claim. It is not "alignment does
+not help" — that is a weak null that a reviewer can attribute to our CORAL or
+our MK-MMD. It is: **the standard practice of reporting marginal discrepancy
+reduction as evidence of successful adaptation is not well-posed**, and our
+ladder is the demonstration.
+
+Caveat: measured on the layer sweep (2 seeds, one pair, logreg, rung `none`).
+Stage 2 supplies seeds and backbone coverage. Recorded now because it changes
+what Stage 2's tables must contain, not because it is confirmed.
+
+---
+
+## FINDING (a) — in-domain-optimal depth is 4–5 layers shallower than transfer-optimal depth
 
 **Promote to the paper.** Supersedes the earlier two-point `layer:6`-vs-`last`
 finding, which the full sweep partly refutes — see "What changed" below.
+
+The practical consequence, stated plainly: **anyone selecting an SSL layer on
+in-domain validation — which is what the SUPERB-style probing literature
+does — systematically picks the wrong depth for cross-corpus transfer.**
 
 Full 13-layer sweep, 3 backbones × 13 layers × 2 seeds, logreg, rung `none`,
 ravdess→cremad. Tables in [reports/layer_sweep.md](reports/layer_sweep.md).
@@ -80,6 +140,158 @@ replaces it and is the stronger claim.
 Caveat carried forward: two seeds, one pair, one classifier, pre-selection.
 Stage 2 supplies the seeds; nothing here enters the paper on this evidence
 alone.
+
+---
+
+## 2026-08-17 — grid-freeze-v3: four corrections before Stage 2 launches
+
+Four changes required after the Stage 1 analysis was accepted. All four move
+`run_id` coordinates, so this is a deliberate break with `grid-freeze-v2`:
+Stage 1's 372 rows stay valid as measurements under their own tag, and no
+longer resume. Schema v9 adds columns only, so they migrate.
+
+### 1. The CORAL eps grid was mis-centred — extended to 1.0 and 10.0
+
+Stage 1 found `source_val` monotone increasing in eps with **1e-1, the grid
+maximum, winning 18/18 conditions**. That says the search stopped too early,
+not that 1e-1 is optimal, and "the selected hyperparameter sat at the edge of
+its range" is a reviewer critique that costs a revision cycle. Launching 60+
+hours against a grid whose optimum lies outside it would mean CORAL is never
+evaluated at its best setting.
+
+Surviving grid is now `[1e-4, 1e-2, 1e-1, 1.0, 10.0, Ledoit-Wolf]`. 1e-3 stays
+pruned — the original rationale (interior, bracketed, adds no shape) is
+unaffected by extending the top end.
+
+### 2. `blend_alpha` — decided: Stage 2 varies it
+
+The axis was unscreened, so the choice was to vary it or drop blending from the
+paper. **Varying it**, in a dedicated screening arm: 288 runs, the two rungs
+that move features most (`coral`, `mkmmd_full`), one backbone, two seeds,
+α ∈ {0, 0.25, 0.5, 0.75}. α=1.0 is not re-enumerated because it is exactly the
+main grid's `blending="none"` cell — enumerating it twice is how the original
+counted 972 runs when only 756 were distinct.
+
+Kept rather than dropped because the original study **never searched α at all**
+— its Table 3 compares three blending modes at three unspecified α values — so
+measuring what α does converts a documented criticism into a result.
+
+**Found while implementing it: blending was enumerable but never applied.**
+`BLENDABLE_ALIGNMENTS` was imported into `run_grid` and unused; `execute_run`
+had no blending step. A blending arm on the old code would have written 288
+rows labelled with a `blend_alpha` whose features were never blended, and
+nothing would have caught it. Scalar blending is now implemented in the run
+path, applied *before* the effect size is measured so the recorded discrepancy
+describes what the classifier actually consumed.
+
+Verified end to end on real features, not just unit-tested: α=0.0 reproduces
+the unaligned run to floating-point equality (target 0.3700 both), α=1.0
+reproduces the pure-aligned run (0.3943 both), α=0.5 differs from both
+(0.3181). `gaa` now **raises** rather than silently no-opping — it needs
+k-means over feature dimensions and a nested per-group α selection this grid
+does not have, and is explicitly out of Stage 2 scope.
+
+### 3. LogReg convergence — the cap was a searched hyperparameter
+
+The real defect was worse than the symptom. `max_iter` was **drawn from
+[1000, 2000, 5000] as part of the random search**, so a trial could win
+selection by having stopped early rather than by fitting better. A convergence
+budget is not a model choice.
+
+* `max_iter` removed from the search space; fixed at `sklearn_max_iter: 20000`.
+* Sized from measurement: worst observed case is lbfgs at C=1e4 on 5972
+  CREMA-D utterances, **3529 iterations**. At the matched-n size of 988 the
+  worst case is 313.
+* Convergence is **asserted** — `NotConverged` is raised, the trial loop records
+  it as a failed trial scored −inf, so a non-converged fit can never be scored,
+  ranked, or selected. It also cannot buy the family extra attempts, which
+  keeps the equal-budget contract intact.
+* `solver_n_iter` recorded on every row.
+
+**Bug I introduced and caught in the same pass:** the first version compared
+against `max_iter` unconditionally, and libsvm's `SVC` uses `max_iter=-1` to
+mean "no limit" — so every `svm_rbf` trial was marked non-converged and every
+svm_rbf run failed. Caught by the existing budget tests. Guarded by
+`test_unlimited_solvers_are_not_reported_as_non_converged`.
+
+### 4. Matched-n reverse arm instead of dropping the reverse direction
+
+The right call, and not only cheaper: **direction was confounded with a 6×
+difference in training data.** CREMA-D contributes 5972 source-train utterances
+against RAVDESS's 988, so any asymmetry the paper reported could have been
+sample size.
+
+`splits.matched_source_train` caps cross-corpus `source_train` to the smaller
+direction's size, per seed. The cap is **derived, never hard-coded**: both
+directions' natural sizes are computed and the minimum taken, so the smaller
+direction is untouched and the larger comes down to meet it.
+
+* Stratified by class using largest-remainder allocation, so the label prior is
+  preserved to within one utterance per class. A uniform subsample would shift
+  the prior and confound the very comparison the cap exists to enable.
+* Within the existing speaker-disjoint split — utterances are **removed, never
+  moved**, so every leakage guarantee still holds. Verified: CREMA-D drops
+  5972 → 988 across 73 speakers with no utterance or speaker overlap with any
+  other role.
+* Seeded and deterministic; recorded in `split_spec_hash` and on the row as
+  `source_train_n` / `source_train_cap`.
+* Reported as **"matched-n"**. Full-n reverse remains available as a separate
+  later arm with `matched_source_train: false`.
+
+**Measured effect on cost: the reverse direction went from ~16× to ~1.1×.**
+Per-family measured ratios (`results/stage2_calibration.jsonl`): logreg
+0.99/1.18, svm_linear 0.57/1.45, svm_rbf 0.92/1.07, mlp 1.20/2.07 (cheap
+rungs / MK-MMD), median **1.12×**.
+
+### Stage 2 — re-projected, fits, NOT launched
+
+**4986 runs, 67.3 h wall at 4 shards**, projected from real Stage 1 medians
+with the measured per-family reverse ratios applied rather than one flat
+factor — a flat factor is wrong by 2× across families.
+
+| family | runs | CPU h | wall h |
+|---|---|---|---|
+| mlp | 1626 | 150.0 | 37.5 |
+| transformer | 108 | 60.8 | 15.2 |
+| logreg | 1084 | 21.6 | 5.4 |
+| svm_linear | 1084 | 20.7 | 5.2 |
+| svm_rbf | 1084 | 16.2 | 4.1 |
+| **total** | **4986** | **269.3** | **67.3** |
+
+The first projection came in at **79.3 h**, over the 72 h ceiling. Trimmed the
+transformer arm further, as instructed, **not** the direction: the transformer
+now runs the primary direction only. Chosen over cutting it to one seed, which
+would have left the arm with no spread to form an interval from — the whole
+point of calling it a reduced-seed arm. Its rungs, backbones and aggregations
+stay at full width, and direction is neither protected nor an inner grid.
+
+Harness re-verified on the new design: 4986 enumerated ids **all unique**,
+shard balance 1244/1233/1232/1277, resume after kill exact (6 written → 6
+skipped on restart), merge refuses non-disjoint shards with **exit 2**.
+397 tests pass.
+
+### Files
+
+Modified: `configs/default.yaml` (coral_shrinkage, sklearn_max_iter,
+matched_source_train, split_spec_version v2), `configs/FROZEN` →
+`grid-freeze-v3`, `src/ser/config.py`, `src/ser/splits.py` (matched-n),
+`src/ser/classifiers.py` (convergence), `src/ser/run_grid.py` (blending in the
+run path, extended eps, blending arm, transformer direction trim),
+`src/ser/utils/results.py` (schema v9), `tools/migrate_results.py`,
+`tools/project_stage2.py` (measured per-family ratios), `tests/test_grid.py`,
+`tests/test_results_schema.py`.
+
+Created: `tests/test_matched_n.py` (14 tests),
+`results/stage2_calibration.jsonl`.
+
+### Open
+
+* **Full-n reverse arm** as a separate later run, to report matched-n against
+  full-n and show what the size confound was worth.
+* **`gaa` blending** remains unimplemented and out of scope. It raises rather
+  than no-ops, so it cannot reach a table by accident.
+* Two findings above ((a) depth divergence, (b) frame dependence) are recorded
+  on Stage 1 evidence and do not enter the paper until Stage 2 confirms them.
 
 ---
 

@@ -154,6 +154,14 @@ def stage2_surviving(config, *, corpora: Sequence[str]) -> Dict:
         backbones=list(config.features.backbones),
         seeds=list(config.splits.seeds),
         transformer_seeds=list(config.splits.seeds[:2]),
+        # The transformer runs the primary direction only. With both directions
+        # the grid projects to 79 h against a 72 h ceiling, and this is the
+        # trim that costs least: the alternative -- one seed -- would leave the
+        # arm with no spread to report an interval from, which is the whole
+        # point of calling it a reduced-seed arm. Direction is neither a
+        # protected axis nor an inner grid, and this arm is already declared
+        # reduced. Its rungs, backbones and aggregations stay at full width.
+        transformer_directions=[(source, target)],
     )
 
 
@@ -439,8 +447,13 @@ def _enumerate_stage2(
     for family in selected:
         is_transformer = family == "transformer"
         family_seeds = transformer_seeds if is_transformer else seeds
+        family_directions = (
+            surviving.get("transformer_directions") or directions
+            if is_transformer
+            else directions
+        )
         for (source, target), backbone, seed, method, agg in product(
-            directions,
+            family_directions,
             backbones,
             family_seeds,
             config.alignment.ladder_order(),

@@ -350,66 +350,90 @@ divergence, not a discrepancy argument.
 
 ---
 
+> **Superseded in part by grid-freeze-v3.** After this analysis was accepted,
+> four changes were made before launch: the CORAL eps grid was extended to 1.0
+> and 10.0 (§2 found it monotone to the boundary); `blend_alpha` is now varied
+> in a dedicated screening arm rather than left unscreened; logreg's `max_iter`
+> is no longer a searched hyperparameter and convergence is asserted; and the
+> reverse direction is included as a **matched-n** arm rather than dropped.
+> §7 below reflects the final design. See PROGRESS.md for the full rationale.
+
 ## 7. Stage 2 configuration
 
 ### Design
 
 | axis | Stage 1 | Stage 2 |
 |---|---|---|
-| direction | ravdess→cremad | **ravdess→cremad** (see below) |
+| direction | ravdess→cremad | **both, matched-n** (transformer: forward only) |
 | backbone | hubert | **hubert, wav2vec2, wavlm** |
 | seeds | 0, 1 | **0–4** (transformer 0, 1) |
 | ladder | 6 rungs | 6 rungs (protected) |
 | layer_agg | last, layer:6, weighted | unchanged (protected) |
-| coral eps | 5 | **4** (dropped 1e-3) |
+| coral eps | 5 | **6** — dropped 1e-3, added 1.0 and 10.0 |
 | mkmmd lambda | 6 | **4** (dropped 10, 100) |
-| blending | none | none (never screened) |
+| blending | none | **none + a 288-run scalar-alpha arm** |
 
-**2133 runs, 33.0 h wall at 4 shards**, projected from measured Stage 1
-per-cell medians. 276 of those runs are already complete — the Stage 1 cells
-that survived pruning resume rather than recompute, verified by dry run.
+**4986 runs, 67.3 h wall at 4 shards**, projected by `tools/project_stage2.py`
+from measured Stage 1 medians, with per-family reverse ratios measured in
+`results/stage2_calibration.jsonl` rather than one flat factor — a flat factor
+is wrong by 2x across families.
 
 | family | runs | CPU hours | wall hours |
 |---|---|---|---|
+| mlp | 1626 | 150.0 | 37.5 |
 | transformer | 108 | 60.8 | 15.2 |
-| mlp | 675 | 47.1 | 11.8 |
-| logreg | 450 | 8.7 | 2.2 |
-| svm_linear | 450 | 8.6 | 2.1 |
-| svm_rbf | 450 | 6.9 | 1.7 |
-| **total** | **2133** | **132.1** | **33.0** |
+| logreg | 1084 | 21.6 | 5.4 |
+| svm_linear | 1084 | 20.7 | 5.2 |
+| svm_rbf | 1084 | 16.2 | 4.1 |
+| **total** | **4986** | **269.3** | **67.3** |
 
-The transformer arm is 5% of the runs and 46% of the CPU. It is reduced to 2
-seeds and one inner-grid setting per rung (`coral` at eps=1e-1, MK-MMD at
-λ=0.01) — reductions on seeds and inner grids only, never on a protected axis.
-It keeps all six rungs, all three backbones and all three aggregations, and
-**must be reported as a reduced-seed arm with wider intervals and not pooled
-with the five-seed families.**
+The first projection came in at 79.3 h, over the 72 h ceiling. The transformer
+arm was trimmed further — primary direction only — rather than dropping a
+direction. Cutting it to one seed was the alternative and was rejected: it
+would leave the arm with no spread to form an interval from, which is the point
+of calling it a reduced-seed arm. Its rungs, backbones and aggregations stay at
+full width.
 
-### The reverse direction does not fit, and this is a decision to make
+### The reverse direction is matched-n, and that is a control, not a saving
 
-`cremad→ravdess` has 5972 source-train utterances against 988 — 6.0×. Measured
-single-fit cost (hubert, `last`, logreg): 4.1 s → 35.6 s at C=1, 5.1 s → 84.8 s
-at C=100. **~16× per fit.** The MMD side is not the problem — it subsamples and
-costs 0.7 s in both directions.
+`cremad->ravdess` has 5972 source-train utterances against 988. Left alone,
+**direction is confounded with 6x the training data** and any asymmetry the
+paper reported could be sample size.
 
-| reverse-direction option | runs | wall hours (factor 8 / 16) |
+`splits.matched_source_train` caps cross-corpus `source_train` to the smaller
+direction's size per seed, stratified by class (largest remainder, so the label
+prior is preserved to within one utterance per class), within the existing
+speaker-disjoint split — utterances are removed, never moved, so every leakage
+guarantee holds. The cap is derived from both directions' natural sizes, never
+hard-coded. Recorded in `split_spec_hash` and on each row as `source_train_n`
+and `source_train_cap`.
+
+Measured per-cell cost ratio against the forward direction, after matching:
+
+| family | cheap rungs | MK-MMD |
 |---|---|---|
-| full mirror (3 backbones, 5 seeds, + transformer) | 2133 | 264 / **528** |
-| hubert only, 5 seeds, + transformer | 711 | 88 / 176 |
-| hubert only, 2 seeds, no transformer | 270 | 19 / **38** |
-| hubert only, 2 seeds, logreg + mlp | 150 | 15 / 30 |
+| logreg | 0.99x | 1.18x |
+| svm_linear | 0.57x | 1.45x |
+| svm_rbf | 0.92x | 1.07x |
+| mlp | 1.20x | 2.07x |
 
-A full mirror is impossible against a 72 h budget by a factor of 7. Forward-only
-Stage 2 (33 h) plus a reduced reverse arm (19–38 h) totals 52–71 h and fits,
-but only just, and the 8×–16× spread is the uncertainty.
+Median **1.12x**, against ~16x unmatched. Full-n reverse remains available as a
+separate later arm, so the pair can be reported as matched-n against full-n.
 
-**Recommendation: launch forward-only Stage 2 now (33 h, fits with certainty),
-and treat the reverse arm as a separate later launch** once
-`tools/calibrate_stage2.py` has produced measured per-family factors. Transfer
-asymmetry is a real finding and worth having; it is not worth risking the arm
-every table depends on. The direction axis is neither protected nor an inner
-grid, so this is a scoping call, not a pruning decision — flagged for the
-supervisor rather than taken silently.
+### The blending arm
+
+Stage 1 never varied `blend_alpha`, so the axis was unscreened. It is now
+**varied**, in a 288-run arm: `coral` and `mkmmd_full`, one backbone, two
+seeds, alpha in {0, 0.25, 0.5, 0.75}. alpha=1.0 is not re-enumerated — it is
+exactly the main grid's `blending="none"` cell.
+
+Implementing it surfaced a defect: **blending was enumerable but never applied
+in the run path.** The arm would have produced 288 rows labelled with a
+`blend_alpha` whose features were never blended. Scalar blending is now
+implemented, applied before the effect size is measured, and verified on real
+features: alpha=0.0 reproduces the unaligned run exactly (0.3700), alpha=1.0
+the pure-aligned run (0.3943), alpha=0.5 differs from both (0.3181). `gaa`
+raises rather than silently no-opping and is out of Stage 2 scope.
 
 ### Harness
 
@@ -421,8 +445,13 @@ Same design as Stage 1, verified the same way:
   run still leaves a complete reportable arm rather than five partial ones.
 * Hash-based sharding (`int(run_id[:8], 16) % n_shards`), so shard membership
   survives any enumeration reordering.
-* 4266 enumerated ids for the two-direction design, 2133 for one — **all
-  unique**, asserted in `test_stage2_run_ids_are_distinct`.
-* Resume verified by dry run: 276 already-complete rows skipped.
-* `tools/merge_shards.py` refuses (exit 2) on any run_id appearing in two shards
-  with differing content.
+* **4986 enumerated ids, all unique**, asserted in
+  `test_stage2_run_ids_are_distinct`. Shard balance 1244/1233/1232/1277.
+* Resume after kill verified against real runs: 6 rows written, killed, restarted
+  — 6 skipped, 1 to execute.
+* `tools/merge_shards.py` refuses (**exit 2**, verified) on any run_id appearing
+  in two shards with differing content.
+* Stage 1's rows do **not** resume into Stage 2: grid-freeze-v3 changed
+  `split_spec_hash` and `search_spec_hash`, so every Stage 2 id is new. They
+  remain valid measurements under `grid-freeze-v2`. That is the freeze
+  mechanism working, not a schema break.

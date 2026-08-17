@@ -78,15 +78,15 @@ def test_stage2_refuses_until_stage1_has_pruned(config):
 # -- Stage 2: the reduced factorial ----------------------------------------
 @pytest.fixture(scope="module")
 def surviving(config):
-    from ser.run_grid import STAGE2_SURVIVING
+    """The real Stage 2 design, not a hand-built copy of it.
 
-    return dict(
-        STAGE2_SURVIVING,
-        directions=[("ravdess", "cremad"), ("cremad", "ravdess")],
-        backbones=list(config.features.backbones),
-        seeds=config.splits.seeds,
-        transformer_seeds=config.splits.seeds[:2],
-    )
+    Rebuilding the dict here would let the tests pass against a design the
+    launcher does not run -- which is exactly what happened when the
+    transformer's direction trim was added in one place and not the other.
+    """
+    from ser.run_grid import stage2_surviving
+
+    return stage2_surviving(config, corpora=CORPORA)
 
 
 @pytest.fixture(scope="module")
@@ -177,6 +177,60 @@ def test_stage2_does_not_reuse_a_stage1_run_id(config, surviving):
     # What must not happen is an id shared by cells with different coordinates,
     # which the distinctness test above already rules out.
     assert overlap, "Stage 2 should resume the Stage 1 cells it re-enumerates"
+
+
+def test_stage2_extends_the_coral_grid_past_its_stage1_argmax(config, stage2, surviving):
+    """eps=1e-1 won 18/18 in Stage 1 *and* was the grid maximum. A hyperparameter
+    selected at the edge of its range is not evidence the edge is optimal."""
+    eps = {r.alignment_eps for r in stage2 if r.alignment == "coral"}
+    assert {1.0, 10.0} <= eps, "the grid must extend past the Stage 1 argmax"
+    assert max(e for e in eps if e is not None) > 1e-1
+
+
+def test_transformer_arm_is_trimmed_on_direction_not_on_seeds(config, stage2, surviving):
+    """The projection came in over the ceiling and something had to give.
+
+    Cutting to one seed would leave the arm unable to report any spread, which
+    is the entire point of calling it a reduced-seed arm; cutting a protected
+    axis is not allowed. One direction is what is left.
+    """
+    transformer = [r for r in stage2 if r.classifier == "transformer"]
+    others = [r for r in stage2 if r.classifier != "transformer"]
+
+    assert len({(r.source, r.target) for r in transformer}) == 1
+    assert len({(r.source, r.target) for r in others}) == 2
+    # Still enough seeds to form an interval, and every protected axis intact.
+    assert len({r.seed for r in transformer}) >= 2
+    assert {r.alignment for r in transformer} == set(config.alignment.ladder_order())
+    assert {r.backbone for r in transformer} == set(config.features.backbones)
+
+
+def test_blending_arm_varies_alpha_and_runs_only_implemented_modes(config, stage2):
+    """The axis was unscreened, so it is either varied or dropped. It is varied."""
+    blended = [r for r in stage2 if r.blending != "none"]
+
+    assert blended, "blend_alpha must be varied somewhere or removed from scope"
+    assert {r.blending for r in blended} == {"scalar"}, "gaa has no run-path support"
+    assert {r.blend_alpha for r in blended} == {0.0, 0.25, 0.5, 0.75}
+    # alpha=1.0 is pure aligned, which the main grid already covers as
+    # blending="none"; enumerating it twice is how the original counted 972
+    # runs when only 756 were distinct.
+    assert 1.0 not in {r.blend_alpha for r in blended}
+    # It is a screening arm, not a full axis: one backbone, two seeds.
+    assert len({r.backbone for r in blended}) == 1
+    assert len({r.seed for r in blended}) == 2
+
+
+def test_every_enumerated_blended_run_can_actually_be_run(config, stage2):
+    """Guards the failure mode where a row is labelled with a blend_alpha whose
+    features were never blended, which is what would have happened before the
+    run path implemented blending at all."""
+    from ser.run_grid import _blend_alpha_for
+
+    for run in stage2:
+        if run.blending == "none":
+            continue
+        assert _blend_alpha_for(run) == run.blend_alpha
 
 
 def test_stage1_blending_axis_was_never_screened(config):

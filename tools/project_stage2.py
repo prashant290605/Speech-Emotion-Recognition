@@ -13,10 +13,12 @@ from sharing the machine.
 Two corrections are applied on top:
 
 ``--reverse-factor``
-    cremad -> ravdess has 5972 source_train utterances against ravdess ->
-    cremad's 988. SVM fitting and ``null_mmd_scale`` are both O(n^2) in that
-    number, so the reverse direction is not free. Measure it with
-    tools/calibrate_stage2.py and pass the result rather than guessing.
+    Residual per-cell cost of the reverse direction relative to the forward
+    one. With `splits.matched_source_train` both directions train on the same
+    number of utterances, so this is near 1.0 -- what remains is the larger
+    source_val (1470 against 260) set against the smaller target_adapt and
+    target_test (624 against ~3700). Measured with tools/calibrate_stage2.py;
+    do not guess it.
 
 ``--transformer-seconds``
     Stage 1's transformer probe was 12 runs; its median is noisier than the
@@ -35,7 +37,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from ser.config import load_config  # noqa: E402
-from ser.run_grid import STAGE2_SURVIVING, enumerate_stage  # noqa: E402
+from ser.run_grid import enumerate_stage, stage2_surviving  # noqa: E402
 from ser.utils.results import read_rows  # noqa: E402
 
 
@@ -57,6 +59,12 @@ def main(argv=None) -> int:
     parser.add_argument("--results", default="results/runs.jsonl")
     parser.add_argument("--shards", type=int, default=4)
     parser.add_argument("--reverse-factor", type=float, default=1.0)
+    parser.add_argument(
+        "--calibration",
+        default="results/stage2_calibration.jsonl",
+        help="Measured reverse-direction cells. Overrides --reverse-factor "
+        "per (family, is-MK-MMD) where a measurement exists.",
+    )
     parser.add_argument("--transformer-seconds", type=float, default=None)
     parser.add_argument("--one-direction", action="store_true")
     args = parser.parse_args(argv)
@@ -64,16 +72,35 @@ def main(argv=None) -> int:
     config = load_config()
     costs = measured_costs(REPO_ROOT / args.results)
 
+    # Per-(family, is-MK-MMD) reverse ratios, measured rather than assumed. One
+    # flat factor is wrong by 2x across families: with matched n the reverse
+    # direction is cheaper than forward for svm_linear (0.57x) and dearer for
+    # mlp under MK-MMD (2.07x), because what is left after matching the training
+    # size is a larger source_val against a much smaller target_test.
+    ratios = {}
+    calibration = REPO_ROOT / args.calibration
+    if calibration.exists():
+        for row in read_rows(calibration):
+            if row["status"] != "ok":
+                continue
+            key = (row["classifier"], row["alignment"].startswith("mkmmd"))
+            forward = costs.get((row["classifier"], "last", key[1]))
+            if forward:
+                ratios[key] = row["wall_seconds"] / forward
+        if ratios:
+            print(
+                f"using {len(ratios)} measured reverse ratios from "
+                f"{args.calibration} (median "
+                f"{median(sorted(ratios.values())):.2f}x); --reverse-factor "
+                f"{args.reverse_factor:.2f}x covers the rest\n"
+            )
+
     directions = [("ravdess", "cremad")]
     if not args.one_direction:
         directions.append(("cremad", "ravdess"))
 
     surviving = dict(
-        STAGE2_SURVIVING,
-        directions=directions,
-        backbones=list(config.features.backbones),
-        seeds=config.splits.seeds,
-        transformer_seeds=config.splits.seeds[:2],
+        stage2_surviving(config, corpora=["ravdess", "cremad"]), directions=directions
     )
     runs = enumerate_stage(config, 2, corpora=["ravdess", "cremad"], surviving=surviving)
 
@@ -90,7 +117,9 @@ def main(argv=None) -> int:
         if run.classifier == "transformer" and args.transformer_seconds:
             seconds = args.transformer_seconds
         if run.source == "cremad":
-            seconds *= args.reverse_factor
+            seconds *= ratios.get(
+                (run.classifier, key[2]), args.reverse_factor
+            )
         per_family[run.classifier] += seconds
         per_direction[(run.source, run.target)] += seconds
         total += seconds
