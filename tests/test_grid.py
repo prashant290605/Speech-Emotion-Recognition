@@ -75,6 +75,120 @@ def test_stage2_refuses_until_stage1_has_pruned(config):
         enumerate_stage(config, 2, corpora=CORPORA)
 
 
+# -- Stage 2: the reduced factorial ----------------------------------------
+@pytest.fixture(scope="module")
+def surviving(config):
+    from ser.run_grid import STAGE2_SURVIVING
+
+    return dict(
+        STAGE2_SURVIVING,
+        directions=[("ravdess", "cremad"), ("cremad", "ravdess")],
+        backbones=list(config.features.backbones),
+        seeds=config.splits.seeds,
+        transformer_seeds=config.splits.seeds[:2],
+    )
+
+
+@pytest.fixture(scope="module")
+def stage2(config, surviving):
+    return enumerate_stage(config, 2, corpora=CORPORA, surviving=surviving)
+
+
+def test_stage2_keeps_the_protected_axes_at_full_width(config, stage2):
+    """The ladder, layer aggregation and backbone carry the paper's claims.
+
+    Screening may not narrow them however flat they look -- a dose-response
+    axis with rungs removed is no longer a dose-response axis.
+    """
+    assert {r.alignment for r in stage2} == set(config.alignment.ladder_order())
+    assert {r.backbone for r in stage2} == set(config.features.backbones)
+    assert {r.layer_agg for r in stage2} == set(config.classifiers.layer_agg_options)
+
+    # And at full width *within* each family, not just in the union.
+    for family in config.classifiers.families:
+        runs = [r for r in stage2 if r.classifier == family]
+        assert {r.alignment for r in runs} == set(config.alignment.ladder_order())
+        assert {r.backbone for r in runs} == set(config.features.backbones)
+        assert {r.layer_agg for r in runs} == {
+            agg for agg in config.classifiers.layer_agg_options
+            if supports_layer_agg(family, agg)
+        }
+
+
+def test_stage2_prunes_only_the_inner_grids(config, stage2, surviving):
+    """Pruning is allowed on epsilon and lambda and nowhere else."""
+    sklearn_runs = [r for r in stage2 if r.classifier != "transformer"]
+    coral_eps = {r.alignment_eps for r in sklearn_runs if r.alignment == "coral"}
+    lambdas = {r.alignment_lam for r in sklearn_runs if r.alignment.startswith("mkmmd")}
+
+    assert coral_eps == set(surviving["coral_shrinkage"])
+    assert lambdas == set(surviving["mmd_lambda_grid"])
+    # The dropped values are gone, and they are the only ones dropped.
+    assert 1e-3 not in coral_eps
+    assert {10.0, 100.0}.isdisjoint(lambdas)
+    assert set(surviving["coral_shrinkage"]) < set(config.alignment.coral_shrinkage) | {None}
+
+
+def test_stage2_covers_both_transfer_directions(stage2):
+    assert {(r.source, r.target) for r in stage2} == {
+        ("ravdess", "cremad"),
+        ("cremad", "ravdess"),
+    }
+
+
+def test_stage2_transformer_is_an_explicitly_reduced_arm(config, stage2, surviving):
+    """Reduced on seeds and inner grid only -- never on a protected axis.
+
+    Its per-cell cost is 15-40x the sklearn families'. Carrying the full inner
+    grid for it would spend more wall time on epsilon and lambda than on every
+    other axis combined, and Stage 1 showed both to be flat or monotone.
+    """
+    transformer = [r for r in stage2 if r.classifier == "transformer"]
+    others = [r for r in stage2 if r.classifier != "transformer"]
+
+    assert {r.seed for r in transformer} == set(surviving["transformer_seeds"])
+    assert len({r.seed for r in transformer}) < len({r.seed for r in others})
+
+    # Exactly one inner-grid setting per rung.
+    for method in ("coral", "mkmmd_diag", "mkmmd_full"):
+        runs = [r for r in transformer if r.alignment == method]
+        assert len({(r.alignment_eps, r.alignment_lam) for r in runs}) == 1
+
+    # But still every rung, every backbone, every aggregation it supports.
+    assert {r.alignment for r in transformer} == set(config.alignment.ladder_order())
+    assert {r.backbone for r in transformer} == set(config.features.backbones)
+
+
+def test_stage2_run_ids_are_distinct(config, stage2):
+    ids = [make_run_id(r.coords(config)) for r in stage2]
+    assert len(ids) == len(set(ids))
+
+
+def test_stage2_does_not_reuse_a_stage1_run_id(config, surviving):
+    """Stage 1 rows must resume, not be recomputed under a different meaning."""
+    stage1 = {make_run_id(r.coords(config)) for r in enumerate_stage(config, 1, corpora=CORPORA)}
+    stage2 = enumerate_stage(config, 2, corpora=CORPORA, surviving=surviving)
+    overlap = {
+        make_run_id(r.coords(config))
+        for r in stage2
+        if r.source == "ravdess" and r.backbone == "hubert" and r.seed in (0, 1)
+    } & stage1
+    # The overlap is real and intended: those cells are literally the same run.
+    # What must not happen is an id shared by cells with different coordinates,
+    # which the distinctness test above already rules out.
+    assert overlap, "Stage 2 should resume the Stage 1 cells it re-enumerates"
+
+
+def test_stage1_blending_axis_was_never_screened(config):
+    """blend_alpha cannot be pruned on Stage 1 evidence -- Stage 1 never varied it.
+
+    Guards against a later reader assuming the blending axis was screened
+    because every other inner grid was.
+    """
+    assert {r.blending for r in enumerate_stage(config, 1, corpora=CORPORA)} == {"none"}
+    assert len(config.blending.alpha_grid) > 1
+
+
 def test_every_enumerated_run_has_a_distinct_run_id(config):
     runs = enumerate_stage(config, 1, corpora=CORPORA)
     ids = [make_run_id(r.coords(config)) for r in runs]

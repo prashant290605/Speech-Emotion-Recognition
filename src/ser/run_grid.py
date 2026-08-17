@@ -60,6 +60,8 @@ __all__ = [
     "run_grid",
     "shard_of",
     "REFERENCE_GEOMETRY_EPS",
+    "STAGE2_SURVIVING",
+    "stage2_surviving",
 ]
 
 
@@ -74,6 +76,60 @@ def _stamp() -> str:
 # amplify hundreds of near-null directions and make the reference frame itself
 # noise-dominated.
 REFERENCE_GEOMETRY_EPS = 1e-2
+
+
+# -- what Stage 1 pruned ---------------------------------------------------
+# Recorded here rather than in configs/default.yaml because the config is
+# FROZEN at grid-freeze-v2 and Stage 1's rows were produced against it. Editing
+# it would change `search_spec_hash` and orphan all 372 Stage 1 rows.
+#
+# Every decision below is scored on source_val ONLY, and cross-checked against
+# the 12 transformer probe runs. The rationale is in PROGRESS.md.
+#
+# NOT pruned, by instruction -- these three carry the paper's claims and are
+# kept at full width whatever screening says:
+#   * the alignment ladder   (the dose-response axis)
+#   * layer aggregation      (carries the layer finding)
+#   * backbone               (a stated contribution)
+STAGE2_SURVIVING = {
+    # Dropped 1e-3: never the source_val argmax in 18/18 conditions, and it is
+    # interior to the retained grid -- 1e-4 and 1e-2 bracket it, and its
+    # source_val (0.5713) sits between theirs, so it adds no shape.
+    # 1e-4 is kept as the endpoint the "unregularised CORAL" reading rests on;
+    # Ledoit-Wolf is kept because "does the standard automatic choice find the
+    # good regime?" is a real question and its answer here is no.
+    "coral_shrinkage": [1e-4, 1e-2, 1e-1, None],
+    # Dropped 10.0 and 100.0. source_val is flat in lambda (spread 0.0016 diag /
+    # 0.0054 full, i.e. argmax is noise), so the drop is made on mechanism, not
+    # on score: at lambda >= 1 the W-to-identity penalty dominates and
+    # mkmmd_full reverts to its CORAL warm start in 14/18 runs. Those cells are
+    # not a sixth rung, they are CORAL with extra wall time. 1.0 is retained as
+    # the anchor that shows where the fallback saturates.
+    "mmd_lambda_grid": [0.001, 0.01, 0.1, 1.0],
+    # One variant per rung for the transformer arm only -- see PROGRESS.md for
+    # why the transformer cannot carry the full inner grid at any seed count.
+    "transformer_coral_eps": 1e-1,
+    "transformer_mmd_lambda": 0.01,
+}
+
+
+def stage2_surviving(config, *, corpora: Sequence[str]) -> Dict:
+    """The full Stage 2 design: pruned inner grids plus the axes Stage 1 fixed.
+
+    Stage 1 held source, backbone and seed count constant so it could afford to
+    screen the inner grids. Stage 2 spends what the pruning saved on those three.
+
+    One place, so the launcher and the wall-time projection cannot disagree
+    about what is being run.
+    """
+    source, target = corpora[0], corpora[-1]
+    return dict(
+        STAGE2_SURVIVING,
+        directions=[(source, target), (target, source)],
+        backbones=list(config.features.backbones),
+        seeds=list(config.splits.seeds),
+        transformer_seeds=list(config.splits.seeds[:2]),
+    )
 
 
 @dataclass(frozen=True)
@@ -275,10 +331,101 @@ def enumerate_stage(
                 )
         return runs
 
+    if stage == 2:
+        if not surviving:
+            raise ValueError(
+                "stage 2 is not enumerable without the surviving axes recorded "
+                "in PROGRESS.md after Stage 1. Pass surviving=STAGE2_SURVIVING."
+            )
+        return _enumerate_stage2(config, surviving, corpora=corpora, families=families)
+
     raise ValueError(
         f"stage {stage} is not enumerable yet. Stage 2 must be built from the "
         "surviving axes recorded in PROGRESS.md after Stage 1."
     )
+
+
+def _stage2_variants(config, surviving: Dict, method: str, *, transformer: bool):
+    """Inner-grid settings for one rung after Stage 1's pruning.
+
+    The transformer takes one setting per rung. Its per-cell cost is 15-40x the
+    sklearn families', so carrying the full inner grid for it would spend more
+    wall time on epsilon and lambda -- both of which Stage 1 showed to be either
+    monotone-to-the-boundary or flat -- than on every other axis combined.
+    """
+    if method == "coral":
+        if transformer:
+            return [{"eps": surviving["transformer_coral_eps"], "lam": None}]
+        return [{"eps": eps, "lam": None} for eps in surviving["coral_shrinkage"]]
+    if method.startswith("mkmmd"):
+        if transformer:
+            return [{"eps": None, "lam": surviving["transformer_mmd_lambda"]}]
+        return [{"eps": None, "lam": lam} for lam in surviving["mmd_lambda_grid"]]
+    return [{"eps": None, "lam": None}]
+
+
+def _enumerate_stage2(
+    config,
+    surviving: Dict,
+    *,
+    corpora: Sequence[str],
+    families: Optional[Sequence[str]] = None,
+) -> List[GridRun]:
+    """The reduced factorial: seeds and backbones over what Stage 1 left standing.
+
+    Stage 1 fixed source, backbone and seed count to screen the inner grids.
+    Stage 2 spends what that saved on the axes the paper actually reports:
+    both transfer directions, all three backbones, and five seeds.
+
+    The transformer runs as an explicitly reduced arm -- 2 seeds, one inner-grid
+    setting per rung -- and must be reported with wider intervals than the rest.
+    Its numbers are not pooled with the five-seed families.
+    """
+    directions = surviving.get("directions") or [(corpora[0], corpora[-1])]
+    backbones = surviving.get("backbones") or list(config.features.backbones)
+    seeds = surviving.get("seeds") or config.splits.seeds
+    transformer_seeds = surviving.get("transformer_seeds") or config.splits.seeds[:2]
+    selected = list(families) if families else list(config.classifiers.families)
+
+    runs: List[GridRun] = []
+    for family in selected:
+        is_transformer = family == "transformer"
+        family_seeds = transformer_seeds if is_transformer else seeds
+        for (source, target), backbone, seed, method, agg in product(
+            directions,
+            backbones,
+            family_seeds,
+            config.alignment.ladder_order(),
+            config.classifiers.layer_agg_options,
+        ):
+            if not supports_layer_agg(family, agg):
+                continue
+            for variant in _stage2_variants(
+                config, surviving, method, transformer=is_transformer
+            ):
+                runs.append(
+                    GridRun(
+                        source=source,
+                        target=target,
+                        seed=seed,
+                        backbone=backbone,
+                        feature_branch="ssl",
+                        layer_agg=agg,
+                        layer_index=(
+                            config.classifiers.layer_candidates[1]
+                            if agg == "layer"
+                            else None
+                        ),
+                        alignment=method,
+                        alignment_eps=variant.get("eps"),
+                        alignment_lam=variant.get("lam"),
+                        blending="none",
+                        blend_alpha=None,
+                        n_groups=None,
+                        classifier=family,
+                    )
+                )
+    return runs
 
 
 # --------------------------------------------------------------------------
@@ -630,6 +777,7 @@ def run_grid(
     n_shards: int = 1,
     results_path: Optional[Path] = None,
     heartbeat_every: int = 5,
+    surviving: Optional[Dict] = None,
 ) -> int:
     """Execute one stage, resumably, optionally as one shard of several."""
     freeze_tag = assert_config_frozen(config, require=require_freeze)
@@ -639,10 +787,14 @@ def run_grid(
 
     context = _Context(config)
     present = [c for c in corpora if any(r.corpus == c for r in context.rows)]
+    if stage == 2 and surviving is None:
+        surviving = stage2_surviving(config, corpora=present)
     runs = (
         enumerate_transformer_probe(config, corpora=present)
         if probe
-        else enumerate_stage(config, stage, corpora=present, families=families)
+        else enumerate_stage(
+            config, stage, corpora=present, families=families, surviving=surviving
+        )
     )
 
     results_path = Path(results_path) if results_path else config.results_path

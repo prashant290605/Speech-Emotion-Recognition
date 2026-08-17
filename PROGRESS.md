@@ -9,50 +9,226 @@ file plus PHASES.md is the entire handover between them.
 
 ---
 
-## FINDING — layer:6 has lower discrepancy than `last` and transfers worse
+## FINDING — in-domain-optimal depth is 4–5 layers shallower than transfer-optimal depth
 
-**Promote to the paper. This is currently the strongest evidence in the
-project, and it is independent of every choice made in the MMD implementation.**
+**Promote to the paper.** Supersedes the earlier two-point `layer:6`-vs-`last`
+finding, which the full sweep partly refutes — see "What changed" below.
 
-Two measurements, from different phases, on the same pair and backbone:
+Full 13-layer sweep, 3 backbones × 13 layers × 2 seeds, logreg, rung `none`,
+ravdess→cremad. Tables in [reports/layer_sweep.md](reports/layer_sweep.md).
 
-| representation | marginal discrepancy | target macro-F1 (Phase 6, all families) |
-|---|---|---|
-| `last` | **3.76× null** | logreg 0.367, svm_lin 0.318, svm_rbf 0.333, mlp 0.383, transformer 0.414 |
-| `layer:6` | **1.93× null** | logreg 0.219, svm_lin 0.199, svm_rbf 0.287, mlp 0.245, transformer 0.335 |
+| backbone | argmax `source_val` | argmax target | gap | cost of choosing depth on `source_val` |
+|---|---|---|---|---|
+| hubert | 6 | 11 | 5 | **−0.1436** |
+| wav2vec2 | 5 | 9 | 4 | **−0.1405** |
+| wavlm | 6 | 10 | 4 | **−0.1282** |
 
-`layer:6` is **closer** to the target distribution by the covariate-shift measure
-— roughly half the discrepancy — and transfers **worse in every one of the five
-classifier families**, by 0.05 to 0.14 macro-F1. It also scores *higher* on
-`source_val` in every family, so the effect is not that layer 6 is a poor
-representation; it is a better one in-domain and a worse one across corpora.
+The layer that is best in-domain is consistently 4–5 layers shallower than the
+layer that transfers best, in every backbone, and selecting depth the way the
+literature does — on in-domain validation — costs 0.13–0.14 macro-F1 across
+corpora.
 
-Why this matters more than the ladder result:
+Why this is the strongest thing in the project:
 
 * **It does not involve the alignment ladder at all.** No CORAL, no MK-MMD, no
-  warm start, no optimiser, no bandwidth choice. Every methodological question
-  raised about the MMD implementation — saturation, geometry, the fallback, the
-  step size — is irrelevant to it. It is two cached representations and five
-  classifiers.
-* **It is a dose-response contradiction, not a null.** The ladder result says
-  reducing discrepancy does not help. This says the representation with *less*
-  discrepancy is reliably *worse*, which is a stronger and more surprising
-  statement.
-* **It is consistent across five independent classifier families**, including
-  one that consumes a different input representation entirely.
+  warm start, no optimiser. Every methodological question about the MMD
+  implementation — saturation, geometry, the fallback, the step size — is
+  irrelevant to it. It is 13 cached representations and one classifier.
+* **It is a curve across three backbones, not a two-point contrast**, and the
+  gap has the same sign and nearly the same magnitude in all three.
 * **The SUPERB-style layer-probing literature does not report it**, because that
-  literature is almost entirely in-domain — where layer 6 does win, as our own
-  `source_val` numbers show.
+  literature is almost entirely in-domain — which is exactly the regime where
+  the shallower layer wins, as our own `source_val` column shows.
+* **It has a direct practical consequence**: the learnable `weighted`
+  aggregation avoids having to choose, and is the retrospective justification
+  for caching all 13 layers in Phase 3.
 
-Two caveats to carry with it: single seed, and `last`-vs-`layer:6` is one
-comparison rather than a sweep over all 13 layers. Stage 2 supplies the seeds.
-A full layer sweep is cheap from the existing cache and would turn this from a
-two-point contrast into a curve — worth doing before the paper.
+### The discrepancy explanation does not work, and that is itself a finding
 
-The learnable `weighted` aggregation avoids the trap (MLP 0.374, transformer
-0.374 against `layer:6`'s 0.245 and 0.335), which is the practical
-recommendation that falls out of it and the retrospective justification for
-caching all 13 layers in Phase 3.
+Spearman ρ over the 13 layers:
+
+| backbone | ρ(effect own, target) | ρ(effect reference, target) | ρ(source_val, target) |
+|---|---|---|---|
+| hubert | −0.769 | **+0.692** | +0.104 |
+| wav2vec2 | +0.445 | +0.341 | +0.396 |
+| wavlm | −0.654 | **+0.670** | +0.527 |
+
+**The two geometries disagree in sign on two of three backbones.** Measured in
+each rung's own frame, less discrepancy goes with better transfer; measured in
+the fixed ZCA reference frame, more discrepancy does — same features, same
+layers, same target scores. Any claim of the form "lower MMD implies better
+transfer" must name its geometry and defend it, and neither frame is picked out
+by theory. This caution applies to the alignment ladder too.
+
+### What changed
+
+The earlier version of this finding claimed `layer:6` has **lower** discrepancy
+than `last` *and* transfers worse — a dose-response contradiction. Under the
+corrected fixed-bandwidth MMD:
+
+* **Survives:** `layer:6` scores higher in-domain in all three backbones.
+* **Survives, weakened:** it transfers worse on hubert (−0.122) and wavlm
+  (−0.076), but on wav2vec2 the two are tied (+0.005).
+* **Refuted:** "lower discrepancy". `layer:6` has *higher* own-geometry
+  discrepancy than `last` on hubert (954 vs 894) and wav2vec2 (1658 vs 1540),
+  and lower only on wavlm (1088 vs 1171). The 3.76× / 1.93× figures the original
+  claim rested on came from the pre-correction per-rung-bandwidth measurement.
+
+The dose-response framing is therefore withdrawn. The depth-divergence curve
+replaces it and is the stronger claim.
+
+Caveat carried forward: two seeds, one pair, one classifier, pre-selection.
+Stage 2 supplies the seeds; nothing here enters the paper on this evidence
+alone.
+
+---
+
+## 2026-08-17 — Stage 1 screening analysis, pruning, and Stage 2 configuration
+
+Stage 1 ran to completion on the user's machine. Full analysis in
+[reports/stage1_analysis.md](reports/stage1_analysis.md); the `source_val`-only
+pruning surface is in [reports/stage1_screening.md](reports/stage1_screening.md);
+the layer sweep is in [reports/layer_sweep.md](reports/layer_sweep.md).
+
+### Integrity
+
+**438 rows: 60 baselines, 6 Stage 0, 372 Stage 1. Zero failures.** No
+tracebacks, so no failure pattern to characterise. 372 = 360 screening + 12
+transformer probe, exactly as enumerated.
+
+Two columns carry nulls and **both are correct, not defects**:
+`marginal_mmd_reference` is null in the 6 Stage 0 rows that predate the column;
+`mmd_fallback_fired` is null in 159 rows — those 6 plus every rung with no warm
+start to revert to (coral 96, none 21, zscore 18, mean_shift 18 = 153). The
+MK-MMD rungs, where it is meaningful, have none. Aggregations filter rather than
+impute. An earlier `statistics.fmean` crash on these nulls was the analysis code
+missing a filter, not bad data.
+
+Measured against projection: 25.1 CPU hours, ~6.3 h wall across 4 shards.
+Per-family contention ratios 1.8×–4.7× over the solo projection. The transformer
+probe is 12 of 372 runs and 20% of CPU time.
+
+### Pruning — inner grids only
+
+**Protected and untouched:** the alignment ladder, layer aggregation, backbone.
+Screening showed the pooled ladder to be nearly flat on target and it is still
+kept whole.
+
+* **`alignment_eps`: dropped `1e-3`.** `source_val` is monotone increasing in
+  eps (0.5592 → 0.6523) and eps=1e-1 is the argmax in **18/18** conditions.
+  Monotone-to-the-boundary means the grid is mis-centred, not that the other
+  values are dead, so only the interior, bracketed, shape-free point was cut.
+  Ledoit-Wolf retained despite never winning — it lands at 0.6096, and "the
+  standard automatic choice does not find the good regime" is a result.
+  **Probe agrees 3/3** on the direction; it does not test 1e-3 itself, and that
+  gap is recorded rather than glossed.
+* **`alignment_lambda`: dropped `10.0` and `100.0`.** `source_val` is flat
+  (spread 0.0016 diag / 0.0054 full) so the argmax is noise; the cut is made on
+  mechanism instead — at λ ≥ 1 `mkmmd_full` reverts to its CORAL warm start in
+  14/18 runs, so those cells are CORAL with extra wall time rather than a sixth
+  rung. λ=1.0 kept as the anchor where the fallback saturates.
+  **Probe cannot adjudicate** — it ran `mkmmd_full` at λ=0.001 only. Stated
+  plainly rather than implied.
+* **`blend_alpha`: NOT pruned — it was never screened.** All 372 Stage 1 runs
+  ran `blending="none"`. There is no evidence about it either way, and 11
+  blending settings would multiply Stage 2 by ~11. Needs its own screening pass.
+  Pinned by `test_stage1_blending_axis_was_never_screened`.
+* **Classifier ranges: NOT pruned.** Narrowing one family's range would break
+  the equal-budget contract — 20 trials would buy more effective coverage for
+  the narrowed family.
+
+### Required analyses
+
+1. **CORAL `source_val` vs eps — it recovers.** 0.5592 → 0.6523, i.e. **56% of
+   the 0.166 cost**, while target moves 0.0096 across the whole range. So the
+   cost is **substantially a statement about the regularisation, not about
+   CORAL** — but not entirely: 0.089 remains at the strongest shrinkage, and the
+   surface is still climbing at the grid edge, so 56% is a lower bound.
+   Extending the grid means editing a frozen config and orphaning all 372 rows;
+   **flagged, not done.**
+2. **Effect size vs target — observation only.** The step off `none` is worth
+   +0.10; a further 140× reduction in discrepancy is worth 0.011, i.e. noise.
+   But **the pooled average hides a large interaction**: alignment is worth
+   +0.042 at `last`, **+0.168 at `layer:6`**, +0.095 at `weighted`, sign-stable
+   in all four screening families and reproduced in the independent transformer
+   probe. "The ladder does nothing" is an artefact of averaging over depth.
+3. **Fallback rate: `mkmmd_diag` 27.8%, `mkmmd_full` 61.3%.** Any table with an
+   `mkmmd_full` row must say so — in the majority of those cells the rung is
+   CORAL. The diag rate is 5/18 at *every* lambda, confirming it is
+   feature-dependent, not budget-dependent.
+4. **Full 13-layer sweep — the headline.** See the rewritten FINDING at the top
+   of this file. In-domain-optimal depth is 4–5 layers shallower than
+   transfer-optimal depth in all three backbones, costing 0.13–0.14 macro-F1.
+   The sweep reproduces the Stage 1 grid at the `none` rung to within RNG noise
+   (0.3700 vs 0.3698), which validates the harness independently.
+
+**The hypothesis the sweep was meant to test did not hold.** A monotone curve —
+discrepancy falling toward mid-stack with target falling alongside — is not what
+the data shows. Target does not track discrepancy in any backbone, and the two
+geometries **disagree in sign on two of three**. That is a stronger result than
+the monotone curve would have been, and it forces every "lower MMD ⇒ better
+transfer" claim to name its geometry.
+
+### Stage 2 — configured, verified, NOT launched
+
+**2133 runs, 33.0 h wall at 4 shards**, projected from measured Stage 1 medians
+by `tools/project_stage2.py`. 276 runs already complete and resume rather than
+recompute (verified by dry run).
+
+Reduced factorial: 3 backbones, 5 seeds, both aggregations (three for torch
+families), 6 rungs, pruned inner grids. Transformer is an explicitly reduced arm
+— 2 seeds, one inner-grid setting per rung — reduced **only** on seeds and inner
+grids, never on a protected axis, and **must be reported with wider intervals
+and not pooled** with the five-seed families.
+
+**The reverse direction does not fit and is a decision for the supervisor.**
+`cremad→ravdess` has 5972 source-train utterances against 988; measured logreg
+fit cost is ~16× (4.1 s → 35.6 s at C=1; 5.1 s → 84.8 s at C=100, where it hits
+the `max_iter` cap). The MMD side is not the problem — it subsamples and costs
+0.7 s either way. A full mirror is 264–528 h against a 72 h budget. Options and
+costs are tabulated in the analysis; recommendation is forward-only now, reverse
+as a separate reduced arm later once `tools/calibrate_stage2.py` has measured
+per-family factors. Direction is neither protected nor an inner grid, so this is
+scoping, not pruning.
+
+### Files
+
+Created: `tools/layer_sweep.py`, `tools/layer_sweep_report.py`,
+`tools/project_stage2.py`, `tools/calibrate_stage2.py`,
+`tools/launch_stage2.ps1`, `reports/stage1_analysis.md`,
+`reports/layer_sweep.md`, `results/layer_sweep.jsonl`.
+
+Modified: `src/ser/run_grid.py` (STAGE2_SURVIVING, `stage2_surviving`,
+`_enumerate_stage2`, `_stage2_variants`, `surviving` threaded through
+`run_grid`), `tests/test_grid.py` (+9 Stage 2 tests), `PROGRESS.md`.
+
+Generated: `reports/stage1_screening.md` (the runner writes it at the end of an
+unsharded run; the sharded launch never reached that path).
+
+### Two process notes
+
+* **The calibration was stopped deliberately.** `tools/calibrate_stage2.py` was
+  measuring per-family reverse-direction factors; its SVM cells are O(n²) at
+  n=5972 and would have run for hours on a question that forward-only Stage 2
+  makes moot. The decisive number came from direct fit timing instead. The tool
+  remains, and should be run before any reverse-arm launch.
+* **A restarted sweep worker double-computed 23 wavlm cells.** I misread a
+  process check and started a second run while the first was alive. All 23
+  duplicates agree to floating-point equality — an unplanned determinism check.
+  The report generator now collapses duplicates and *raises* if any pair
+  disagrees. Only wavlm layer 1 shifted (0.1132 → 0.1167); no conclusion moved.
+
+### Open
+
+* **Extend the CORAL eps grid upward?** Needs a new freeze tag; orphans 372 rows
+  for resume purposes (they stay valid as data).
+* **Blending axis unscreened.** Needs a small dedicated pass before it can enter
+  any factorial.
+* **Reverse direction.** Scope decision above.
+* **Logreg hits `max_iter` with CREMA-D as source** at high C. Capped trials lose
+  selection on `source_val`, so this costs wall time rather than correctness —
+  but it must be stated wherever reverse-direction numbers appear. Raising
+  `max_iter` would edit the frozen config.
 
 ---
 
