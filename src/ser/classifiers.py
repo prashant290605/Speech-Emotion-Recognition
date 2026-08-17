@@ -42,6 +42,7 @@ __all__ = [
     "sample_params",
     "fit_and_select",
     "supports_layer_agg",
+    "NotConverged",
 ]
 
 SKLEARN_FAMILIES = ("logreg", "svm_linear", "svm_rbf")
@@ -76,10 +77,14 @@ def sample_params(family: str, rng: np.random.Generator, config) -> Dict[str, An
     families whose spaces have different dimensionality.
     """
     if family == "logreg":
+        # max_iter is deliberately NOT drawn here. It was, from
+        # [1000, 2000, 5000], and that was a defect: a convergence budget is not
+        # a model choice, and searching it lets a trial win selection by having
+        # stopped early rather than by fitting better. It is now a fixed cap
+        # (classifiers.sklearn_max_iter) and convergence is asserted.
         return {
             "C": _log_uniform(rng, 1e-4, 1e4),
             "class_weight": rng.choice([None, "balanced"]),
-            "max_iter": int(rng.choice([1000, 2000, 5000])),
         }
     if family == "svm_linear":
         return {
@@ -126,6 +131,7 @@ class TrialRecord:
     source_val_macro_f1: float
     epochs_run: Optional[int] = None
     failed: Optional[str] = None
+    solver_n_iter: Optional[int] = None
 
 
 @dataclass
@@ -138,6 +144,9 @@ class SelectionResult:
     trials: List[TrialRecord]
     predict: Callable[[np.ndarray], np.ndarray]
     epochs_run: Optional[int] = None
+    # Iterations the selected sklearn solver used. None for the torch families,
+    # which report epochs_run instead.
+    solver_n_iter: Optional[int] = None
 
     def as_hyperparams(self) -> Dict[str, Any]:
         """What lands in ``hyperparams_json``."""
@@ -149,6 +158,10 @@ class SelectionResult:
             "source_val_macro_f1": self.best_source_val_macro_f1,
             "epochs_run": self.epochs_run,
             "n_failed_trials": sum(1 for t in self.trials if t.failed),
+            "n_not_converged": sum(
+                1 for t in self.trials if t.failed and "max_iter" in t.failed
+            ),
+            "solver_n_iter": self.solver_n_iter,
             "selection_surface": "source_val",
         }
 
@@ -170,23 +183,36 @@ def _jsonable(params: Dict[str, Any]) -> Dict[str, Any]:
 # --------------------------------------------------------------------------
 # sklearn families
 # --------------------------------------------------------------------------
-def _build_sklearn(family: str, params: Dict[str, Any], seed: int):
+class NotConverged(RuntimeError):
+    """An iterative solver hit its cap instead of converging.
+
+    Raised rather than warned about. A non-converged fit is not a valid
+    configuration: its score reflects where the optimiser stopped, not what the
+    model can do, and an undertuned simple baseline compared against a trained
+    neural model is the exact defect this rebuild exists to correct. The trial
+    loop records it as a failed trial and scores it -inf, so it cannot be
+    selected and cannot buy the family a retry.
+    """
+
+
+def _build_sklearn(family: str, params: Dict[str, Any], seed: int, config):
     from sklearn.linear_model import LogisticRegression
     from sklearn.svm import SVC, LinearSVC
 
     class_weight = params.get("class_weight")
     class_weight = None if class_weight in (None, "None") else str(class_weight)
+    max_iter = config.classifiers.sklearn_max_iter
 
     if family == "logreg":
         return LogisticRegression(
             C=params["C"],
             class_weight=class_weight,
-            max_iter=params["max_iter"],
+            max_iter=max_iter,
             random_state=seed,
         )
     if family == "svm_linear":
         return LinearSVC(
-            C=params["C"], class_weight=class_weight, random_state=seed, max_iter=5000
+            C=params["C"], class_weight=class_weight, random_state=seed, max_iter=max_iter
         )
     if family == "svm_rbf":
         return SVC(
@@ -197,6 +223,30 @@ def _build_sklearn(family: str, params: Dict[str, Any], seed: int):
             random_state=seed,
         )
     raise ValueError(family)
+
+
+def _assert_converged(model, family: str) -> Optional[int]:
+    """Iterations the fitted solver used, raising if it hit the cap.
+
+    ``n_iter_`` is per-class for the one-vs-rest solvers, so the maximum over
+    classes is what matters -- one class failing to converge is enough to make
+    the fit invalid. Models that expose no iteration count (libsvm's SVC on
+    older sklearn) return None rather than a fabricated number.
+    """
+    raw = getattr(model, "n_iter_", None)
+    if raw is None:
+        return None
+    used = int(np.max(np.asarray(raw)))
+    cap = getattr(model, "max_iter", None)
+    # libsvm's SVC uses max_iter=-1 to mean "no limit". Comparing against that
+    # would make every SVC fit look non-converged, which is how this guard
+    # failed every svm_rbf trial the first time it was written.
+    if cap is not None and int(cap) > 0 and used >= int(cap):
+        raise NotConverged(
+            f"{family}: solver hit max_iter={cap} without converging "
+            f"(n_iter={used}). Raise classifiers.sklearn_max_iter."
+        )
+    return used
 
 
 # --------------------------------------------------------------------------
@@ -388,14 +438,17 @@ def fit_and_select(
     class_names = list(class_names)
 
     trials: List[TrialRecord] = []
-    best: Optional[Tuple[float, Dict[str, Any], Callable, Optional[int]]] = None
+    best: Optional[Tuple[float, Dict[str, Any], Callable, Optional[int], Optional[int]]] = None
 
     for index in range(budget):
         params = sample_params(family, rng, config)
         try:
             if family in SKLEARN_FAMILIES:
-                model = _build_sklearn(family, params, seed)
+                model = _build_sklearn(family, params, seed, config)
                 model.fit(X_train, list(y_train))
+                # Before the score is read, so a non-converged fit can never be
+                # scored, ranked, or selected.
+                n_iter = _assert_converged(model, family)
                 predictions = model.predict(X_val)
                 score = macro_f1(list(y_val), list(predictions), class_names)
                 predict = model.predict
@@ -405,7 +458,8 @@ def fit_and_select(
                     family, params, X_train, y_train, X_val, y_val,
                     class_names, config, seed + index, config.features.n_layers,
                 )
-            trials.append(TrialRecord(index, _jsonable(params), score, epochs))
+                n_iter = None
+            trials.append(TrialRecord(index, _jsonable(params), score, epochs, None, n_iter))
         except Exception as exc:  # noqa: BLE001 - a failed trial is data
             trials.append(
                 TrialRecord(index, _jsonable(params), float("-inf"), None, str(exc)[:200])
@@ -413,7 +467,7 @@ def fit_and_select(
             continue
 
         if best is None or score > best[0]:
-            best = (score, params, predict, epochs)
+            best = (score, params, predict, epochs, n_iter)
 
     if best is None:
         raise RuntimeError(
@@ -429,4 +483,5 @@ def fit_and_select(
         trials=trials,
         predict=best[2],
         epochs_run=best[3],
+        solver_n_iter=best[4],
     )

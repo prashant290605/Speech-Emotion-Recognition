@@ -38,6 +38,20 @@ MIGRATIONS = {
         "to": 8,
         "adds": {"marginal_mmd_reference": None, "mmd_fallback_fired": None},
     },
+    # v9 adds columns only. The run_id FIELD SET is unchanged, so v8 rows keep
+    # their ids and stay resumable in principle -- but grid-freeze-v3 changed
+    # the VALUES of split_spec_hash and search_spec_hash, so in practice no v8
+    # row's id matches a v3 enumeration. They remain valid measurements under
+    # their own freeze tag; they simply do not resume. That is the freeze
+    # mechanism working, not a schema break.
+    8: {
+        "to": 9,
+        "adds": {
+            "solver_n_iter": None,
+            "source_train_n": None,
+            "source_train_cap": None,
+        },
+    },
     5: {
         "to": 6,
         "adds": {

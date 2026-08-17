@@ -116,8 +116,8 @@ def test_every_field_from_the_brief_is_present():
 
 
 def test_schema_version_is_pinned():
-    assert SCHEMA_VERSION == 8
-    assert _row()["schema_version"] == 8
+    assert SCHEMA_VERSION == 9
+    assert _row()["schema_version"] == 9
 
 
 def test_the_four_facets_are_run_id_coordinates_and_config_hash_is_not():

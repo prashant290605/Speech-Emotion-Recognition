@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import hashlib
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -77,6 +77,10 @@ class PairSplit:
     source_val: Split
     target_adapt: Split
     target_test: Split
+    # Set when `splits.matched_source_train` capped source_train to the other
+    # direction's size. None means the split was left at its natural size --
+    # either matching is off, or this direction was already the smaller one.
+    source_train_cap: Optional[int] = None
 
     @property
     def is_in_domain(self) -> bool:
@@ -172,7 +176,105 @@ def make_pair_split(
     seed: int,
     label_space: Optional[str] = None,
 ) -> PairSplit:
-    """Build the four roles for one corpus pair at one seed."""
+    """Build the four roles for one corpus pair at one seed.
+
+    With ``splits.matched_source_train`` set, the cross-corpus ``source_train``
+    is capped to whichever direction of the pair has fewer source-train
+    utterances, so that a reported transfer asymmetry cannot be a training-set
+    size effect in disguise. See :func:`_match_source_train`.
+    """
+    pair = _build_pair_split(rows, config, source_corpus, target_corpus, seed, label_space)
+
+    matched = getattr(config.splits, "matched_source_train", False)
+    if not matched or source_corpus == target_corpus:
+        return pair
+
+    # The cap is the smaller direction's natural size, so one direction is
+    # untouched and the other comes down to meet it. Computing the reverse
+    # split here is safe: _build_pair_split never consults the cap, so there is
+    # no recursion.
+    reverse = _build_pair_split(
+        rows, config, target_corpus, source_corpus, seed, pair.label_space
+    )
+    cap = min(len(pair.source_train), len(reverse.source_train))
+    if len(pair.source_train) <= cap:
+        return pair
+
+    return replace(
+        pair,
+        source_train=_match_source_train(rows, pair, cap, seed),
+        source_train_cap=cap,
+    )
+
+
+def _match_source_train(
+    rows: Sequence[ManifestRow], pair: PairSplit, cap: int, seed: int
+) -> Split:
+    """Subsample ``source_train`` to ``cap`` utterances, stratified by class.
+
+    Three properties this has to preserve, all of them load-bearing:
+
+    * **Speaker disjointness.** Utterances are only removed, never moved
+      between roles, so every leakage guarantee from the original partition
+      still holds. Dropping a speaker entirely is fine; splitting one across
+      roles would not be, and cannot happen here.
+    * **Class proportions.** Allocation is by largest remainder, so the capped
+      split's class distribution matches the uncapped one as closely as an
+      integer split allows. A uniform random subsample would shift the label
+      prior and confound the very comparison the cap exists to enable.
+    * **Determinism.** Seeded from the run seed plus a stable label, sorted on
+      the way out, so the same (pair, seed) always yields the same subsample on
+      any machine.
+    """
+    labels = {row.utterance_id: row for row in rows}
+    space = pair.label_space
+
+    def label_of(utterance_id: str) -> str:
+        row = labels[utterance_id]
+        return row.label_six if space == "six" else row.label_four
+
+    by_class: Dict[str, List[str]] = {}
+    for utterance_id in pair.source_train.utterance_ids:
+        by_class.setdefault(label_of(utterance_id), []).append(utterance_id)
+
+    total = len(pair.source_train)
+    # Largest remainder: floor the proportional share, then hand out what is
+    # left to the classes with the largest fractional parts.
+    exact = {name: len(ids) * cap / total for name, ids in by_class.items()}
+    quota = {name: int(value) for name, value in exact.items()}
+    remaining = cap - sum(quota.values())
+    for name in sorted(exact, key=lambda n: (-(exact[n] - quota[n]), n))[:remaining]:
+        quota[name] += 1
+
+    rng = _rng(seed, pair.source_corpus, pair.target_corpus, "matched_source_train")
+    kept: List[str] = []
+    for name in sorted(by_class):
+        ids = sorted(by_class[name])
+        rng.shuffle(ids)
+        kept.extend(ids[: quota[name]])
+
+    kept = sorted(kept)
+    if len(kept) != cap:
+        raise ValueError(
+            f"matched subsample produced {len(kept)} utterances, expected {cap}"
+        )
+
+    return replace(
+        pair.source_train,
+        utterance_ids=tuple(kept),
+        group_ids=tuple(sorted({labels[u].speaker_id for u in kept})),
+    )
+
+
+def _build_pair_split(
+    rows: Sequence[ManifestRow],
+    config,
+    source_corpus: str,
+    target_corpus: str,
+    seed: int,
+    label_space: Optional[str] = None,
+) -> PairSplit:
+    """The four roles at their natural sizes, before any matched-n cap."""
     if label_space is None:
         label_space = (
             config.labels.space_for_iemocap_pairs

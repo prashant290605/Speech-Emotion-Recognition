@@ -144,6 +144,9 @@ class SplitsConfig:
     in_domain_source_ratio: float
     iemocap_split_unit: str
     seeds: List[int]
+    # Cap cross-corpus source_train to the smaller direction's size, so a
+    # reported transfer asymmetry cannot be a training-set size effect.
+    matched_source_train: bool = False
 
     def __post_init__(self) -> None:
         for name in ("source_train_ratio", "target_adapt_ratio", "in_domain_source_ratio"):
@@ -294,6 +297,9 @@ class ClassifiersConfig:
     max_epochs: int
     layer_agg_options: List[str]
     layer_candidates: List[int]
+    # Iteration cap for the iterative sklearn solvers. A convergence budget,
+    # NOT a searched hyperparameter -- see the config comment.
+    sklearn_max_iter: int = 20000
 
     # 'weighted' learns a softmax over the 13 layers jointly with the head, so
     # it needs a model with trainable parameters. sklearn families cannot.

@@ -105,7 +105,21 @@ __all__ = [
 # rung). The per-rung geometry statistic carries ~1.5-2x of variation unrelated
 # to domain overlap; the coarse ladder claim survives it, the fine ordering does
 # not, so both are reported.
-SCHEMA_VERSION = 8
+# v9 (2026-08-17): source_train_n, source_train_cap, solver_n_iter.
+#
+# The first two make the matched-n control auditable from the results file
+# alone. `splits.matched_source_train` caps cross-corpus source_train to the
+# smaller direction's size so that a reported transfer asymmetry cannot be a
+# training-set size effect -- CREMA-D otherwise contributes 5972 source-train
+# utterances against RAVDESS's 988. Recording the realised n and the cap that
+# produced it means a reader can check the control held rather than trust it.
+#
+# The third records the iterations the selected sklearn solver used. logreg
+# previously SEARCHED max_iter over [1000, 2000, 5000], which let a trial win
+# selection by stopping early; the cap is now fixed, convergence is asserted
+# rather than warned about, and the iteration count is on the row so
+# "the baseline converged" is checkable instead of assumed.
+SCHEMA_VERSION = 9
 
 VALID_STATUSES = ("ok", "failed")
 
@@ -224,6 +238,19 @@ FIELDS: tuple[Field, ...] = (
     _f("confusion_json", str, True, "JSON nested list, rows=true, cols=predicted."),
     _f("n_collapsed_classes", int, True, "Classes never predicted. The collapse diagnostic."),
     _f("epochs_run", int, True, "Epochs to early stop, for the torch families."),
+    _f(
+        "solver_n_iter",
+        int,
+        True,
+        "Iterations the selected sklearn solver used. Null for torch families.",
+    ),
+    _f("source_train_n", int, True, "Realised source_train size for this run."),
+    _f(
+        "source_train_cap",
+        int,
+        True,
+        "Matched-n cap applied to source_train, or null if left at natural size.",
+    ),
     _f(
         "predictions_path",
         str,

@@ -40,7 +40,7 @@ from typing import Dict, Iterator, List, Optional, Sequence
 import numpy as np
 
 from .alignment import build_alignment
-from .blending import BLENDABLE_ALIGNMENTS
+from .blending import BLENDABLE_ALIGNMENTS, blend
 from .classifiers import fit_and_select, supports_layer_agg
 from .features.load import FeatureLoader
 from .freeze import assert_config_frozen, read_freeze_tag
@@ -79,9 +79,9 @@ REFERENCE_GEOMETRY_EPS = 1e-2
 
 
 # -- what Stage 1 pruned ---------------------------------------------------
-# Recorded here rather than in configs/default.yaml because the config is
-# FROZEN at grid-freeze-v2 and Stage 1's rows were produced against it. Editing
-# it would change `search_spec_hash` and orphan all 372 Stage 1 rows.
+# Recorded here rather than in configs/default.yaml because the pruning is a
+# decision *about* the frozen grid, not part of it: the config states what was
+# searched, this states what survived and why. Both are needed to read a result.
 #
 # Every decision below is scored on source_val ONLY, and cross-checked against
 # the 12 transformer probe runs. The rationale is in PROGRESS.md.
@@ -98,7 +98,12 @@ STAGE2_SURVIVING = {
     # 1e-4 is kept as the endpoint the "unregularised CORAL" reading rests on;
     # Ledoit-Wolf is kept because "does the standard automatic choice find the
     # good regime?" is a real question and its answer here is no.
-    "coral_shrinkage": [1e-4, 1e-2, 1e-1, None],
+    #
+    # 1.0 and 10.0 are NEW at grid-freeze-v3. Stage 1 found source_val monotone
+    # in eps with 1e-1 -- the old grid maximum -- winning every condition, which
+    # says the grid stopped too early, not that 1e-1 is optimal. A hyperparameter
+    # selected at the edge of its range is a reviewer's first question.
+    "coral_shrinkage": [1e-4, 1e-2, 1e-1, 1.0, 10.0, None],
     # Dropped 10.0 and 100.0. source_val is flat in lambda (spread 0.0016 diag /
     # 0.0054 full, i.e. argmax is noise), so the drop is made on mechanism, not
     # on score: at lambda >= 1 the W-to-identity penalty dominates and
@@ -110,6 +115,26 @@ STAGE2_SURVIVING = {
     # why the transformer cannot carry the full inner grid at any seed count.
     "transformer_coral_eps": 1e-1,
     "transformer_mmd_lambda": 0.01,
+    # -- the blending screening arm ----------------------------------------
+    # Stage 1 ran blending="none" throughout, so the axis is unscreened and
+    # cannot be pruned. Carrying it at full width is not affordable either:
+    # 7 blending settings on 15 blendable variants would multiply the grid by
+    # roughly six. So it gets a dedicated small arm instead of being dropped --
+    # the original study never searched alpha at all, and measuring what it does
+    # turns that criticism into a result.
+    #
+    # Restricted to the two rungs that move the features most, one backbone and
+    # two seeds. `gaa` is excluded: it is not implemented in the run path and
+    # needs a nested per-group selection this grid does not have.
+    "blending_arm": {
+        "alignments": ["coral", "mkmmd_full"],
+        "backbones": ["hubert"],
+        "seeds": [0, 1],
+        "families": ["logreg", "svm_linear", "svm_rbf", "mlp"],
+        # alpha=1.0 is pure aligned, i.e. the main grid's blending="none" cell,
+        # so it is not re-enumerated here.
+        "alphas": [0.0, 0.25, 0.5, 0.75],
+    },
 }
 
 
@@ -129,6 +154,29 @@ def stage2_surviving(config, *, corpora: Sequence[str]) -> Dict:
         backbones=list(config.features.backbones),
         seeds=list(config.splits.seeds),
         transformer_seeds=list(config.splits.seeds[:2]),
+    )
+
+
+def _blend_alpha_for(run: "GridRun") -> float:
+    """The alpha a blended run uses, refusing the modes that are not implemented.
+
+    ``scalar`` is implemented: one alpha for the whole feature vector, drawn
+    from the grid and carried as a run_id coordinate, so it is selected on
+    source_val by the same Phase 8 machinery as every other axis.
+
+    ``gaa`` is NOT. It needs k-means over feature dimensions and a nested
+    per-group alpha selection *inside* each run, which is a second selection
+    surface this grid does not have. Enumerating it would silently produce rows
+    labelled `gaa` whose features were never grouped -- so it raises instead.
+    """
+    if run.blending == "scalar":
+        if run.blend_alpha is None:
+            raise ValueError("blending='scalar' requires blend_alpha")
+        return float(run.blend_alpha)
+    raise NotImplementedError(
+        f"blending mode {run.blending!r} is enumerable but not implemented in "
+        "the run path. Only 'none' and 'scalar' may be run; see PROGRESS.md for "
+        "why 'gaa' is out of Stage 2 scope."
     )
 
 
@@ -425,6 +473,63 @@ def _enumerate_stage2(
                         classifier=family,
                     )
                 )
+
+    runs.extend(_enumerate_blending_arm(config, surviving, directions=directions))
+    return runs
+
+
+def _enumerate_blending_arm(
+    config, surviving: Dict, *, directions: Sequence[tuple]
+) -> List[GridRun]:
+    """The scalar-alpha screening arm.
+
+    Deliberately small. Its job is to answer "does interpolating back toward
+    the unaligned features buy anything, and at what alpha?" -- a question the
+    original study's Table 3 assumed an answer to without ever searching it.
+    It is a screening arm, and must be reported as one.
+    """
+    arm = surviving.get("blending_arm")
+    if not arm:
+        return []
+
+    runs: List[GridRun] = []
+    for (source, target), backbone, seed, method, family, agg, alpha in product(
+        directions,
+        arm["backbones"],
+        arm["seeds"],
+        arm["alignments"],
+        arm["families"],
+        config.classifiers.layer_agg_options,
+        arm["alphas"],
+    ):
+        if not supports_layer_agg(family, agg):
+            continue
+        if method not in BLENDABLE_ALIGNMENTS:
+            raise ValueError(
+                f"blending arm names {method!r}, which is not blendable: with "
+                "`none` and `zscore` every alpha is the same features."
+            )
+        for variant in _stage2_variants(config, surviving, method, transformer=True):
+            runs.append(
+                GridRun(
+                    source=source,
+                    target=target,
+                    seed=seed,
+                    backbone=backbone,
+                    feature_branch="ssl",
+                    layer_agg=agg,
+                    layer_index=(
+                        config.classifiers.layer_candidates[1] if agg == "layer" else None
+                    ),
+                    alignment=method,
+                    alignment_eps=variant.get("eps"),
+                    alignment_lam=variant.get("lam"),
+                    blending="scalar",
+                    blend_alpha=float(alpha),
+                    n_groups=None,
+                    classifier=family,
+                )
+            )
     return runs
 
 
@@ -606,14 +711,26 @@ def execute_run(run: GridRun, context: _Context, freeze_tag: str) -> Dict:
             # The Phase 2 contract, on the real fitted object, every run.
             assert_alignment_blind_to_target_test(alignment, pair)
 
-            X_train = _unflatten(alignment.transform(flat_train, domain="source"), X_train)
-            X_val = _unflatten(
-                alignment.transform(_flatten(X_val), domain="source"), X_val
-            )
-            X_test = _unflatten(
-                alignment.transform(_flatten(X_test), domain="target"), X_test
-            )
+            flat_val, flat_test = _flatten(X_val), _flatten(X_test)
+            moved_train = alignment.transform(flat_train, domain="source")
+            moved_val = alignment.transform(flat_val, domain="source")
+            moved_test = alignment.transform(flat_test, domain="target")
             aligned_adapt = alignment.transform(flat_adapt, domain="target")
+
+            # Blending interpolates back toward the unaligned features. It is
+            # applied here, before the effect size is measured, so the recorded
+            # discrepancy describes what the classifier actually consumed rather
+            # than a transform that was then partly undone.
+            if run.blending != "none":
+                alpha = _blend_alpha_for(run)
+                moved_train = blend(flat_train, moved_train, alpha)
+                moved_val = blend(flat_val, moved_val, alpha)
+                moved_test = blend(flat_test, moved_test, alpha)
+                aligned_adapt = blend(flat_adapt, aligned_adapt, alpha)
+
+            X_train = _unflatten(moved_train, X_train)
+            X_val = _unflatten(moved_val, X_val)
+            X_test = _unflatten(moved_test, X_test)
 
             fields = alignment.row_fields()
             condition_number = fields["cov_condition_number"]
@@ -702,6 +819,9 @@ def execute_run(run: GridRun, context: _Context, freeze_tag: str) -> Dict:
             confusion_json=json.dumps(metrics["confusion"]),
             n_collapsed_classes=metrics["n_collapsed_classes"],
             epochs_run=selection.epochs_run,
+            solver_n_iter=selection.solver_n_iter,
+            source_train_n=len(pair.source_train.utterance_ids),
+            source_train_cap=pair.source_train_cap,
             predictions_path=predictions_path,
             # Floors on every row, so no metric is ever reported without one.
             # Analytic rather than sampled: the closed forms are exact functions
@@ -738,6 +858,9 @@ def execute_run(run: GridRun, context: _Context, freeze_tag: str) -> Dict:
             confusion_json=None,
             n_collapsed_classes=None,
             epochs_run=None,
+            solver_n_iter=None,
+            source_train_n=None,
+            source_train_cap=None,
             predictions_path=None,
             chance_macro_f1=None,
             majority_macro_f1=None,

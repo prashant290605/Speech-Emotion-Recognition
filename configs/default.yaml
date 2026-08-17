@@ -98,7 +98,24 @@ labels:
 splits:
   # Bump when split construction changes in a way the keys below do not
   # express. Feeds split_spec_hash, a run_id coordinate.
-  split_spec_version: v1
+  # v2: matched_source_train (below).
+  split_spec_version: v2
+
+  # Cap source_train to the size of the SMALLER direction's source_train, per
+  # seed, stratified by class, within the existing speaker-disjoint split.
+  #
+  # Without this, direction is confounded with training-set size: CREMA-D
+  # contributes 5972 source-train utterances against RAVDESS's 988, so any
+  # transfer asymmetry between ravdess->cremad and cremad->ravdess could just
+  # be 6x the data. Matching n is the control that removes the confound -- and
+  # it happens to make the reverse direction affordable, since the SVM's O(n^2)
+  # term is what made a full-n mirror cost 528 hours.
+  #
+  # The cap is DERIVED per (pair, seed), never hard-coded: both directions'
+  # uncapped source_train sizes are computed and the minimum is taken, so the
+  # smaller direction is untouched and the larger is subsampled down to it.
+  # Full-n runs remain available with this false, as a separate reported arm.
+  matched_source_train: true
 
   # Source corpus -> source_train / source_val, speaker-disjoint.
   source_train_ratio: 0.8
@@ -171,7 +188,13 @@ alignment:
   # Anchoring to trace/d (the mean eigenvalue) rather than a bare eps*I matters:
   # the original added a fixed 1e-5*I regardless of feature scale, so the same
   # nominal epsilon meant something different for every backbone and layer.
-  coral_shrinkage: [1.0e-4, 1.0e-3, 1.0e-2, 1.0e-1]
+  # Extended upward at grid-freeze-v3. Stage 1 screening found source_val
+  # monotone increasing in eps with 1e-1 -- the old grid maximum -- the argmax
+  # in 18 of 18 conditions. A hyperparameter selected at the edge of its search
+  # range is not evidence that the edge is optimal, only that the grid stopped
+  # too early, so 1.0 and 10.0 extend it until the surface turns over.
+  # Plain decimals, not 1.0e1: YAML 1.1 parses an unsigned exponent as a STRING.
+  coral_shrinkage: [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0]
   # Ledoit-Wolf as a second, parameter-free variant. If it matches the best
   # searched eps, the search is not buying anything a principled estimator
   # would not give for free.
@@ -263,6 +286,21 @@ classifiers:
   # convergence; fixed-epoch training is not permitted here.
   early_stopping_patience: 10
   max_epochs: 200
+
+  # Iteration cap for the iterative sklearn solvers. NOT a searched
+  # hyperparameter -- it was, drawn from [1000, 2000, 5000], and that was wrong:
+  # a convergence budget is not a model choice, and searching it means a trial
+  # can win selection by having stopped early rather than by fitting better.
+  #
+  # Sized from measurement, not guessed. Worst observed case is lbfgs at C=1e4
+  # on 5972 CREMA-D source-train utterances: 3529 iterations. At the matched-n
+  # size of 988 the worst case is 313. 20000 leaves headroom for the full-n
+  # reverse arm and for backbones not yet measured.
+  #
+  # Convergence is ASSERTED, not warned about: a trial that hits this cap is
+  # recorded as a failed trial and scored -inf rather than being selected. A
+  # non-converged baseline is the exact defect this rebuild exists to correct.
+  sklearn_max_iter: 20000
 
   # Layer aggregation is a searchable option because Phase 3 caches all layers.
   # 'last' is kept as a condition so the paper can quantify how much of the
