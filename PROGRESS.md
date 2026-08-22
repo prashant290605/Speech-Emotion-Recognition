@@ -9,11 +9,27 @@ file plus PHASES.md is the entire handover between them.
 
 ---
 
-## FINDING (b) — the discrepancy–transfer relationship has no sign until the measurement geometry is fixed
+## FINDING (b) — DEMOTED at Phase 8. Frame dependence is a one-axis observation, not an established property
 
-**Promote to the paper. This is the methodological contribution, and it is the
-one no reviewer can attribute to our implementation, because it is a statement
-about the measurement rather than about any method we wrote.**
+> **Status changed 2026-08-22.** This was promoted as "the methodological
+> contribution". Stage 2 does not support that framing.
+>
+> Re-measured across the six ladder rungs at full seed count, the two geometries
+> **agree in sign**: ρ = −0.200 / −0.200 (ravdess→cremad) and −0.371 / −0.086
+> (cremad→ravdess). The sign disagreement below comes from the 13-layer sweep
+> only, and that sweep was **not re-run at Stage 2** — it is still 2 seeds, one
+> classifier, one pair, one rung.
+>
+> So the finding rests on one axis, not two, and on the weaker of the two
+> evidence bases. It stays recorded because it is a real observation and the
+> experiment that would settle it is cheap (re-run the sweep at 5 seeds across
+> the ladder). It does **not** go into the paper as a headline until then.
+>
+> This is the third time in this project a claim has been promoted before it was
+> robust. The pattern is mine, not the user's: measurements have been right, the
+> framing of them has run ahead of the evidence.
+
+The observation, as measured:
 
 The same 13 layers, the same target scores, two ways of measuring marginal
 discrepancy. Spearman ρ against target macro-F1:
@@ -73,6 +89,20 @@ finding, which the full sweep partly refutes — see "What changed" below.
 The practical consequence, stated plainly: **anyone selecting an SSL layer on
 in-domain validation — which is what the SUPERB-style probing literature
 does — systematically picks the wrong depth for cross-corpus transfer.**
+
+> **Phase 8 status (2026-08-22): the claim holds on the axis Stage 2 measured;
+> the "4–5 layers" figure does not have Stage 2 support.**
+>
+> The 13-layer curve was not re-run — still 2 seeds, logreg, one pair. What
+> Stage 2 does test is the aggregation axis at 5 seeds, and it agrees in shape:
+> `source_val` prefers `weighted` in both directions while target prefers
+> `layer:6` — **they disagree, both directions**. `last`, the aggregation the
+> original study used, is the worst of the three by +0.06 to +0.14 macro-F1
+> (comparisons A1 and A2, Holm-corrected, both survive).
+>
+> So: report the disagreement as a full-seed result on the aggregation axis, and
+> the specific "4–5 layers shallower" number as a Stage 1 observation with its
+> seed count attached.
 
 Full 13-layer sweep, 3 backbones × 13 layers × 2 seeds, logreg, rung `none`,
 ravdess→cremad. Tables in [reports/layer_sweep.md](reports/layer_sweep.md).
@@ -140,6 +170,122 @@ replaces it and is the stronger claim.
 Caveat carried forward: two seeds, one pair, one classifier, pre-selection.
 Stage 2 supplies the seeds; nothing here enters the paper on this evidence
 alone.
+
+---
+
+## 2026-08-22 — Phase 8: Stage 2 analysed, two passes
+
+Tables in [reports/phase8_tables.md](reports/phase8_tables.md) (numbers only);
+verdicts in [reports/phase8_interpretation.md](reports/phase8_interpretation.md).
+Statistics in `src/ser/phase8.py`, generator in `tools/phase8_tables.py`.
+
+### Integrity
+
+**5424 rows, 5424 unique run_ids, zero failures, all schema v9.** 438 + 4986 =
+5424 confirmed. Composition: 60 baselines (no freeze tag), 6 Stage 0, 372
+Stage 1, 4986 Stage 2.
+
+Three checks beyond the counts:
+
+* **The merge's "0 to append" was idempotency, not a dropped write.** The set of
+  4986 enumerated Stage 2 `run_id`s equals the set recorded in `runs.jsonl`
+  exactly — zero missing, zero unexpected.
+* **Every row's `run_id` recomputes from its own recorded coordinates.** All
+  5424, not a sample. A truncated or mis-merged row could not survive this.
+* **Schema v9 touched no `run_id` coordinate.** It added `solver_n_iter`,
+  `source_train_n`, `source_train_cap`; the intersection with `RUN_ID_FIELDS`
+  is empty, so v8 rows migrate rather than being orphaned by the schema. (They
+  are orphaned by the *freeze*, which changed two facet hash values — a
+  different mechanism, working as designed.)
+
+**Convergence: zero `NotConverged`, zero failed trials of 99,720 attempted.**
+Maximum observed iterations 10,793 (svm_rbf) against a cap of 20,000; logreg
+median 253, max 1094. The cap was sized correctly.
+
+**Cost: 249.5 CPU hours, 62.4 h wall at 4 shards, against a 67.3 h projection
+(0.93×).** Per family the projection was less accurate than the total: svm_linear
+cost 96.5 CPU h against ~21 projected, offset by mlp coming in under. The
+aggregate agreement is partly cancellation.
+
+### Pass 1 — the tables
+
+Seven primary tables plus two secondary sections, every target cell a mean with a
+95% interval from a **paired cluster bootstrap resampling target_test speakers
+and seeds together**, 2000 replicates. Discrepancy columns use a t-interval over
+seeds instead: they are properties of a fitted map, not of a prediction, so they
+have no per-utterance form to bootstrap.
+
+The primary comparison family — 7 comparisons × 2 directions = 14 tests — is
+declared in `tools/phase8_tables.py` above the code that computes it, and Holm
+is applied across exactly those 14. Everything else reports an interval and
+makes no significance claim.
+
+### Pass 2 — the answers
+
+**All 14 primary comparisons survive.**
+
+**Is target macro-F1 flat across the ladder? No — but the ladder is not a
+dose-response either. It is a step followed by a plateau.**
+
+* `none` → any aligned rung is worth **+0.12 to +0.20**, both directions,
+  5 seeds, Holm-corrected. That is not a null and must not be written as one.
+* Among the five aligned rungs the largest difference is **0.0151** forward and
+  **0.0437** reverse — an order of magnitude below the step, and not ordered by
+  discrepancy.
+* `mkmmd_full` reaches the lowest discrepancy in **both** frames (12.04 own /
+  23.25 reference, forward: 4× and 20× below `zscore`) and is never the best
+  rung — reverse it is the *worst* aligned rung.
+
+So: **almost all of the benefit attributed to distribution alignment is obtained
+by z-scoring**, and the extra moments matched by CORAL and MK-MMD buy nothing
+measurable while cutting marginal discrepancy by one to two orders of magnitude.
+
+**Selection is the bigger problem.** Validated 0.3156 [0.1880, 0.4432] against
+oracle 0.4555 [0.4326, 0.4785] forward. The mechanism: `source_val` separates
+`none` from `zscore` by 0.003 while target separates them by 0.13, so the
+protocol picks `none` on 2 of 5 forward seeds and returns 0.2803 and 0.1508.
+
+### Retractions and non-replications
+
+Listed in full in the interpretation report. The two that matter:
+
+* **FINDING (b), frame dependence — DEMOTED.** Across the six ladder rungs the
+  two geometries *agree* in sign (−0.200/−0.200 and −0.371/−0.086). The sign
+  disagreement comes from the 13-layer sweep alone, which was not re-run at
+  Stage 2. One axis, not two. Its block at the top of this file is marked
+  accordingly. Third time a claim has been promoted here before it was robust.
+* **Stage 0's "flat across 226× of discrepancy" — REFUTED.** At `last`, the
+  exact condition Stage 0 measured, the alignment step is +0.0836 / +0.1280.
+
+Also not replicating: the `mkmmd_diag` fallback rate (27.8% → **64.9%**) and its
+claimed λ-independence (now 55.9% → 68.9% across λ); and the extended eps grid
+**did not fix the mis-centring** — `source_val` is still monotone and the argmax
+is again the grid maximum, now 10.
+
+Replicating: the alignment × aggregation interaction (+0.042/+0.168/+0.095 →
++0.0836/+0.1742/+0.0973), λ flatness on `source_val`, and `mkmmd_full`'s
+λ-dependent fallback.
+
+### Files
+
+Created: `src/ser/phase8.py`, `tools/phase8_tables.py`, `tests/test_phase8.py`
+(12 tests), `reports/phase8_tables.md`, `reports/phase8_interpretation.md`,
+`reports/phase8_primary.json`.
+
+Modified: `PROGRESS.md` (both FINDING blocks re-statused).
+
+414 tests pass. Phase 9 not started.
+
+### Open
+
+* **Re-run the 13-layer sweep at 5 seeds across the ladder.** It is cheap and it
+  is the experiment that decides whether frame dependence is a finding or an
+  artefact of one axis.
+* **The CORAL eps grid is still monotone to its boundary.** Either extend again
+  until it turns over, or state that `source_val` is monotone in shrinkage over
+  four orders of magnitude and that the shrinkage is doing regularisation work
+  unrelated to alignment.
+* Five reference DOIs and the IEMOCAP faculty signatory remain outstanding.
 
 ---
 

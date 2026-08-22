@@ -1,0 +1,240 @@
+[
+  {
+    "tag": "L1",
+    "name": "zscore - none",
+    "pair": [
+      "ravdess",
+      "cremad"
+    ],
+    "n_seeds": 5,
+    "diff": 0.13104841124898395,
+    "lo": 0.11744845149712076,
+    "hi": 0.14216973920179227,
+    "p": 0.0005,
+    "p_at_floor": true,
+    "n_boot": 2000,
+    "n_conditions": 153,
+    "holm": 0.007
+  },
+  {
+    "tag": "L1",
+    "name": "zscore - none",
+    "pair": [
+      "cremad",
+      "ravdess"
+    ],
+    "n_seeds": 5,
+    "diff": 0.196074487218566,
+    "lo": 0.1500569819601418,
+    "hi": 0.2449284286824313,
+    "p": 0.0005,
+    "p_at_floor": true,
+    "n_boot": 2000,
+    "n_conditions": 135,
+    "holm": 0.007
+  },
+  {
+    "tag": "L2",
+    "name": "mean_shift - none",
+    "pair": [
+      "ravdess",
+      "cremad"
+    ],
+    "n_seeds": 5,
+    "diff": 0.1306008237972285,
+    "lo": 0.11590199926402643,
+    "hi": 0.14394823180735333,
+    "p": 0.0005,
+    "p_at_floor": true,
+    "n_boot": 2000,
+    "n_conditions": 153,
+    "holm": 0.007
+  },
+  {
+    "tag": "L2",
+    "name": "mean_shift - none",
+    "pair": [
+      "cremad",
+      "ravdess"
+    ],
+    "n_seeds": 5,
+    "diff": 0.1817135809476769,
+    "lo": 0.13535250436451898,
+    "hi": 0.23019829422620966,
+    "p": 0.0005,
+    "p_at_floor": true,
+    "n_boot": 2000,
+    "n_conditions": 135,
+    "holm": 0.007
+  },
+  {
+    "tag": "L3",
+    "name": "coral - none",
+    "pair": [
+      "ravdess",
+      "cremad"
+    ],
+    "n_seeds": 5,
+    "diff": 0.13591259330900798,
+    "lo": 0.12528272914120153,
+    "hi": 0.1475660725528523,
+    "p": 0.0005,
+    "p_at_floor": true,
+    "n_boot": 2000,
+    "n_conditions": 153,
+    "holm": 0.007
+  },
+  {
+    "tag": "L3",
+    "name": "coral - none",
+    "pair": [
+      "cremad",
+      "ravdess"
+    ],
+    "n_seeds": 5,
+    "diff": 0.18328017075386518,
+    "lo": 0.13726933832184876,
+    "hi": 0.22934144344469365,
+    "p": 0.0005,
+    "p_at_floor": true,
+    "n_boot": 2000,
+    "n_conditions": 135,
+    "holm": 0.007
+  },
+  {
+    "tag": "L4",
+    "name": "mkmmd_diag - none",
+    "pair": [
+      "ravdess",
+      "cremad"
+    ],
+    "n_seeds": 5,
+    "diff": 0.12077353108011965,
+    "lo": 0.10789907800913533,
+    "hi": 0.13297436917840452,
+    "p": 0.0005,
+    "p_at_floor": true,
+    "n_boot": 2000,
+    "n_conditions": 153,
+    "holm": 0.007
+  },
+  {
+    "tag": "L4",
+    "name": "mkmmd_diag - none",
+    "pair": [
+      "cremad",
+      "ravdess"
+    ],
+    "n_seeds": 5,
+    "diff": 0.18515102650222207,
+    "lo": 0.14060139966727403,
+    "hi": 0.23168033155997078,
+    "p": 0.0005,
+    "p_at_floor": true,
+    "n_boot": 2000,
+    "n_conditions": 135,
+    "holm": 0.007
+  },
+  {
+    "tag": "L5",
+    "name": "mkmmd_full - none",
+    "pair": [
+      "ravdess",
+      "cremad"
+    ],
+    "n_seeds": 5,
+    "diff": 0.1251188464546695,
+    "lo": 0.11490642690456616,
+    "hi": 0.13507263557240573,
+    "p": 0.0005,
+    "p_at_floor": true,
+    "n_boot": 2000,
+    "n_conditions": 153,
+    "holm": 0.007
+  },
+  {
+    "tag": "L5",
+    "name": "mkmmd_full - none",
+    "pair": [
+      "cremad",
+      "ravdess"
+    ],
+    "n_seeds": 5,
+    "diff": 0.15240715719547301,
+    "lo": 0.10572101982898297,
+    "hi": 0.19910706001021422,
+    "p": 0.0005,
+    "p_at_floor": true,
+    "n_boot": 2000,
+    "n_conditions": 135,
+    "holm": 0.007
+  },
+  {
+    "tag": "A1",
+    "name": "layer - last",
+    "pair": [
+      "ravdess",
+      "cremad"
+    ],
+    "n_seeds": 5,
+    "diff": 0.06397047929607969,
+    "lo": 0.05412070197044973,
+    "hi": 0.07475815296815654,
+    "p": 0.0005,
+    "p_at_floor": true,
+    "n_boot": 2000,
+    "n_conditions": 126,
+    "holm": 0.007
+  },
+  {
+    "tag": "A1",
+    "name": "layer - last",
+    "pair": [
+      "cremad",
+      "ravdess"
+    ],
+    "n_seeds": 5,
+    "diff": 0.14394769839074173,
+    "lo": 0.11404708633086753,
+    "hi": 0.17464554101240418,
+    "p": 0.0005,
+    "p_at_floor": true,
+    "n_boot": 2000,
+    "n_conditions": 90,
+    "holm": 0.007
+  },
+  {
+    "tag": "A2",
+    "name": "weighted - last",
+    "pair": [
+      "ravdess",
+      "cremad"
+    ],
+    "n_seeds": 5,
+    "diff": 0.05970321615505386,
+    "lo": 0.050428040068240046,
+    "hi": 0.0702377193557198,
+    "p": 0.0005,
+    "p_at_floor": true,
+    "n_boot": 2000,
+    "n_conditions": 126,
+    "holm": 0.007
+  },
+  {
+    "tag": "A2",
+    "name": "weighted - last",
+    "pair": [
+      "cremad",
+      "ravdess"
+    ],
+    "n_seeds": 5,
+    "diff": 0.10956255176708857,
+    "lo": 0.08882373354623756,
+    "hi": 0.1326014692522863,
+    "p": 0.0005,
+    "p_at_floor": true,
+    "n_boot": 2000,
+    "n_conditions": 90,
+    "holm": 0.007
+  }
+]
