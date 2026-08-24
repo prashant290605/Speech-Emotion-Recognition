@@ -9,27 +9,28 @@ file plus PHASES.md is the entire handover between them.
 
 ---
 
-## FINDING (b) — DEMOTED at Phase 8. Frame dependence is a one-axis observation, not an established property
+## FINDING (b) — frame dependence: CONFIRMED at full seed count, re-specified
 
-> **Status changed 2026-08-22.** This was promoted as "the methodological
-> contribution". Stage 2 does not support that framing.
+> **Status 2026-08-24.** Demoted on 2026-08-22 when the ladder-axis
+> re-measurement showed the two frames agreeing. The full-seed 13-layer sweep
+> settles it the other way, but **not** in the form originally claimed.
 >
-> Re-measured across the six ladder rungs at full seed count, the two geometries
-> **agree in sign**: ρ = −0.200 / −0.200 (ravdess→cremad) and −0.371 / −0.086
-> (cremad→ravdess). The sign disagreement below comes from the 13-layer sweep
-> only, and that sweep was **not re-run at Stage 2** — it is still 2 seeds, one
-> classifier, one pair, one rung.
+> Pooled over 120 (cell, seed) correlations: own geometry **−0.374**
+> [−0.454, −0.295] against reference frame **+0.174** [+0.099, +0.249] —
+> opposite signs, neither interval covering zero. 7 of 24 cells disagree
+> individually, 6 of them `zscore`.
 >
-> So the finding rests on one axis, not two, and on the weaker of the two
-> evidence bases. It stays recorded because it is a real observation and the
-> experiment that would settle it is cheap (re-run the sweep at 5 seeds across
-> the ladder). It does **not** go into the paper as a headline until then.
+> **At rung `none` — where the Stage 1 version was measured — 0 of 6 cells
+> disagree.** The original 2-seed observation was noise; the real effect lives
+> on the aligned rungs. The claim that goes in the paper is therefore:
+> *after per-dimension standardisation, the measured relationship between
+> marginal discrepancy and transfer reverses sign depending on the geometry the
+> discrepancy is measured in.*
 >
-> This is the third time in this project a claim has been promoted before it was
-> robust. The pattern is mine, not the user's: measurements have been right, the
-> framing of them has run ahead of the evidence.
+> Backed by 5 seeds, 3 backbones, both directions, 1560 runs. Full tables in
+> [reports/layer_sweep_v2.md](reports/layer_sweep_v2.md).
 
-The observation, as measured:
+The observation, as measured:The observation, as measured:
 
 The same 13 layers, the same target scores, two ways of measuring marginal
 discrepancy. Spearman ρ against target macro-F1:
@@ -81,28 +82,31 @@ what Stage 2's tables must contain, not because it is confirmed.
 
 ---
 
-## FINDING (a) — in-domain-optimal depth is 4–5 layers shallower than transfer-optimal depth
+## FINDING (a) — RETRACTED at full seed count. Depth divergence is conditional, not general
 
-**Promote to the paper.** Supersedes the earlier two-point `layer:6`-vs-`last`
-finding, which the full sweep partly refutes — see "What changed" below.
-
-The practical consequence, stated plainly: **anyone selecting an SSL layer on
-in-domain validation — which is what the SUPERB-style probing literature
-does — systematically picks the wrong depth for cross-corpus transfer.**
-
-> **Phase 8 status (2026-08-22): the claim holds on the axis Stage 2 measured;
-> the "4–5 layers" figure does not have Stage 2 support.**
+> **RETRACTED 2026-08-24.** The full-seed sweep does not support this as
+> stated. Pooled gap over 24 (direction × backbone × rung) cells is
+> **+0.00 layers [−0.57, +0.57]**; only 2 of 24 cells have a positive gap whose
+> interval excludes zero.
 >
-> The 13-layer curve was not re-run — still 2 seeds, logreg, one pair. What
-> Stage 2 does test is the aggregation axis at 5 seeds, and it agrees in shape:
-> `source_val` prefers `weighted` in both directions while target prefers
-> `layer:6` — **they disagree, both directions**. `last`, the aggregation the
-> original study used, is the worst of the three by +0.06 to +0.14 macro-F1
-> (comparisons A1 and A2, Holm-corrected, both survive).
+> What survives: at rung `none` in **ravdess→cremad** the gap is positive in all
+> three backbones (+4.2, +4.2, +2.4 layers, two of three excluding zero). It
+> fails in the reverse direction (wav2vec2 −3.8) and collapses or reverses under
+> alignment (coral, cremad→ravdess, wavlm: −5.6).
 >
-> So: report the disagreement as a full-seed result on the aggregation axis, and
-> the specific "4–5 layers shallower" number as a Stage 1 observation with its
-> seed count attached.
+> The "systematically picks the wrong depth" framing is **contradicted**:
+> against a randomly chosen layer, `source_val` selection is *better* by
+> −0.0366 [−0.0448, −0.0285] macro-F1 (0.054 cost against a coin flip's 0.091).
+> It is an imperfect criterion, not an anti-correlated one.
+>
+> **Replacement claim, and the only one the data supports:** in the forward
+> direction, on unaligned features, the transfer-optimal layer sits 2 to 4
+> layers deeper than the in-domain-optimal one. Not "in all three backbones",
+> not "4–5 layers", not direction-general.
+>
+> Tables: [reports/layer_sweep_v2.md](reports/layer_sweep_v2.md).
+
+The superseded 2-seed measurement, kept for the record:
 
 Full 13-layer sweep, 3 backbones × 13 layers × 2 seeds, logreg, rung `none`,
 ravdess→cremad. Tables in [reports/layer_sweep.md](reports/layer_sweep.md).
@@ -170,6 +174,152 @@ replaces it and is the stronger claim.
 Caveat carried forward: two seeds, one pair, one classifier, pre-selection.
 Stage 2 supplies the seeds; nothing here enters the paper on this evidence
 alone.
+
+---
+
+## 2026-08-24 — Sweep verdicts, eps asymptote closed, merge decision
+
+Reports: [layer_sweep_v2.md](reports/layer_sweep_v2.md),
+[eps_asymptote.md](reports/eps_asymptote.md). Six commits pushed to
+`origin/rebuild` (Phase 8 and Phase 9 existed only on this machine until now).
+
+### FINDING (b), frame dependence — CONFIRMED, but relocated
+
+Pooled over 120 (cell, seed) correlations from 1560 full-seed sweep runs, the
+two geometries have **opposite signs with neither interval covering zero**:
+
+| frame | rho | 95% interval |
+|---|---|---|
+| rung's own geometry | **−0.374** | [−0.454, −0.295] |
+| fixed ZCA reference | **+0.174** | [+0.099, +0.249] |
+
+7 of 24 (direction × backbone × rung) cells disagree by the stricter per-cell
+test — 6 of them `zscore`, 1 `coral`.
+
+**But it does not replicate where it was found.** At rung `none` — the Stage 1
+condition — **0 of 6 cells disagree**. The original 2-seed measurement was
+noise. The effect is real and lives on the *aligned* rungs.
+
+So the demotion recorded on 2026-08-22 is partly reversed and the claim is
+re-specified: *after per-dimension standardisation, the measured relationship
+between marginal discrepancy and transfer reverses sign depending on the
+geometry the discrepancy is measured in.* Backed by 5 seeds, 3 backbones, both
+directions. It goes back in the paper in that form, not the old one.
+
+### FINDING (a), depth divergence — DOES NOT REPLICATE as stated
+
+Pooled gap **+0.00 layers [−0.57, +0.57]**. Only 2 of 24 cells have a gap
+interval excluding zero and positive.
+
+What survives is narrow: at rung `none` in **ravdess→cremad** the gap is
+positive in all three backbones (+4.2, +4.2, +2.4 layers; two of three exclude
+zero). In the reverse direction it fails (wav2vec2 −3.8), and under alignment it
+collapses or reverses (coral, cremad→ravdess, wavlm: −5.6).
+
+The stronger framing is **contradicted outright**. Against a randomly chosen
+layer, `source_val` selection is *better* by −0.0366 [−0.0448, −0.0285] macro-F1
+— it costs 0.054 against a coin flip's 0.091. It is an imperfect criterion, not
+an anti-correlated one. Adding that random-layer null was necessary because the
+"cost" column is non-negative by construction and proves nothing alone.
+
+**"4–5 layers shallower in all three backbones" comes out of the paper.** The
+replacement is conditional: forward direction, unaligned, the transfer-optimal
+layer sits 2–4 layers deeper.
+
+### Merge safety — 151 shared ids, zero mismatches
+
+The sweep fixes `layer_agg='layer'`, so its **layer 6** cells share all 19
+run_id coordinates with the Stage 2 grid's `layer:6` cells. 151 ids are shared.
+Across **57 non-volatile fields × 151 pairs = 8607 compared values, zero
+mismatches** — identical metrics, confusion matrices and selected
+hyperparameters, from runs executed weeks apart in different processes under
+different launchers on a machine that was swapping for part of the time.
+
+That is the **second unplanned determinism check** (the first was 23 duplicated
+wavlm cells in the Stage 1 sweep). Had any pair differed it would have been an
+identity bug — run_id coordinates failing to determine the computation — not a
+merge conflict.
+
+**Decision: the sweep is NOT merged into `results/runs.jsonl`.** Phase 8
+established and verified that every row in the provenance record is one the
+Stage 2 enumeration produces. Merging would put ~1820 rows at layers Stage 2
+never enumerates into that file and break the invariant, for no gain. The eps
+probe stays separate for the same reason.
+
+### eps asymptote — the open item is CLOSED
+
+CORAL's map is `M = C_s^{-1/2} C_t^{1/2}` with `C + eps·tr(C)/d·I`. As eps
+grows, `M → sqrt(tr(C_t)/tr(C_s))·I` and the rung collapses to a scalar rescale
+plus a mean shift. Measured on real features:
+
+| eps | ‖M−cI‖/‖M‖ (fwd) | c fitted / c predicted |
+|---|---|---|
+| 1e-4 | 0.9254 | 2.195 |
+| 1e-1 | 0.6904 | 1.183 |
+| 10 | 0.1436 | 1.008 |
+| 1000 | 0.0049 | 1.000 |
+
+**At eps=10 — the value `source_val` selects — the map is already 86% of the way
+to a pure scalar.** So the boundary argmax is not a mis-centred grid: the
+selection surface is asking CORAL to stop being CORAL, and extending the grid
+would move the argmax again for the same reason.
+
+Phase 8's open item "the CORAL eps grid is still monotone to its boundary" is
+closed. This is a third, classifier-free line of evidence that covariance
+matching contributes nothing, alongside Phase 8's rung comparison and Phase 9's
+marginal-vs-conditional ratio.
+
+**The empirical arm is insufficient**: 35 of 120 runs, `ravdess→cremad` only.
+The reverse direction — where CORAL's scalar limit is *below* one (0.8764 vs
+1.1327), the more informative case — has zero coverage. Reported as insufficient,
+not as a result.
+
+### Sweep status and what the excluded rungs can change
+
+1560 of 2340 runs analysed: `none`, `zscore`, `mean_shift`, `coral` all
+390/390. `mkmmd_diag` and `mkmmd_full` are still running and excluded — a
+partially covered rung would contribute correlations over different layer
+subsets in different seeds, which manufactures sign flips rather than measuring
+them.
+
+Their absence **cannot change either verdict at rung `none`** (390/390 complete,
+and that is the only condition either claim originally rested on), and **cannot
+overturn frame dependence** (both pooled intervals are already clear of zero;
+further rungs can add disagreeing or neutral cells but cannot make existing
+opposite-signed intervals overlap). It could refine the 7/24 rate and, less
+likely, the depth verdict. Regenerate both reports when they land.
+
+### Operational note: 26 hours lost to memory, not compute
+
+The sweep and eps probe ran for 26 h and produced almost nothing. Cause was
+**committed memory at 20.6 GB against 15.6 GB physical** — six python processes
+plus WSL and browsers — so workers sat blocked on paging at ~25% of a core while
+system CPU load showed only 50%. Fixed by splitting workers **by backbone** so
+each holds one feature cache instead of three: rate went 2.4 → 6.6 rows/min.
+
+Lesson recorded in `tools/launch_eps.ps1`, which now **refuses to start** while
+a `layer_sweep_v2` worker is alive.
+
+### Files
+
+Created: `tools/launch_eps.ps1`, `reports/layer_sweep_v2.md`,
+`reports/eps_asymptote.md`.
+
+Modified: `tools/layer_sweep_v2_report.py` (complete-rung gate, random-layer
+null, merge-safety check, interpretation section), `tools/eps_asymptote_report.py`
+(analytic-first structure, insufficiency notice), `tools/eps_asymptote.py`
+(`--directions`, `--resume-from`, `--dry-run`), `tools/layer_sweep_v2.py`
+(`--resume-from` across all shard files, decisive rungs ordered first).
+
+### Open
+
+* **MK-MMD sweep rungs** — 370 cells outstanding, 3 workers live. Regenerate
+  `tools/layer_sweep_v2_report.py` when done.
+* **eps empirical arm** — 85 runs outstanding, launcher built and handed over,
+  deliberately not run.
+* Phase 10 (per-class analysis and figures) and Phase 11 (release packaging,
+  LaTeX tables) — not started.
+* Five reference DOIs; IEMOCAP faculty signatory; `rebuild` → `main` README merge.
 
 ---
 

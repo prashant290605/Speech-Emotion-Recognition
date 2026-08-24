@@ -39,6 +39,7 @@ directly comparable to it.
 from __future__ import annotations
 
 import argparse
+import glob
 import os
 import sys
 import time
@@ -101,9 +102,9 @@ def analytic(config, context, *, backbone="hubert", layer_spec="last") -> int:
     return 0
 
 
-def enumerate_runs(config, *, backbone, seeds, families, aggs):
+def enumerate_runs(config, *, backbone, seeds, families, aggs, directions=None):
     runs = []
-    for source, target in DIRECTIONS:
+    for source, target in (directions or DIRECTIONS):
         for seed in seeds:
             for family in families:
                 for agg in aggs:
@@ -134,6 +135,21 @@ def main(argv=None) -> int:
     parser.add_argument("--families", default="logreg,mlp")
     parser.add_argument("--aggs", default="last,layer")
     parser.add_argument("--results", default="results/eps_asymptote.jsonl")
+    parser.add_argument(
+        "--directions", default="all",
+        help="'all', or a comma-separated list of source>target pairs. Splitting "
+             "the probe by direction is how it is sharded: the enumeration is "
+             "single-backbone, so there is no backbone axis to split on, and "
+             "direction is the axis that halves the work without duplicating any "
+             "feature cache across workers.",
+    )
+    parser.add_argument(
+        "--resume-from", default="results/eps_*.jsonl,results/shards/eps_*.jsonl",
+        help="Comma-separated globs of files to treat as already done. Resuming "
+             "from ALL of them, not just this worker's own file, is what lets the "
+             "shard layout change between restarts without redoing work.",
+    )
+    parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
 
     config = load_config()
@@ -146,21 +162,32 @@ def main(argv=None) -> int:
 
     out = REPO_ROOT / args.results
     out.parent.mkdir(parents=True, exist_ok=True)
+    if args.directions == "all":
+        directions = DIRECTIONS
+    else:
+        directions = [tuple(p.split(">")) for p in args.directions.split(",")]
     runs = enumerate_runs(
         config,
         backbone=args.backbone,
         seeds=[int(s) for s in args.seeds.split(",")],
         families=args.families.split(","),
         aggs=args.aggs.split(","),
+        directions=directions,
     )
     ids = [make_run_id(r.coords(config)) for r in runs]
     assert len(set(ids)) == len(ids), "duplicate run_ids in the eps probe"
     if args.shard is not None:
         runs = [r for r, i in zip(runs, ids) if shard_of(i, args.n_shards) == args.shard]
 
-    already = completed_run_ids(out)
+    already = set()
+    for pattern in args.resume_from.split(","):
+        for path in sorted(glob.glob(str(REPO_ROOT / pattern.strip()))):
+            already |= completed_run_ids(path)
     todo = [r for r in runs if make_run_id(r.coords(config)) not in already]
-    print(f"eps probe: {len(runs)} runs in this shard, {len(todo)} to execute")
+    print(f"eps probe: {len(runs)} runs in this shard, {len(todo)} to execute, "
+          f"{len(runs) - len(todo)} already complete", flush=True)
+    if args.dry_run:
+        return 0
 
     freeze_tag = read_freeze_tag() or ""
     started = time.perf_counter()
