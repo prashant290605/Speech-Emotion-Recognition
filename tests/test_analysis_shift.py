@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -168,3 +170,75 @@ def test_prior_correction_moves_decisions_toward_the_upweighted_class():
         probabilities, np.array([0.5, 0.5]), np.array([0.1, 0.9])
     )
     assert corrected[0, 1] > corrected[0, 0], "the upweighted class must win"
+
+
+# -- eps probe reporting ---------------------------------------------------
+def test_eps_report_reads_every_file_the_runner_writes_to():
+    """The reporter and the runner must agree on where probe rows live.
+
+    They did not once: the runner resumed from all three result files while the
+    reporter read only `results/eps_asymptote.jsonl`, so a complete 120-run
+    experiment was reported as "35 of 120". Checked by reading both sources as
+    text rather than importing the runner, which would pull in the audio stack.
+    """
+    import re
+    import sys
+
+    tools = Path(__file__).resolve().parents[1] / "tools"
+    sys.path.insert(0, str(tools))
+    from eps_asymptote_report import EPS_RESULT_GLOBS
+
+    runner = (tools / "eps_asymptote.py").read_text(encoding="utf-8")
+    match = re.search(r'"--resume-from",\s*default="([^"]+)"', runner)
+    assert match, "the runner no longer declares a --resume-from default"
+    runner_globs = tuple(part.strip() for part in match.group(1).split(","))
+
+    assert runner_globs == tuple(EPS_RESULT_GLOBS), (
+        f"runner resumes from {runner_globs} but the report reads "
+        f"{tuple(EPS_RESULT_GLOBS)}; a run recorded in a file only one of them "
+        "knows about is invisible to the other"
+    )
+
+
+def test_eps_report_refuses_conflicting_duplicate_run_ids(tmp_path, monkeypatch):
+    """A repeated run_id is fine; a repeated run_id with different numbers is an
+    identity bug and must raise rather than being silently collapsed."""
+    import json
+    import sys
+
+    tools = Path(__file__).resolve().parents[1] / "tools"
+    sys.path.insert(0, str(tools))
+    import eps_asymptote_report as report
+
+    source = next(
+        r for r in report.load_probe()[0] if r["status"] == "ok"
+    )
+    (tmp_path / "results").mkdir()
+    good = dict(source)
+    bad = dict(source, macro_f1=round((source["macro_f1"] or 0) + 0.05, 6))
+    for name, row in (("eps_a.jsonl", good), ("eps_b.jsonl", bad)):
+        (tmp_path / "results" / name).write_text(json.dumps(row) + "\n", encoding="utf-8")
+
+    monkeypatch.setattr(report, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(report, "EPS_RESULT_GLOBS", ("results/eps_*.jsonl",))
+    with pytest.raises(report.DuplicateRunConflict, match="do not determine"):
+        report.load_probe()
+
+
+def test_eps_probe_is_complete_and_unique():
+    """The experiment itself: 120 unique runs, both directions, no duplicates."""
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+    from eps_asymptote_report import EXPECTED_PROBE_RUNS, load_probe
+
+    rows, sources, duplicates = load_probe()
+    ok = [r for r in rows if r["status"] == "ok"]
+    if len(ok) < EXPECTED_PROBE_RUNS:
+        pytest.skip(f"probe incomplete ({len(ok)}/{EXPECTED_PROBE_RUNS})")
+
+    assert len({r["run_id"] for r in ok}) == len(ok), "duplicate run_ids survived"
+    assert len(ok) == EXPECTED_PROBE_RUNS
+    assert len({(r["source_corpus"], r["target_corpus"]) for r in ok}) == 2
+    assert duplicates == 0
+    assert len(sources) >= 2, "rows should be assembled from more than one file"
