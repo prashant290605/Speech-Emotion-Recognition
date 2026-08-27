@@ -1,0 +1,27 @@
+\begin{table}[tb]
+  \centering
+  \caption{The pre-registered primary comparisons. All 14 survive Holm correction. The family was fixed in code before any of these numbers was computed.}
+  \label{tab:primary}
+  \begin{tabular}{lrrrrr}
+    \toprule
+    id & comparison & pair & difference in target macro-F1 & Holm $p$ & verdict \\
+    \midrule
+    L1 & \texttt{zscore - none} & RAVDESS $\rightarrow$ CREMA-D & +0.1310 [+0.1174, +0.1422] & $<$0.0070 & survives \\
+    L1 & \texttt{zscore - none} & CREMA-D $\rightarrow$ RAVDESS & +0.1961 [+0.1501, +0.2449] & $<$0.0070 & survives \\
+    L2 & \texttt{mean\_shift - none} & RAVDESS $\rightarrow$ CREMA-D & +0.1306 [+0.1159, +0.1439] & $<$0.0070 & survives \\
+    L2 & \texttt{mean\_shift - none} & CREMA-D $\rightarrow$ RAVDESS & +0.1817 [+0.1354, +0.2302] & $<$0.0070 & survives \\
+    L3 & \texttt{coral - none} & RAVDESS $\rightarrow$ CREMA-D & +0.1359 [+0.1253, +0.1476] & $<$0.0070 & survives \\
+    L3 & \texttt{coral - none} & CREMA-D $\rightarrow$ RAVDESS & +0.1833 [+0.1373, +0.2293] & $<$0.0070 & survives \\
+    L4 & \texttt{mkmmd\_diag - none} & RAVDESS $\rightarrow$ CREMA-D & +0.1208 [+0.1079, +0.1330] & $<$0.0070 & survives \\
+    L4 & \texttt{mkmmd\_diag - none} & CREMA-D $\rightarrow$ RAVDESS & +0.1852 [+0.1406, +0.2317] & $<$0.0070 & survives \\
+    L5 & \texttt{mkmmd\_full - none} & RAVDESS $\rightarrow$ CREMA-D & +0.1251 [+0.1149, +0.1351] & $<$0.0070 & survives \\
+    L5 & \texttt{mkmmd\_full - none} & CREMA-D $\rightarrow$ RAVDESS & +0.1524 [+0.1057, +0.1991] & $<$0.0070 & survives \\
+    A1 & \texttt{layer - last} & RAVDESS $\rightarrow$ CREMA-D & +0.0640 [+0.0541, +0.0748] & $<$0.0070 & survives \\
+    A1 & \texttt{layer - last} & CREMA-D $\rightarrow$ RAVDESS & +0.1439 [+0.1140, +0.1746] & $<$0.0070 & survives \\
+    A2 & \texttt{weighted - last} & RAVDESS $\rightarrow$ CREMA-D & +0.0597 [+0.0504, +0.0702] & $<$0.0070 & survives \\
+    A2 & \texttt{weighted - last} & CREMA-D $\rightarrow$ RAVDESS & +0.1096 [+0.0888, +0.1326] & $<$0.0070 & survives \\
+    \bottomrule
+  \end{tabular}
+  \\[2pt]
+  \begin{minipage}{\linewidth}\footnotesize Paired cluster bootstrap over target-test speakers and seeds, 2000 replicates. $p$ values marked $<$ are at the bootstrap's resolution floor of $1/n_{\mathrm{boot}}$ and are not resolvable below it.\end{minipage}
+\end{table}

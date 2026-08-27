@@ -1,0 +1,20 @@
+\begin{table}[tb]
+  \centering
+  \caption{Per-class F1 of the validated configuration, from the stored per-utterance predictions. \texttt{sad} and \texttt{happy} fall below the macro average in both directions.}
+  \label{tab:perclass}
+  \begin{tabular}{lrrrr}
+    \toprule
+    class & $n$ & F1 (RAV $\rightarrow$ CRE) & $n$ & F1 (CRE $\rightarrow$ RAV) \\
+    \midrule
+    \texttt{angry} & 3144 & 0.4404 [0.2974, 0.5145] & 480 & 0.5775 [0.4827, 0.6659] \\
+    \texttt{disgust} & 3144 & 0.3626 [0.3249, 0.4328] & 480 & 0.5745 [0.5246, 0.6283] \\
+    \texttt{fear} & 3144 & 0.3339 [0.2460, 0.3733] & 480 & 0.6777 [0.6298, 0.7241] \\
+    \texttt{happy} & 3144 & 0.3288 [0.1952, 0.3993] & 480 & 0.3618 [0.2759, 0.4304] \\
+    \texttt{neutral} & 2691 & 0.2551 [0.1652, 0.3149] & 720 & 0.5879 [0.5155, 0.6518] \\
+    \texttt{sad} & 3144 & 0.2800 [0.1897, 0.3687] & 480 & 0.2411 [0.1779, 0.3028] \\
+    \textbf{macro} &  & \textbf{0.3335 [0.2550, 0.3856]} &  & \textbf{0.5034 [0.4675, 0.5361]} \\
+    \bottomrule
+  \end{tabular}
+  \\[2pt]
+  \begin{minipage}{\linewidth}\footnotesize Filter: validated configuration per (pair, seed), 5 seeds, predictions pooled. Paired cluster bootstrap over target-test speakers and seeds, 2000 replicates. Precision and recall are in \texttt{reports/per\_class.md}.\end{minipage}
+\end{table}

@@ -1,0 +1,15 @@
+\begin{table}[tb]
+  \centering
+  \caption{Target macro-F1 of the configuration selected on source validation, against the best configuration present in the grid. The oracle column is an upper bound no protocol can reach and is not a result.}
+  \label{tab:headline}
+  \begin{tabular}{lrrrrr}
+    \toprule
+    pair & validated & oracle & gap & chance & majority \\
+    \midrule
+    RAVDESS $\rightarrow$ CREMA-D & 0.3156 [0.1880, 0.4432] & 0.4555 [0.4326, 0.4785] & 0.1399 [0.0231, 0.2568] & 0.1665 & 0.0425 \\
+    CREMA-D $\rightarrow$ RAVDESS & 0.4994 [0.4592, 0.5395] & 0.5680 [0.5148, 0.6212] & 0.0687 [0.0090, 0.1283] & 0.1656 & 0.0444 \\
+    \bottomrule
+  \end{tabular}
+  \\[2pt]
+  \begin{minipage}{\linewidth}\footnotesize Filter: \texttt{freeze\_tag=grid-freeze-v3}, \texttt{blending=none}, 4986 runs. Mean over 5 seeds with a 95\% $t$-interval. Both floors are analytic from the realised target-test priors.\end{minipage}
+\end{table}

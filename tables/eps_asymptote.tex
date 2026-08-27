@@ -1,0 +1,29 @@
+\begin{table}[tb]
+  \centering
+  \caption{CORAL's shrinkage asymptote. As $\epsilon$ grows the regularised covariances approach a scaled identity, the map tends to $\sqrt{\mathrm{tr}(C_t)/\mathrm{tr}(C_s)}\,I$, and the rung degenerates to a scalar rescale plus a mean shift. Both columns converge on \texttt{mean\_shift}.}
+  \label{tab:eps}
+  \begin{tabular}{lrrr}
+    \toprule
+    pair & $\epsilon$ & source\_val & target macro-F1 \\
+    \midrule
+    RAVDESS $\rightarrow$ CREMA-D & 0.0001 & 0.5177 & 0.3818 \\
+     & 0.01 & 0.5693 & 0.3810 \\
+     & 0.1 & 0.6273 & 0.3883 \\
+     & 1 & 0.6897 & 0.4023 \\
+     & 10 & 0.7235 & 0.4118 \\
+     & 100 & 0.7276 & 0.3992 \\
+     & 1000 & 0.7282 & 0.3879 \\
+     & \texttt{mean\_shift} & \textbf{0.7278} & \textbf{0.3932} \\
+    CREMA-D $\rightarrow$ RAVDESS & 0.0001 & 0.4542 & 0.4324 \\
+     & 0.01 & 0.5008 & 0.4139 \\
+     & 0.1 & 0.5636 & 0.4061 \\
+     & 1 & 0.6257 & 0.4322 \\
+     & 10 & 0.6490 & 0.4665 \\
+     & 100 & 0.6517 & 0.4749 \\
+     & 1000 & 0.6505 & 0.4695 \\
+     & \texttt{mean\_shift} & \textbf{0.6517} & \textbf{0.4634} \\
+    \bottomrule
+  \end{tabular}
+  \\[2pt]
+  \begin{minipage}{\linewidth}\footnotesize Filter: hubert, \{logreg, svm\_rbf, mlp\} $\times$ \{last, layer:6\}, 5 seeds. $\epsilon \leq 10$ is the frozen Stage 2 grid; $\epsilon \in \{100, 1000\}$ is a 120-run off-grid probe carrying the same facet hashes. Means over seeds.\end{minipage}
+\end{table}

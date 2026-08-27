@@ -1,0 +1,25 @@
+\begin{table}[tb]
+  \centering
+  \caption{The alignment ladder. Target macro-F1 rises once, off \texttt{none}, and then does not track discrepancy: \texttt{mkmmd\_full} reaches the lowest discrepancy in both geometries and is never the best rung.}
+  \label{tab:ladder}
+  \begin{tabular}{lrrrrr}
+    \toprule
+    pair & rung & runs & target macro-F1 & effect (own) & effect (ref) \\
+    \midrule
+    RAVDESS $\rightarrow$ CREMA-D & \texttt{none} & 153 & 0.2289 [0.2133, 0.2444] & 1432.93 & 36905.40 \\
+     & \texttt{zscore} & 153 & 0.3599 [0.3483, 0.3726] & 51.79 & 480.85 \\
+     & \texttt{mean\_shift} & 153 & 0.3595 [0.3442, 0.3762] & 104.05 & 19641.52 \\
+     & \texttt{coral} & 828 & 0.3648 [0.3480, 0.3831] & 34.84 & 311.15 \\
+     & \texttt{mkmmd\_diag} & 558 & 0.3497 [0.3347, 0.3663] & 67.34 & 1057.77 \\
+     & \texttt{mkmmd\_full} & 558 & 0.3540 [0.3383, 0.3696] & 12.04 & 23.25 \\
+    CREMA-D $\rightarrow$ RAVDESS & \texttt{none} & 135 & 0.2361 [0.1981, 0.2694] & 1045.24 & 23610.38 \\
+     & \texttt{zscore} & 135 & 0.4321 [0.4070, 0.4547] & 41.00 & 331.64 \\
+     & \texttt{mean\_shift} & 135 & 0.4178 [0.3931, 0.4386] & 76.60 & 8574.50 \\
+     & \texttt{coral} & 810 & 0.4193 [0.3968, 0.4394] & 46.55 & 309.77 \\
+     & \texttt{mkmmd\_diag} & 540 & 0.4212 [0.3984, 0.4417] & 46.37 & 830.54 \\
+     & \texttt{mkmmd\_full} & 540 & 0.3885 [0.3653, 0.4099] & 10.71 & 17.71 \\
+    \bottomrule
+  \end{tabular}
+  \\[2pt]
+  \begin{minipage}{\linewidth}\footnotesize Filter: \texttt{freeze\_tag=grid-freeze-v3}, \texttt{blending=none}. Target intervals are a paired cluster bootstrap over target-test speakers and seeds, 2000 replicates; discrepancy columns are $t$-intervals over seeds. Both geometries are reported because they disagree (Table~\ref{tab:frames}).\end{minipage}
+\end{table}

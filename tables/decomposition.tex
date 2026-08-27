@@ -1,0 +1,25 @@
+\begin{table}[tb]
+  \centering
+  \caption{The three-way shift decomposition. Label shift is negligible. Alignment drives the marginal term down by two orders of magnitude while the conditional term falls far less, so the ratio rises toward one: what remains after alignment is conditional shift, which no marginal alignment can remove.}
+  \label{tab:decomposition}
+  \begin{tabular}{lrrrrr}
+    \toprule
+    pair & rung & label shift (KL) & marginal & conditional & ratio \\
+    \midrule
+    RAVDESS $\rightarrow$ CREMA-D & \texttt{none} & 0.02235 & 1496.1 & 215.1 & 0.14 \\
+     & \texttt{zscore} &  & 64.6 & 27.2 & 0.42 \\
+     & \texttt{mean\_shift} &  & 87.6 & 28.7 & 0.33 \\
+     & \texttt{coral} &  & 17.7 & 14.4 & 0.81 \\
+     & \texttt{mkmmd\_diag} &  & 74.7 & 27.3 & 0.37 \\
+     & \texttt{mkmmd\_full} &  & 15.3 & 14.0 & 0.92 \\
+    CREMA-D $\rightarrow$ RAVDESS & \texttt{none} & 0.02541 & 949.2 & 276.2 & 0.29 \\
+     & \texttt{zscore} &  & 69.6 & 47.4 & 0.68 \\
+     & \texttt{mean\_shift} &  & 75.9 & 47.4 & 0.62 \\
+     & \texttt{coral} &  & 44.8 & 21.5 & 0.48 \\
+     & \texttt{mkmmd\_diag} &  & 71.3 & 47.9 & 0.67 \\
+     & \texttt{mkmmd\_full} &  & 40.3 & 21.4 & 0.53 \\
+    \bottomrule
+  \end{tabular}
+  \\[2pt]
+  \begin{minipage}{\linewidth}\footnotesize Filter: hubert, \texttt{layer\_agg=last}, logreg, 5 seeds, both discrepancies measured between the same two sets (aligned source-train and aligned target-test). KL is $\mathrm{KL}(P_{\mathrm{target}} \| P_{\mathrm{source}})$ in nats between realised partition priors. The conditional term reads target labels and is computed behind the A10 firewall (\texttt{ser.analysis}); it is never written to the result schema.\end{minipage}
+\end{table}
