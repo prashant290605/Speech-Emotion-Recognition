@@ -1,1 +1,347 @@
-% placeholder -- written in a later pass
+\section{Results}
+\label{sec:results}
+
+Numbers come first in each subsection and interpretation is separated from
+them. Every macro-F1 is reported against its own pair's chance floor, and
+because that floor is pair-dependent, nothing is averaged across pairs. Unless
+stated otherwise, intervals are 95\% paired cluster bootstrap intervals over
+target-test speakers and seeds.
+
+The complete set of numbers, each with its interval, its floor and the run
+filter that produced it, is released with the code as a single generated
+document; every figure and table here is produced from the result files by
+script.
+
+\subsection{Headline: what a practitioner can obtain}
+\label{sec:results-headline}
+
+Table~\ref{tab:headline} gives the configuration selected on source-side
+validation alone, alongside the best configuration present in the grid.
+
+\input{../tables/headline}
+
+Validated macro-F1 is $0.3156$ $[0.1880, 0.4432]$ for
+RAVDESS $\rightarrow$ CREMA-D against a chance floor of $0.1665$, and
+$0.4994$ $[0.4592, 0.5395]$ for CREMA-D $\rightarrow$ RAVDESS against
+$0.1656$. The oracle values are $0.4555$ $[0.4326, 0.4785]$ and
+$0.5680$ $[0.5148, 0.6212]$; \textbf{the oracle is an upper bound that no
+protocol can reach} and is reported only to bound the cost of selection. The
+gap is $0.1399$ $[0.0231, 0.2568]$ and $0.0687$ $[0.0090, 0.1283]$.
+
+Both directions clear their chance floors, and both fall well short of
+in-domain SER performance. The validated interval for the forward direction is
+notably wide; Section~\ref{sec:results-selection} shows why, and the reason is
+itself a result.
+
+\subsection{The alignment ladder}
+\label{sec:results-ladder}
+
+Table~\ref{tab:ladder} gives target macro-F1 by rung with both discrepancy
+columns, and Figure~\ref{fig:ladder} plots them together.
+
+\input{../tables/ladder}
+
+\begin{figure}[tb]
+  \centering
+  \includegraphics[width=\linewidth]{ladder.pdf}
+  \caption{Target macro-F1 by alignment rung (left axis, with 95\% intervals
+    and the chance floor) against marginal discrepancy in the rung's own
+    geometry (right axis, log scale). Performance takes one step off
+    \texttt{none} and is then flat, while discrepancy continues to fall by two
+    orders of magnitude. The shaded region marks the plateau.}
+  \label{fig:ladder}
+\end{figure}
+
+Moving from \texttt{none} to any aligned rung is worth between $+0.1208$ and
+$+0.1359$ for RAVDESS $\rightarrow$ CREMA-D and between $+0.1524$ and
+$+0.1961$ for CREMA-D $\rightarrow$ RAVDESS. All ten of these contrasts, and
+both aggregation contrasts, are in the pre-registered primary family
+(Table~\ref{tab:primary}); \textbf{all 14 survive Holm correction}, with
+adjusted $p$ at the bootstrap's resolution floor.
+
+\input{../tables/primary}
+
+Among the five aligned rungs, the largest difference is $0.0151$ in the forward
+direction and $0.0437$ in the reverse --- an order of magnitude smaller than the
+step off \texttt{none}. Those contrasts are outside the pre-registered family
+and we make no significance claim about them; the interval is reported and
+nothing more is asserted.
+
+The ordering does not track discrepancy. \texttt{mkmmd\_full} reaches the lowest
+marginal discrepancy in \emph{both} geometries --- $12.04$ and $23.25$ times the
+same-distribution null in the forward direction, against \texttt{zscore}'s
+$51.79$ and $480.85$ --- and is never the best rung. In the reverse direction it
+is the \emph{worst} aligned rung, at $0.3885$ $[0.3653, 0.4099]$ against
+\texttt{zscore}'s $0.4321$ $[0.4070, 0.4547]$.
+
+\paragraph{What this does and does not show.} Alignment helps, substantially and
+reproducibly. But the entire benefit is available from per-dimension
+standardisation, and matching further moments --- covariance in the CORAL case,
+higher-order structure in the MK-MMD case --- buys nothing measurable while
+reducing marginal discrepancy by one to two orders of magnitude. That
+combination is what the rest of this section explains rather than merely
+reports.
+
+\paragraph{A caveat that must accompany the MK-MMD rows.} In
+\textbf{64.9\%} of \texttt{mkmmd\_diag} runs and \textbf{55.2\%} of
+\texttt{mkmmd\_full} runs, optimisation failed to improve on its CORAL warm
+start and the fitted map reverted to it. In those cells the rung is CORAL, and
+reporting it as a distinct sixth rung without saying so would overstate what was
+fitted.
+
+\subsection{Mechanism: alignment removes the marginal term, not the conditional one}
+\label{sec:decomposition}
+
+Shift between two corpora decomposes into three parts that different methods
+address: label shift ($P(y)$ differs), covariate shift ($P(x)$ differs), and
+conditional shift ($P(x \mid y)$ differs). Feature alignment addresses only the
+second. Table~\ref{tab:decomposition} measures all three.
+
+\input{../tables/decomposition}
+
+\begin{figure}[tb]
+  \centering
+  \includegraphics[width=\linewidth]{decomposition.pdf}
+  \caption{Marginal and class-conditional discrepancy across the ladder (left
+    axis, log scale) with their ratio (right axis). Alignment drives the
+    marginal term down far faster than the conditional term, so the residual
+    after alignment is almost entirely conditional.}
+  \label{fig:decomposition}
+\end{figure}
+
+\textbf{Label shift is negligible.} The KL divergence between the realised
+partition priors is $0.02235$ nats for RAVDESS $\rightarrow$ CREMA-D and
+$0.02541$ nats for the reverse, with total variation $0.085$. As
+Section~\ref{sec:corpora} noted, the entire difference sits in one class and is
+an artefact of merging RAVDESS \texttt{calm} into \texttt{neutral}.
+
+\textbf{Alignment removes the marginal term far faster than the conditional
+one.} Taking \texttt{none} as the baseline and \texttt{mkmmd\_full} as the
+endpoint, forward, marginal discrepancy falls from $1496.1$ to $15.3$ --- a
+factor of $0.010$ --- while conditional discrepancy falls only from $215.1$ to
+$14.0$, a factor of $0.07$. The consequence is the ratio column: before
+alignment the conditional term is a seventh of the marginal one ($0.14$); after
+the strongest rung the two are nearly equal ($0.92$). The reverse direction
+shows the same pattern more weakly, $0.29$ rising to $0.53$.
+
+\textbf{The residual after alignment is therefore almost entirely conditional},
+and no marginal alignment can act on it. This is the explanation the ladder
+result requires: discrepancy does keep falling, by two orders of magnitude, but
+the part that keeps falling was not the part limiting performance.
+
+\paragraph{A falsifiable test of the decomposition.} A decomposition that only
+describes is weak. Near-zero prior KL makes a prediction: a label-shift
+correction should not help. We applied two --- black-box shift estimation and
+the Saerens--Latinne--Decaestecker EM procedure [CITE: black-box shift
+estimation / label shift correction, and the EM procedure for adjusting
+classifier outputs to new priors --- two separate sources] --- and they do not
+merely fail to help. They \textbf{hurt in 238 of 240} (record, estimator)
+pairs, by $0.013$ to $0.24$ macro-F1. Both estimators recover a \emph{planted}
+prior shift to within $0.05$ under test, so this is a property of the corpora
+and not a broken implementation. Had either helped at a KL of $0.02$ nats, the
+decomposition would have been wrong.
+
+\subsection{CORAL degenerates to a mean shift at its selected regularisation}
+\label{sec:results-eps}
+
+CORAL's map is $M = C_s^{-1/2} C_t^{1/2}$ with each covariance regularised as
+$C + \varepsilon\,\mathrm{tr}(C)/d \cdot I$. As $\varepsilon$ grows, both
+regularised covariances approach a scaled identity and
+\begin{equation}
+  M \;\longrightarrow\; \sqrt{\mathrm{tr}(C_t)/\mathrm{tr}(C_s)} \; I ,
+  \label{eq:coral-limit}
+\end{equation}
+so the transform $x \mapsto (x - \mu_s)M + \mu_t$ collapses to a global scalar
+rescale plus a mean shift --- \texttt{mean\_shift} with one extra degree of
+freedom. Table~\ref{tab:eps} and Figure~\ref{fig:eps} measure the approach.
+
+\input{../tables/eps_asymptote}
+
+\begin{figure}[tb]
+  \centering
+  \includegraphics[width=\linewidth]{eps_asymptote.pdf}
+  \caption{\texttt{source\_val} and target macro-F1 against CORAL's shrinkage
+    $\varepsilon$. Dotted lines mark \texttt{mean\_shift}, the analytic limit of
+    Equation~\eqref{eq:coral-limit}. Both curves saturate onto it.}
+  \label{fig:eps}
+\end{figure}
+
+The relative distance from the fitted map to the nearest scaled identity,
+$\lVert M - cI \rVert / \lVert M \rVert$, falls monotonically from $0.9254$ at
+$\varepsilon = 10^{-4}$ to $0.0049$ at $\varepsilon = 1000$, and the fitted
+scalar converges on the limit predicted by
+Equation~\eqref{eq:coral-limit} (ratio $2.195 \rightarrow 1.000$).
+\textbf{At $\varepsilon = 10$, the value selected on \texttt{source\_val}, the
+map is already 86\% of the way to a pure scalar.} Empirically,
+\texttt{source\_val} and target macro-F1 at $\varepsilon = 1000$ land within
+$0.0061$ of \texttt{mean\_shift} in both directions.
+
+Selecting CORAL's regularisation on source-side validation therefore drives it
+continuously toward the simplest rung on the ladder. The elaborate method is
+selected into being the simple one, which is a second, independent route to the
+same conclusion as Section~\ref{sec:results-ladder} --- and one that involves no
+classifier at all.
+
+\subsection{Source-side validation cannot detect whether alignment is needed}
+\label{sec:results-selection}
+
+The gap in Table~\ref{tab:headline} is not a small constant overhead.
+Figure~\ref{fig:selection} shows it per seed.
+
+\begin{figure}[tb]
+  \centering
+  \includegraphics[width=\linewidth]{validated_vs_oracle.pdf}
+  \caption{Validated against oracle target macro-F1 for each seed, with the
+    rung the protocol selected annotated on each validated bar. In the forward
+    direction the protocol selects the unaligned condition on two of five
+    seeds; on one of them the result falls below the chance floor.}
+  \label{fig:selection}
+\end{figure}
+
+The mechanism is visible in the selection surface itself. Forward,
+\texttt{source\_val} separates \texttt{none} ($0.7304$) from \texttt{zscore}
+($0.7322$) by $0.0018$, while the same two rungs differ on target by $0.13$.
+The criterion is effectively blind to the distinction that matters most.
+
+The consequence is that selection falls back to \texttt{none} on two of five
+forward seeds, returning target macro-F1 of $0.2803$ and $0.1508$. \textbf{The
+second is below that pair's chance floor of $0.1665$.} A protocol that uses no
+target labels --- the only protocol available to a practitioner --- therefore
+produces, on one seed in five, a system worse than random guessing, while an
+oracle over the same grid reaches $0.4555$.
+
+The reverse direction selects an aligned rung on all five seeds
+(\texttt{mean\_shift} four times, \texttt{zscore} once) and its gap is
+correspondingly smaller, $0.0687$ against $0.1399$.
+
+\subsection{Layer aggregation}
+\label{sec:results-aggregation}
+
+Comparisons A1 and A2 in Table~\ref{tab:primary} both survive correction.
+Replacing final-layer pooling with a fixed mid-stack layer is worth $+0.0640$
+$[+0.0541, +0.0748]$ forward and $+0.1439$ $[+0.1140, +0.1746]$ reverse;
+replacing it with a learned softmax over all 13 states is worth $+0.0597$
+$[+0.0504, +0.0702]$ and $+0.1096$ $[+0.0888, +0.1326]$.
+
+These effects are larger than any difference \emph{among} the aligned rungs
+($\le 0.0437$) and smaller than the decision to align at all ($+0.12$ to
+$+0.20$). Final-layer pooling is both the common default and what the earlier
+version of this work used.
+
+\subsection{Frame dependence of the discrepancy--transfer relationship}
+\label{sec:results-frames}
+
+Alignment methods are commonly justified by the discrepancy they remove, which
+presumes that the relationship between discrepancy and transfer is well defined.
+Table~\ref{tab:frames} and Figure~\ref{fig:frames} test that presumption on a
+13-layer sweep of 2340 runs.
+
+\input{../tables/frames}
+
+\begin{figure}[tb]
+  \centering
+  \includegraphics[width=\linewidth]{frame_dependence.pdf}
+  \caption{Left: Spearman $\rho$ between a layer's marginal discrepancy and its
+    target macro-F1, in each of the two measurement geometries, for all 36
+    (direction $\times$ backbone $\times$ rung) cells. Right: the case where the
+    correct answer is known analytically --- as $\varepsilon$ grows the CORAL map
+    provably tends to \texttt{mean\_shift}, and only the reference frame tracks
+    it.}
+  \label{fig:frames}
+\end{figure}
+
+Pooled over all cells and seeds, $\rho = -0.444$ $[-0.505, -0.383]$ in each
+rung's own geometry and $\rho = +0.142$ $[+0.062, +0.221]$ in the fixed
+reference frame. \textbf{The signs are opposite and neither interval covers
+zero.} Eleven of the 36 individual cells disagree by the stricter per-cell test,
+which requires both intervals to exclude zero and fall on opposite sides.
+
+The two statistics are computed from the same features, the same layers and the
+same target scores. Only the geometry in which the discrepancy is measured
+differs.
+
+\paragraph{Which frame is correct, in the one case where that is knowable.}
+Sign disagreement alone does not tell us which frame to trust. The
+$\varepsilon$ sweep supplies a case where the answer is known independently of
+any measurement: Equation~\eqref{eq:coral-limit} says that as $\varepsilon$
+grows, CORAL becomes a scalar rescale plus a mean shift. A discrepancy statistic
+that is behaving correctly should therefore report large-$\varepsilon$ CORAL as
+resembling \texttt{mean\_shift}. The reference-frame statistic does; the
+own-geometry statistic does not, because its median-heuristic bandwidth adapts
+to the very rescaling that distinguishes the two.
+
+This does not make the reference frame universally right --- it is one arbitrary
+frame among many, and it is more sensitive to uncorrected mean offsets. It does
+establish that the choice is consequential and that at least one common way of
+measuring discrepancy gives the wrong answer in a case with a known ground
+truth.
+
+\subsection{Per-class transfer}
+\label{sec:results-perclass}
+
+Table~\ref{tab:perclass} and Figure~\ref{fig:perclass} give per-class F1 of the
+validated configuration, computed from the stored per-utterance predictions.
+
+\input{../tables/per_class}
+
+\begin{figure}[tb]
+  \centering
+  \includegraphics[width=\linewidth]{per_class_f1.pdf}
+  \caption{Per-class F1 in both directions, with 95\% intervals. Dashed lines
+    mark each direction's macro average; the dotted line marks the chance
+    floor.}
+  \label{fig:perclass}
+\end{figure}
+
+\begin{figure}[tb]
+  \centering
+  \includegraphics[width=\linewidth]{confusion.pdf}
+  \caption{Row-normalised confusion of the validated configuration, summed over
+    five seeds. Rows are true classes and columns predicted classes, in the
+    alphabetical order used throughout.}
+  \label{fig:confusion}
+\end{figure}
+
+\texttt{sad} and \texttt{happy} fall below the macro average in \emph{both}
+directions: \texttt{sad} at $0.2800$ $[0.1897, 0.3687]$ and $0.2411$
+$[0.1779, 0.3028]$, \texttt{happy} at $0.3288$ $[0.1952, 0.3993]$ and $0.3618$
+$[0.2759, 0.4304]$, against macro averages of $0.3335$ and $0.5034$. A class
+failing in both directions is a property of the label rather than of one corpus
+being the source. No class collapsed to zero predictions in any pair.
+
+The remaining classes reorder between directions: \texttt{fear} is the strongest
+class in the reverse direction at $0.6777$ $[0.6298, 0.7241]$ but is below the
+macro average forward at $0.3339$ $[0.2460, 0.3733]$.
+
+\subsection{Direction, at matched training-set size}
+\label{sec:results-direction}
+
+Both directions are run at matched training-set size: CREMA-D's
+\texttt{source\_train} is capped from 5972 to 988 so that any asymmetry cannot
+be a data-quantity effect. Excluding the reduced-seed transformer arm, which
+ran the primary direction only, target macro-F1 is $0.3429$
+$[0.3265, 0.3627]$ for RAVDESS $\rightarrow$ CREMA-D against a chance floor of
+$0.1665$, and $0.3987$ $[0.3793, 0.4155]$ for the reverse against $0.1656$.
+
+Transfer into RAVDESS is therefore easier than transfer into CREMA-D even at
+equal training-set size. RAVDESS's target test set is also far smaller (624
+utterances against roughly 3680), which is why its intervals are wider
+throughout this section.
+
+\subsection{Blending toward the unaligned features}
+\label{sec:results-blending}
+
+Interpolating between aligned and original features,
+$\alpha \cdot x_{\text{aligned}} + (1 - \alpha) \cdot x_{\text{original}}$, was
+proposed in the earlier version of this work with $\alpha$ never searched. We
+search it on the two rungs that move the features most.
+
+Performance increases monotonically in $\alpha$ in the forward direction, from
+$0.2987$ $[0.2746, 0.3188]$ at $\alpha = 0$ to $0.4012$ $[0.3802, 0.4186]$ at
+$\alpha = 1$ for CORAL, and the reverse direction shows the same endpoints
+($0.3154$ to $0.3833$) with a non-monotone interior. \textbf{The best setting of
+the blending parameter is the one that turns blending off.} We therefore report
+blending as a negative result rather than as a method.
+
+This arm is smaller than the main grid --- 288 runs, one backbone, two seeds ---
+and its intervals are correspondingly wider.

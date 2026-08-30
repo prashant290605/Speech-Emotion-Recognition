@@ -334,6 +334,121 @@ def main() -> int:
                "not a mis-centred grid.\n")
 
     # -- retractions -------------------------------------------------------
+    # -- layer aggregation -------------------------------------------------
+    out.append("## 7b. Layer aggregation\n")
+    out.append("Filter as §1. Paired differences are comparisons A1 and A2 in "
+               "§3, restricted to the torch families because `weighted` needs "
+               "learnable parameters.\n")
+    out.append("| pair | aggregation | runs | target macro-F1 |")
+    out.append("|---|---|---|---|")
+    for source, target in PAIRS:
+        pool = [r for r in data.main
+                if (r["source_corpus"], r["target_corpus"]) == (source, target)]
+        for agg in ("last", "layer", "weighted"):
+            g = [r for r in pool if r["layer_agg"] == agg]
+            if not g:
+                continue
+            arm = defaultdict(list)
+            buckets = defaultdict(list)
+            for r in g:
+                buckets[(r["seed"], r["backbone"], r["classifier"])].append(r)
+            for (seed, *_), group in buckets.items():
+                arm[seed].append(data.confusion(
+                    max(group, key=lambda r: r["selection_source_val_macro_f1"])))
+            stat = cluster_bootstrap(dict(arm), data.n_speakers(source, target),
+                                     n_boot=N_BOOT, seed=17)
+            label = {"last": "`last` (layer 12)", "layer": "`layer:6`",
+                     "weighted": "`weighted` (learned over 13)"}[agg]
+            out.append(f"| {ARROW[(source, target)] if agg == 'last' else ''} | "
+                       f"{label} | {len(g)} | {ci(stat)} |")
+    out.append("")
+    out.append("`last` is the aggregation the earlier version of this work used "
+               "and is the common default. Both alternatives beat it (A1, A2 in "
+               "§3), by more than any difference *among* the aligned rungs "
+               "(§9) but by less than the step off `none` (§3).\n")
+
+    # -- direction ---------------------------------------------------------
+    out.append("## 7c. Direction, at matched training-set size\n")
+    out.append("**Both directions are matched-n**: CREMA-D `source_train` is "
+               "capped from 5972 to 988 so that an asymmetry cannot be a "
+               "data-quantity effect. Excludes the transformer, which ran the "
+               "primary direction only and would otherwise weight one side.\n")
+    out.append("| direction | runs | source_train n | target_test n | "
+               "target macro-F1 | chance floor |")
+    out.append("|---|---|---|---|---|---|")
+    for source, target in PAIRS:
+        pool = [r for r in data.main
+                if (r["source_corpus"], r["target_corpus"]) == (source, target)
+                and r["classifier"] != "transformer"]
+        arm = defaultdict(list)
+        buckets = defaultdict(list)
+        for r in pool:
+            buckets[(r["seed"], r["backbone"], r["layer_agg"], r["classifier"])].append(r)
+        for (seed, *_), group in buckets.items():
+            arm[seed].append(data.confusion(
+                max(group, key=lambda r: r["selection_source_val_macro_f1"])))
+        stat = cluster_bootstrap(dict(arm), data.n_speakers(source, target),
+                                 n_boot=N_BOOT, seed=17)
+        tests = sorted({r["n_target_test"] for r in pool})
+        out.append(f"| {ARROW[(source, target)]} | {len(pool)} | "
+                   f"{sorted({r['source_train_n'] for r in pool})[0]} | "
+                   f"{tests[0]}--{tests[-1]} | {ci(stat)} | "
+                   f"{np.mean([r['chance_macro_f1'] for r in pool]):.4f} |")
+    out.append("")
+    out.append("The reverse direction is the easier one even at matched n. The "
+               "target test set is also much smaller (624 against ~3680), which "
+               "is why its intervals are wider throughout.\n")
+
+    # -- blending ----------------------------------------------------------
+    out.append("## 7d. Blending toward the unaligned features\n")
+    blend = [r for r in data.stage2 if r["blending"] != "none"]
+    out.append(f"{len(blend)} runs. Scalar interpolation "
+               "`alpha * aligned + (1 - alpha) * original`, on the two rungs "
+               "that move the features most, one backbone, two seeds. `alpha=1` "
+               "is the unblended rung and is drawn from the main grid at exactly "
+               "the inner-grid setting the arm used.\n")
+    out.append("| pair | rung | alpha | runs | target macro-F1 |")
+    out.append("|---|---|---|---|---|")
+    for source, target in PAIRS:
+        blended = [r for r in blend
+                   if (r["source_corpus"], r["target_corpus"]) == (source, target)]
+        for rung in sorted({r["alignment"] for r in blended}):
+            arm_rows = [r for r in blended if r["alignment"] == rung]
+            spec = {k: {r[k] for r in arm_rows} for k in
+                    ("backbone", "seed", "classifier", "layer_agg",
+                     "alignment_eps", "alignment_lambda")}
+            reference = [r for r in data.main
+                         if (r["source_corpus"], r["target_corpus"]) == (source, target)
+                         and r["alignment"] == rung
+                         and all(r[k] in v for k, v in spec.items())]
+            for alpha in sorted({r["blend_alpha"] for r in arm_rows}) + [1.0]:
+                g = ([r for r in arm_rows if r["blend_alpha"] == alpha]
+                     if alpha != 1.0 else reference)
+                if not g:
+                    continue
+                arm = defaultdict(list)
+                buckets = defaultdict(list)
+                for r in g:
+                    buckets[(r["seed"], r["backbone"], r["layer_agg"],
+                             r["classifier"])].append(r)
+                for (seed, *_), group in buckets.items():
+                    arm[seed].append(data.confusion(
+                        max(group, key=lambda r: r["selection_source_val_macro_f1"])))
+                stat = cluster_bootstrap(dict(arm), data.n_speakers(source, target),
+                                         n_boot=500, seed=17)
+                note = " *(= unblended)*" if alpha == 1.0 else ""
+                out.append(f"| {ARROW[(source, target)] if alpha == 0.0 and rung == 'coral' else ''} | "
+                           f"`{rung}` | {alpha:.2f}{note} | {len(g)} | {ci(stat)} |")
+    out.append("")
+    out.append("**Interpolating back toward the unaligned features monotonically "
+               "loses what alignment gained**, in both directions and on both "
+               "rungs. The best setting of the blending parameter is the one "
+               "that turns blending off.\n")
+    out.append("The `alpha=0` rows for the two rungs are distinct `run_id`s "
+               "computed over identical features, since alpha=0 discards the "
+               "alignment entirely. They agree to every reported digit, which is "
+               "an end-to-end check on the blending path.\n")
+
     out.append("## 8. Retractions and corrections\n")
     out.append("Five claims were made during this rebuild and later withdrawn or "
                "narrowed. **None may be reused in the manuscript in its original "

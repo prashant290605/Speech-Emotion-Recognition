@@ -39,6 +39,18 @@ right citation depends on which justification you want to lean on.
 
 ---
 
+## Results
+
+| § | placeholder in the text | how to find it | what to verify |
+|---|---|---|---|
+| 4.3 | black-box shift estimation, and the EM procedure for adjusting classifier outputs to new priors — **two separate sources** | The first is the label-shift correction that estimates target priors by inverting a source confusion matrix; the second is the expectation-maximisation procedure for re-estimating class priors from a classifier's outputs on unlabelled data, from the neural-computation literature of the early 2000s. Our implementation is described in Section 3; cite the methods it implements | authors, venue, volume, pages, year for each; and that each source describes the estimator we actually implemented rather than a later variant |
+
+Both are named in the text as the two estimators applied. If you decide to cite
+a survey or a later formulation instead of the originals, change the sentence
+in `results.tex` to match what is being cited.
+
+---
+
 ## Still to be written
 
 Related Work is expected to add substantially to this list — most of its
