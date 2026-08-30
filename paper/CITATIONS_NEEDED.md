@@ -44,15 +44,17 @@ right citation depends on which justification you want to lean on.
 | § | placeholder in the text | how to find it | what to verify |
 |---|---|---|---|
 | 4.3 | black-box shift estimation, and the EM procedure for adjusting classifier outputs to new priors — **two separate sources** | The first is the label-shift correction that estimates target priors by inverting a source confusion matrix; the second is the expectation-maximisation procedure for re-estimating class priors from a classifier's outputs on unlabelled data, from the neural-computation literature of the early 2000s. Our implementation is described in Section 3; cite the methods it implements | authors, venue, volume, pages, year for each; and that each source describes the estimator we actually implemented rather than a later variant |
-| 4.7 | reporting practice: work that justifies an alignment method by the discrepancy it removes without stating the measurement geometry | This one is a **negative claim about the literature**, so it needs either a survey that characterises reporting practice or a small set of representative papers you have actually read. It supports the sentence saying the kernel bandwidth and basis are not customarily reported | that the sources really do omit the frame, and that they are representative rather than cherry-picked. **If you cannot support the claim at that strength, weaken the sentence in `results.tex` rather than stretching the citation** --- the well-posedness result does not depend on it |
 
 On 4.3: both estimators are named in the text. If you decide to cite a survey
 or a later formulation instead of the originals, change the sentence in
 `results.tex` to match what is being cited.
 
-On 4.7: this is the only placeholder in the manuscript whose sentence should be
-*rewritten* if the source turns out not to support it. The others are ordinary
-attributions.
+The 4.7 placeholder that stood here has been removed, not filled. It asked for
+evidence that the literature does not state its measurement geometry -- a
+negative claim about the literature, which cannot be verified without reading
+it. The sentence is now a recommendation (state the geometry you measured in),
+which needs no citation and cannot be falsified by one paper that happened to
+state its frame.
 
 ---
 

@@ -62,25 +62,48 @@ adjusted $p$ at the bootstrap's resolution floor.
 \input{../tables/primary}
 
 Among the five aligned rungs the differences are small, and the claim worth
-making is that they are \emph{negligible}. A significance test cannot establish
-that: failing to reject a null is not evidence for it. We report a bound
-instead. For each of the ten pairwise contrasts among aligned rungs we take the
-largest magnitude its 95\% interval admits, $\max(|\mathrm{lo}|,|\mathrm{hi}|)$,
-and keep the maximum over the ten. The widest is
-\texttt{mkmmd\_diag} $-$ \texttt{coral} at $-0.0151$ $[-0.0213, -0.0079]$
-forward, bounding the difference at $0.0213$, and
-\texttt{mkmmd\_full} $-$ \texttt{zscore} at $-0.0437$ $[-0.0559, -0.0320]$
-reverse, bounding it at $0.0559$. Measured against the \emph{smallest} step from
-\texttt{none} to an aligned rung --- $+0.1208$ forward and $+0.1524$ reverse ---
-those bounds are $18\%$ and $37\%$ of the step. \textbf{At 95\% confidence, no
-choice among alignment methods is worth as much as a fifth of the decision to
-align at all in the forward direction, or two fifths of it in the reverse.}
+making is that no rung is worth choosing over \texttt{zscore}. A significance
+test cannot establish that: failing to reject a null is not evidence for it. We
+report bounds instead, and the choice of bound matters enough to state
+explicitly.
 
-These contrasts sit outside the pre-registered family, and the bound has two
-properties a reader should hold onto: the denominator is the smallest of the
-five steps rather than their mean, which makes the fraction larger than it needs
-to be, and the intervals are per contrast rather than simultaneous across the
-ten, so each is a 95\% statement on its own and not a joint one.
+A two-sided bound --- for each of the ten pairwise contrasts among aligned
+rungs, the largest magnitude its 95\% interval admits,
+$\max(|\mathrm{lo}|,|\mathrm{hi}|)$, maximised over the ten --- gives $0.0213$
+forward and $0.0559$ reverse. Against the \emph{smallest} step from
+\texttt{none} to an aligned rung, $+0.1208$ and $+0.1524$, those are $18\%$ and
+$37\%$. The forward figure supports calling the differences negligible; the
+reverse figure does not, and we do not claim it does.
+
+\textbf{But the two-sided bound is the wrong instrument for the claim.} That all
+of the benefit is available from per-dimension standardisation says nothing
+\emph{beats} \texttt{zscore}; it does not say every rung ties it, and a rung
+that is markedly worse is consistent with the claim rather than evidence against
+it. The reverse direction's wide two-sided bound is produced by exactly such a
+degradation: its widest contrast is
+\texttt{mkmmd\_full} $-$ \texttt{zscore} at $-0.0437$ $[-0.0559, -0.0320]$, and
+\texttt{mkmmd\_full} is the \emph{worst} aligned rung in that direction.
+
+The one-sided bound the claim actually requires is the upper end of the 95\%
+interval on (rung $-$ \texttt{zscore}), maximised over the other four rungs: the
+largest advantage any rung could hold. Forward it is $+0.0143$, from
+\texttt{coral} at $+0.0049$ $[-0.0032, +0.0143]$ --- $12\%$ of the smallest
+step. Reverse it is $-0.0008$, from \texttt{mkmmd\_diag} at $-0.0109$
+$[-0.0212, -0.0008]$, which is \emph{below zero}: in the reverse direction every
+other aligned rung is worse than \texttt{zscore} at 95\% confidence.
+\textbf{No aligned rung is measurably better than per-dimension
+standardisation in either direction, and in the reverse direction all four are
+measurably worse.}
+
+Two further points a reader should hold onto. These contrasts sit outside the
+pre-registered family, and their intervals are per contrast rather than
+simultaneous, so each is a 95\% statement on its own and not a joint one. And
+the reverse direction's intervals are wider throughout --- for the two-sided
+bound, roughly $1.8$ times, half-width $0.0120$ against $0.0067$ --- because
+RAVDESS as target supplies $624$ test utterances against CREMA-D's $3677$ to
+$3690$, about a fifth as many. That accounts for the width, though not for the
+reverse direction's larger point estimates, which reflect a real spread among
+its rungs rather than a noisier measurement of the same one.
 
 The ordering does not track discrepancy. \texttt{mkmmd\_full} reaches the lowest
 marginal discrepancy in \emph{both} geometries --- $12.04$ and $23.25$ times the
@@ -281,21 +304,22 @@ identified until the measurement frame is specified.} ``Lower discrepancy goes
 with better transfer'' and its negation are both obtainable from these runs, and
 which one is obtained is settled by a choice --- the bandwidth and the basis in
 which the statistic is evaluated --- that is made before any transfer result is
-seen. That choice is not part of the alignment method, is not implied by the
-data, and is not, in the work we have been able to consult, stated
-[CITE: reporting practice in cross-corpus / domain-adaptation work that
-justifies an alignment method by the discrepancy it removes --- a survey or a
-set of representative papers, needed to support the claim that the measurement
-geometry (kernel bandwidth and basis) is not customarily reported. If the claim
-cannot be supported at this strength, weaken the sentence to what the cited
-sources do show]. A reported discrepancy--transfer correlation whose frame is
-unstated is therefore not yet a falsifiable claim, and two such reports that
-appear to disagree may not be disagreeing about anything.
+seen. That choice is not part of the alignment method and is not implied by the
+data. A discrepancy--transfer correlation reported without it is therefore not
+yet a falsifiable claim, and two such reports that appear to disagree may not be
+disagreeing about anything.
 
-The practical consequence is small and cheap: fix a frame, derive it from data
-that the alignment has not touched, and report it. What must not be done is to
-compare discrepancies across methods that each supply their own geometry, which
-is what a per-rung bandwidth silently does.
+\paragraph{Recommendation.} We state the consequence as a recommendation rather
+than as a characterisation of what other work does or does not report, which we
+are not in a position to survey. \textbf{A reported reduction in discrepancy
+should state the geometry in which the discrepancy was measured: the kernel
+bandwidth and the basis, and how each was fixed.} Where the bandwidth is set by
+a data-dependent rule such as the median heuristic, this matters most, because
+the statistic then adapts to the very rescaling the method applies and the
+comparison across methods is not like-for-like. The remedy is cheap: derive one
+frame from data the alignment has not touched, hold it fixed across all methods
+being compared, and report it. What cannot be done is to compare discrepancies
+across methods that each supply their own geometry.
 
 \paragraph{Supporting evidence: the one case where the answer is known.} The
 identification claim rests on the reversal alone and needs nothing further. The
@@ -385,17 +409,18 @@ before it climbs. \textbf{The best setting of the blending parameter is the one
 that turns blending off}, in both directions and on both rungs, so we report
 blending as a negative result rather than as a method.
 
-\paragraph{Does the dip survive its interval?} Partly. Two adjacent steps in the
-reverse direction run the wrong way, both at $\alpha = 0 \rightarrow 0.25$, and
-we test each paired on the same resampled speakers and seeds. On
-\texttt{mkmmd\_full} the step is $-0.0195$ $[-0.0420, -0.0020]$, which excludes
-zero; on \texttt{coral} it is $-0.0142$ $[-0.0330, +0.0029]$, which does not.
-The interior is therefore \emph{not} distinguishable from monotone on one rung
-and is distinguishable on the other. We do not build anything on the latter: the
-arm has two seeds, the two intervals are uncorrected for having tested two
-steps, and the one that excludes zero clears it by $0.0020$. The endpoints are
-what the section rests on, and they are not in question; the shape of the path
-between them is.
+\paragraph{Does the dip survive correction?} On one rung, yes. Two adjacent
+steps in the reverse direction run the wrong way, both at
+$\alpha = 0 \rightarrow 0.25$. We test each paired on the same resampled
+speakers and seeds and apply Holm correction across the two, as for the primary
+family. On \texttt{mkmmd\_full} the step is $-0.0195$ $[-0.0420, -0.0020]$,
+$p = 0.0120$ raw and $0.0240$ corrected, which survives; on \texttt{coral} it is
+$-0.0142$ $[-0.0330, +0.0029]$, $p = 0.0920$, which does not. The reverse
+direction's interior is therefore non-monotone in at least one place, and we
+report it as such rather than rounding it to a cleaner story. It remains a weak
+result --- two seeds, a $624$-utterance target test set --- and nothing else in
+the paper depends on it. The endpoints are what this subsection rests on, and
+they are not in question.
 
 This arm is smaller than the main grid --- 288 runs, one backbone, two seeds ---
 and its intervals are correspondingly wider. It is outside the pre-registered
