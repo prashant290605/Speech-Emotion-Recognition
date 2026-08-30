@@ -42,11 +42,17 @@ label given the features does not
 correction that follows from it; needed to state the assumption and its
 consequence precisely]. Theoretical support is usually taken from bounds in
 which target error is controlled by source error plus a divergence between the
-two marginals [CITE: the domain-adaptation generalisation bound expressed in
-terms of a divergence between marginal distributions; needed because the
-well-posedness argument in Section~\ref{sec:results-frames} concerns exactly the
-divergence term of such a bound, and that bound is what licenses treating
-discrepancy reduction as progress].
+domains --- and, in the standard result, that divergence is
+\emph{classifier-induced}: it is defined over the symmetric difference of the
+hypothesis class, and so depends on which hypotheses the learner can express
+[CITE: the domain-adaptation generalisation bound whose divergence term is
+defined over the symmetric difference hypothesis space and is estimable from
+finite unlabelled samples. Verify that the divergence really is
+hypothesis-class-dependent in the version cited, since the argument in
+Section~\ref{sec:results-frames} turns on it]. This distinction is easy to lose
+and matters here: a kernel MMD at a fixed bandwidth is not a
+hypothesis-dependent quantity, so reducing it is not the same as reducing the
+term the bound is stated over.
 
 The methods form a natural ladder, ordered by how many moments they match.
 Per-dimension standardisation matches first moments. CORAL matches second

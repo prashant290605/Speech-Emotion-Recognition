@@ -10,11 +10,11 @@ the paper follows from, and it has a direct practical reading.
 \paragraph{Why standardisation suffices.} Alignment buys between $+0.1208$ and
 $+0.1359$ forward and between $+0.1524$ and $+0.1961$ reverse, against chance
 floors of $0.1665$ and $0.1656$. Essentially all of it is available from
-per-dimension standardisation: the largest advantage any other rung could hold
-over \texttt{zscore} is $+0.0143$ forward, and in the reverse direction the
-bound is $-0.0008$, so every other aligned rung is measurably worse. Matching
-covariance, or matching higher-order structure through a learned map, does not
-pay. The reason is visible in the discrepancy columns rather than in the scores.
+per-dimension standardisation: bounding simultaneously over the four contrasts,
+the largest advantage any other rung could hold over \texttt{zscore} is
+$+0.0148$ forward and $0.0000$ reverse. No rung is shown to beat standardisation
+in either direction. Matching covariance, or matching higher-order structure
+through a learned map, does not pay. The reason is visible in the discrepancy columns rather than in the scores.
 Marginal discrepancy falls to $0.010\times$ its unaligned value while the
 conditional term falls only to $0.07\times$, and the ratio of conditional to
 marginal rises from $0.14$ to $0.92$ forward and from $0.29$ to $0.53$ reverse.

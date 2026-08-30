@@ -58,6 +58,26 @@ state its frame.
 
 ---
 
+## Candidate records supplied for verification (NOT yet in refs.bib)
+
+Four records have been supplied by the supervisor with enough detail to check.
+**None has been added to `refs.bib`.** They go in only after the publisher page
+has been opened and the metadata taken from it, exactly as with every other
+entry -- a record handed over in a message is still a record nobody in this
+repository has verified.
+
+| for | record to check | where to check it | what to watch |
+|---|---|---|---|
+| RW #3, and the divergence wording in 4.7 | Ben-David, Blitzer, Crammer, Kulesza, Pereira, Wortman Vaughan, "A theory of learning from different domains", *Machine Learning* 79(1--2):151--175, 2010 | [10.1007/s10994-009-5152-4](https://doi.org/10.1007/s10994-009-5152-4) | that the divergence really is **hypothesis-class-dependent**, defined over the symmetric difference hypothesis space, and estimable from finite unlabelled samples. Sections 2.2 and 4.7 have been rewritten on that basis and must be re-read against the paper |
+| RW #4 | Sun, Feng, Saenko, "Return of Frustratingly Easy Domain Adaptation", *Proc. AAAI-16*, 2058--2065 | [10.1609/aaai.v30i1.10306](https://doi.org/10.1609/aaai.v30i1.10306) | that it is the **closed-form** second-order method our `coral` rung implements, and distinct from `sun2016deep` |
+| RW #11 and Results 4.3 (BBSE) | Lipton, Wang, Smola, "Detecting and Correcting for Label Shift with Black Box Predictors", ICML 2018, PMLR vol. 80 | the PMLR proceedings page | **page numbers are disputed** -- dblp gives 3128--3136, PMLR-derived citations give 3122--3130. Take them from the PMLR page itself, not from a citation manager |
+| Results 4.3 (EM) | Saerens, Latinne, Decaestecker, "Adjusting the outputs of a classifier to new a priori probabilities: a simple procedure", *Neural Computation* 14(1):21--41, 2002 | the MIT Press page for the volume | the third author is **Decaestecker**. This repository already spells it correctly in `results.tex`, `PHASES.md` and `src/ser/analysis/shift.py`; a claim that it read "Decock" was checked and is not the case |
+
+Filling these four closes RW #3, #4, #11 and the Results 4.3 row -- five
+placeholders, including the one the well-posedness argument leans on.
+
+---
+
 ## Related work
 
 Eighteen placeholders, which is expected for a related-work section written
@@ -81,7 +101,7 @@ of the paper's five contributions depends on any of these eighteen.
 | # | claim it supports | what would count |
 |---|---|---|
 | 2 | the covariate-shift assumption and the importance-weighting correction that follows from it | the standard statement of covariate shift and reweighting. Verify it states the assumption in the form we use (marginal differs, conditional does not) |
-| 3 | target error is bounded by source error plus a divergence between the marginals | the domain-adaptation generalisation bound. **This is the load-bearing one for Section 4.7**: the well-posedness argument is about the divergence term of this bound, so check the bound is stated over marginals and note which divergence it uses |
+| 3 | target error is bounded by source error plus a **classifier-induced** divergence, defined over the symmetric difference hypothesis space | the domain-adaptation generalisation bound; a candidate record is supplied above. **This is the load-bearing one for Section 4.7**, which now argues that a fixed-bandwidth MMD is not the quantity the bound is stated over. Verify the divergence is hypothesis-class-dependent in the version you cite; if it is not, Sections 2.2 and 4.7 both need rewording |
 | 4 | CORAL in closed form (whiten source, recolour to target covariance) | the original CORAL paper, which is *not* `sun2016deep` — that is the deep variant, already in `refs.bib`. Both should be cited, and they are different papers |
 | 5 | deep domain adaptation minimising a single-kernel MMD between hidden-layer distributions | the paper that introduced MMD as a hidden-layer adaptation loss |
 | 6 | multi-kernel MMD as a domain-adaptation objective | the formulation our `mkmmd_diag` / `mkmmd_full` rungs implement. Verify the kernel family matches what Section 3 describes |

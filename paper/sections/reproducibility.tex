@@ -1,1 +1,106 @@
-% placeholder -- written in a later pass
+\section{Reproducibility}
+\label{sec:reproducibility}
+
+\subsection{Provenance machinery}
+\label{sec:repro-provenance}
+
+Every result row carries a \texttt{run\_id} that is a deterministic hash over
+the 19 coordinates defining the run, so a row can be recomputed from its own
+recorded contents without reference to the script that produced it. The
+configuration is frozen against a git tag and the runner refuses to start when
+the working configuration has drifted from it; results here carry
+\texttt{grid-freeze-v3}. The result schema is versioned, and the analysis
+refuses to read rows written under an older version rather than silently
+coercing them.
+
+The conditional-shift diagnostic reads target labels, which every other part of
+the pipeline is forbidden to do. It is therefore isolated: it lives in a
+separate module, its outputs are never written to the run schema, and an
+executable assertion reads the source of the alignment, classifier, grid-runner
+and blending modules to check that none of them imports it. The separation is
+checked by running it, not by convention.
+
+\subsection{Checks that came free}
+\label{sec:repro-checks}
+
+Four consistency checks fell out of the design rather than being run as
+exercises. A duplicate worker recomputed 23 WavLM sweep cells and produced
+\textbf{bit-identical} target scores. The 151 sweep runs that share coordinates
+with main-grid rows agree on all 57 non-volatile fields, \textbf{zero mismatches
+across 8607 values}. Recomputing every \texttt{run\_id} from its own recorded
+coordinates reproduces the stored identifier in \textbf{5424 of 5424} cases.
+And the Stage 1 sweep and Stage 2 grid, run weeks apart under different
+enumerations, agree at rung \texttt{none} to $0.3700$ against $0.3698$.
+
+Across the whole study, \textbf{0 of 5424 grid runs failed}, along with 0 of
+2340 sweep rows and 0 of 120 probe rows, and \textbf{0 of 99{,}720 classifier
+trials failed to converge}.
+
+\subsection{Retractions}
+\label{sec:repro-retractions}
+
+Seven claims were made during this work and later withdrawn, narrowed or
+reversed by better evidence. They are listed because a reader assessing the
+claims above is entitled to know which earlier claims did not survive, and
+because several are the kind of finding that would have been publishable had we
+stopped measuring at the point where they looked true.
+
+\begin{itemize}
+  \item \emph{``Z-scoring removes 97.6\% of marginal MMD, more than CORAL.''}
+    \textbf{Retracted}: an artefact of a per-rung bandwidth. At a fixed
+    bandwidth, CORAL reaches $2.0\times$ the null against \texttt{zscore}'s
+    $31.3\times$. This retraction is the origin of the frame-dependence result
+    in Section~\ref{sec:results-frames}.
+  \item \emph{``The cheapest step does all the work''} (single seed, early
+    stage). \textbf{Retracted} as an over-reading of a $0.019$ spread at one
+    seed. The claim that replaced it is the bounded one in
+    Section~\ref{sec:results-ladder}, which is a different and much more
+    carefully qualified statement.
+  \item \emph{``Target macro-F1 is flat across $226\times$ of discrepancy.''}
+    \textbf{Refuted.} At \texttt{last}, the condition actually measured,
+    alignment is worth $+0.084$ forward and $+0.128$ reverse at five seeds.
+  \item \emph{``\texttt{layer:6} has lower discrepancy than \texttt{last} and
+    transfers worse.''} \textbf{Half refuted}: the discrepancy half does not
+    reproduce under the corrected MMD; the transfer half survives only
+    unaligned and only forward.
+  \item \emph{``In-domain-optimal depth is 4--5 layers shallower, in all three
+    backbones.''} \textbf{Retracted.} The pooled gap over 36 cells is
+    $+0.00$ layers $[-0.57, +0.57]$. It survives only at rung \texttt{none},
+    forward, at $+4.2$, $+4.2$ and $+2.4$ layers.
+  \item \emph{``Selecting depth on \texttt{source\_val} systematically picks the
+    wrong depth.''} \textbf{Contradicted}, and in the opposite direction:
+    against a random layer, \texttt{source\_val} is \emph{better} by $-0.0366$
+    $[-0.0448, -0.0285]$. Note that this cuts against our own selection-failure
+    result --- source validation is blind to the alignment step but not to
+    depth --- and we report it for that reason.
+  \item \emph{``Extending the $\varepsilon$ grid would move the argmax again.''}
+    \textbf{Falsified}: it saturates, and in CREMA-D $\rightarrow$ RAVDESS the
+    argmax is interior at $\varepsilon = 100$.
+\end{itemize}
+
+Frame dependence itself was promoted on two-seed evidence, demoted when the
+ladder axis showed agreement, and confirmed at full seed count on the layer
+axis --- but re-specified in the process, since it does not hold at rung
+\texttt{none}, which is where it was first seen. The claim in
+Section~\ref{sec:results-frames} is the re-specified one.
+
+\subsection{Null results}
+\label{sec:repro-nulls}
+
+Reported because they are results rather than omissions. Matching more moments
+does not help: \texttt{mkmmd\_full} reaches the lowest discrepancy in
+\emph{both} geometries and is never the best rung. Label-shift correction does
+not help, hurting in 238 of 240 cases. Searching $\lambda$ for the MK-MMD rungs
+is not worth the compute: \texttt{source\_val} varies by $0.0066$ (diagonal) and
+$0.0196$ (full) across the entire grid. And the depth-divergence effect above
+does not generalise, at a pooled gap of $+0.00$ layers.
+
+\subsection{What is released}
+\label{sec:repro-release}
+
+The code, the frozen configurations, the result files and the generated tables
+and figures are released together. Every figure and table in this paper is
+produced from the result files by script; none is drawn or typed by hand, so
+none can drift from the numbers it depicts. A single generated document lists
+every number the paper cites with its interval, its floor and the run filter
+that produced it, including the retractions and null results above.

@@ -84,26 +84,39 @@ degradation: its widest contrast is
 \texttt{mkmmd\_full} $-$ \texttt{zscore} at $-0.0437$ $[-0.0559, -0.0320]$, and
 \texttt{mkmmd\_full} is the \emph{worst} aligned rung in that direction.
 
-The one-sided bound the claim actually requires is the upper end of the 95\%
-interval on (rung $-$ \texttt{zscore}), maximised over the other four rungs: the
-largest advantage any rung could hold. Forward it is $+0.0143$, from
-\texttt{coral} at $+0.0049$ $[-0.0032, +0.0143]$ --- $12\%$ of the smallest
-step. Reverse it is $-0.0008$, from \texttt{mkmmd\_diag} at $-0.0109$
-$[-0.0212, -0.0008]$, which is \emph{below zero}: in the reverse direction every
-other aligned rung is worse than \texttt{zscore} at 95\% confidence.
-\textbf{No aligned rung is measurably better than per-dimension
-standardisation in either direction, and in the reverse direction all four are
-measurably worse.}
+The one-sided bound the claim requires is an upper bound on
+(rung $-$ \texttt{zscore}), maximised over the other four rungs: the largest
+advantage any rung could hold. Because it is a maximum over four contrasts, a
+per-contrast bound is not a bound on it --- four per-contrast $95\%$ bounds have
+simultaneous coverage below $95\%$, which makes the maximum anti-conservative
+exactly where it is thinnest. We therefore report both the per-contrast bound
+and a Bonferroni-simultaneous one at $1 - \alpha/4$, which holds jointly over
+all four.
+
+Forward, the most favoured rung is \texttt{coral} at $+0.0049$; its per-contrast
+bound is $+0.0123$ and its simultaneous bound $+0.0148$, or $12\%$ of the
+smallest step. Reverse, it is \texttt{mkmmd\_diag} at $-0.0109$, per-contrast
+bound $-0.0028$ and simultaneous bound $0.0000$. \textbf{The reverse bound is
+below zero before correction and sits on zero after it}, and at 2000 replicates
+a $98.75$th percentile is not resolved finely enough for us to claim the sign,
+so we do not.
+
+\textbf{Stated at the strength the bounds actually carry: no aligned rung is
+shown to beat per-dimension standardisation in either direction, with the
+advantage bounded simultaneously at $+0.0148$ forward and $0.0000$ reverse.}
+A bound at or above zero is an upper limit on a possible advantage, not evidence
+of one: the point estimates beneath it, $+0.0049$ and $-0.0109$, are not
+distinguishable from zero. Nothing here shows a rung beating \texttt{zscore};
+what it shows is that if one does, it does so by at most these amounts.
 
 Two further points a reader should hold onto. These contrasts sit outside the
-pre-registered family, and their intervals are per contrast rather than
-simultaneous, so each is a 95\% statement on its own and not a joint one. And
-the reverse direction's intervals are wider throughout --- for the two-sided
-bound, roughly $1.8$ times, half-width $0.0120$ against $0.0067$ --- because
-RAVDESS as target supplies $624$ test utterances against CREMA-D's $3677$ to
-$3690$, about a fifth as many. That accounts for the width, though not for the
-reverse direction's larger point estimates, which reflect a real spread among
-its rungs rather than a noisier measurement of the same one.
+pre-registered family. And the reverse direction's intervals are wider
+throughout --- for the two-sided bound, roughly $1.8$ times, half-width $0.0120$
+against $0.0067$ --- because RAVDESS as target supplies $624$ test utterances
+against CREMA-D's $3677$ to $3690$, about a fifth as many. That accounts for the
+width, though not for the reverse direction's larger point estimates, which
+reflect a real spread among its rungs rather than a noisier measurement of the
+same one.
 
 The ordering does not track discrepancy. \texttt{mkmmd\_full} reaches the lowest
 marginal discrepancy in \emph{both} geometries --- $12.04$ and $23.25$ times the
@@ -308,6 +321,18 @@ seen. That choice is not part of the alignment method and is not implied by the
 data. A discrepancy--transfer correlation reported without it is therefore not
 yet a falsifiable claim, and two such reports that appear to disagree may not be
 disagreeing about anything.
+
+There is a second gap, and it runs the same way. The generalisation bound that
+licenses treating discrepancy reduction as progress is stated over a
+\emph{classifier-induced} divergence, defined on the symmetric difference of the
+hypothesis class (Section~\ref{sec:related-alignment}). A kernel MMD at a fixed
+bandwidth is not that quantity: it is a property of the two feature samples
+alone and knows nothing about the hypothesis class the learner will search.
+Reducing it is therefore not, in itself, reducing the term the theory bounds ---
+and our result shows that the substitute quantity does not even have a
+well-defined sign until its frame is named. The gap between what the theory
+bounds and what is usually measured is thus wider than the frame problem alone
+would make it.
 
 \paragraph{Recommendation.} We state the consequence as a recommendation rather
 than as a characterisation of what other work does or does not report, which we

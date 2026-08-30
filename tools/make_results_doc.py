@@ -204,6 +204,7 @@ def main() -> int:
                "contrasts. Paired cluster bootstrap, 500 replicates, intervals "
                "per contrast rather than simultaneous.\n")
     aligned = [r for r in LADDER if r != "none"]
+    simultaneous = {}
     out.append("| pair | widest contrast | difference | bound on \\|difference\\| | "
                "smallest `none`→aligned step | bound as % of step |")
     out.append("|---|---|---|---|---|---|")
@@ -282,19 +283,29 @@ def main() -> int:
                "negative — `mkmmd_full` is the worst aligned rung (§2). The "
                "two-sided bound is inflated by a degradation.\n")
     out.append("Reported below is the one-sided quantity the claim actually needs: "
-               "for each aligned rung against `zscore`, the upper end of the 95% "
-               "interval on (rung − `zscore`), maximised over the four. It is the "
-               "largest amount by which any other rung could be better.\n")
-    out.append("| pair | rung most favoured against `zscore` | difference | "
-               "upper 95% bound on advantage | as % of smallest step | "
+               "for each aligned rung against `zscore`, an upper bound on "
+               "(rung − `zscore`), maximised over the four. It is the largest "
+               "amount by which any other rung could be better.\n")
+    out.append("**The maximum is taken over four contrasts, so a per-contrast "
+               "bound is not a bound on the maximum.** Four per-contrast 95% "
+               "bounds have simultaneous coverage below 95%, which makes the "
+               "reported maximum anti-conservative — and it matters most exactly "
+               "where the bound is thinnest. Both are therefore given: the "
+               "per-contrast one-sided 95% bound (the 95th bootstrap percentile) "
+               "and a **Bonferroni-simultaneous** one at 1 − α/4, the 98.75th "
+               "percentile, which holds jointly over all four. Correcting the "
+               "blending tests in §7d and leaving these uncorrected would be the "
+               "inconsistency, not the correction.\n")
+    out.append("| pair | rung most favoured | difference | bound (per-contrast, "
+               "95%) | bound (simultaneous over 4) | simultaneous as % of step | "
                "target-test utterances |")
-    out.append("|---|---|---|---|---|---|")
+    out.append("|---|---|---|---|---|---|---|")
     for source, target in PAIRS:
         pool = [r for r in data.main
                 if (r["source_corpus"], r["target_corpus"]) == (source, target)]
         speakers = data.n_speakers(source, target)
 
-        def paired(rung_a, rung_b):
+        def paired(rung_a, rung_b, alpha=0.05):
             buckets = defaultdict(list)
             for r in pool:
                 if r["alignment"] in (rung_a, rung_b):
@@ -310,32 +321,67 @@ def main() -> int:
                     max(side_a, key=lambda r: r["selection_source_val_macro_f1"])))
                 arm_b[seed].append(data.confusion(
                     max(side_b, key=lambda r: r["selection_source_val_macro_f1"])))
+            # n_boot is raised here because the 98.75th percentile is a tail
+            # quantile and this is the number the contribution rests on.
             return paired_cluster_bootstrap(dict(arm_a), dict(arm_b), speakers,
-                                            n_boot=500, seed=17)
+                                            n_boot=N_BOOT, seed=17, alpha=alpha)
 
+        # A two-sided interval at alpha has upper end at the (1 - alpha/2)
+        # percentile, so alpha=0.10 gives the one-sided 95% bound and
+        # alpha=2*(0.05/4)=0.025 gives the Bonferroni-simultaneous one.
+        others = [r for r in aligned if r != "zscore"]
         best = None
-        for rung in aligned:
-            if rung == "zscore":
+        for rung in others:
+            plain = paired(rung, "zscore", alpha=0.10)      # positive => beats zscore
+            if plain["n_seeds"] == 0:
                 continue
-            stat = paired(rung, "zscore")   # positive => rung beats zscore
-            if stat["n_seeds"] == 0:
-                continue
-            if best is None or stat["hi"] > best[1]["hi"]:
-                best = (rung, stat)
-        rung, stat = best
+            joint = paired(rung, "zscore", alpha=0.05 / 2)
+            if best is None or plain["hi"] > best[1]["hi"]:
+                best = (rung, plain, joint)
+        rung, stat, joint = best
         _, smallest_step = bounds[(source, target)]
         tests = sorted({r["n_target_test"] for r in pool})
         span = (f"{tests[0]}" if len(tests) == 1
                 else f"{tests[0]}--{tests[-1]}")
+        simultaneous[(source, target)] = (rung, stat, joint, smallest_step)
         out.append(f"| {ARROW[(source, target)]} | `{rung}` | "
-                   f"{stat['diff']:+.4f} [{stat['lo']:+.4f}, {stat['hi']:+.4f}] | "
-                   f"**{stat['hi']:+.4f}** | "
-                   f"**{100 * stat['hi'] / smallest_step:.0f}%** | {span} |")
+                   f"{stat['diff']:+.4f} | {stat['hi']:+.5f} | "
+                   f"**{joint['hi']:+.5f}** | "
+                   f"**{100 * joint['hi'] / smallest_step:.1f}%** | {span} |")
     out.append("")
-    out.append("This is the bound the contribution rests on, and it holds in both "
-               "directions. The two-sided bound stays in the table above because "
-               "removing it once it turned inconvenient would be the wrong "
-               "response to it.\n")
+    # A tail percentile from a finite bootstrap is not resolved to the fifth
+    # decimal. A bound landing this close to zero is reported as AT zero, not
+    # below it: claiming the sign here would be reading resolution that
+    # n_boot replicates cannot supply.
+    TOL = 5e-4
+    below = [ARROW[k] for k, v in simultaneous.items() if v[2]["hi"] < -TOL]
+    at = [ARROW[k] for k, v in simultaneous.items() if abs(v[2]["hi"]) <= TOL]
+    figures = ", ".join(
+        f"{ARROW[k]} {'0.0000 (at zero)' if abs(v[2]['hi']) <= TOL else format(v[2]['hi'], '+.4f')}"
+        for k, v in simultaneous.items())
+    if below:
+        out.append(f"Under simultaneous correction the bound is clearly below "
+                   f"zero in {len(below)} of {len(simultaneous)} directions "
+                   f"({', '.join(below)}): there every other aligned rung is "
+                   "worse than `zscore`, jointly at 95%.\n")
+    if at:
+        out.append(f"In {', '.join(at)} the simultaneous bound lands **on** zero "
+                   f"rather than below it (|bound| < {TOL:g}). At {N_BOOT} "
+                   "replicates a 98.75th percentile is not resolved to that "
+                   "precision, so the sign is not claimed. The uncorrected "
+                   "per-contrast bound is below zero there and the corrected one "
+                   "is not, which is exactly the difference correction is "
+                   "supposed to expose.\n")
+    out.append("**The claim these bounds support, stated at the strength they "
+               "actually carry: no aligned rung is shown to beat `zscore` in "
+               f"either direction, with the advantage bounded simultaneously at "
+               f"{figures}.** A bound at or above zero is an upper limit on a "
+               "possible advantage, not evidence of one: the point estimates it "
+               "sits above are +0.0049 and -0.0109, neither distinguishable from "
+               "zero. Nothing here shows any rung beating `zscore`; what it shows "
+               "is that if one does, it does so by at most these amounts.\n")
+    out.append("The two-sided bound stays in the table above because removing it "
+               "once it turned inconvenient would be the wrong response to it.\n")
 
     # -- layer aggregation -------------------------------------------------
 

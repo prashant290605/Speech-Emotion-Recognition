@@ -28,8 +28,28 @@
                     country={India}}
 
 \begin{abstract}
-%% Written last, after Results and Discussion exist. See section order in
-%% PROGRESS.md.
+Feature-space alignment is the standard remedy for cross-corpus speech emotion
+recognition, and is usually justified by the distribution discrepancy it
+removes. We run an ordered ladder of alignment methods --- standardisation,
+mean shift, CORAL and multi-kernel MMD --- across 4986 runs on RAVDESS and
+CREMA-D in both directions, with speaker-disjoint splits, pre-registered
+comparisons and chance floors reported beside every score. Alignment is worth
+$+0.12$ to $+0.20$ macro-F1 against floors near $0.166$, and no rung is shown
+to beat per-dimension standardisation in either direction. Decomposing the
+shift explains why: alignment drives the marginal discrepancy to $0.010\times$
+its unaligned value while the conditional term falls only to $0.07\times$, so
+the residual separating the corpora is $92\%$ conditional --- the component a
+covariate-shift correction assumes away. Label shift is negligible (prior KL
+$0.022$--$0.025$ nats) and correcting for it hurts in 238 of 240 cases while
+the same estimators recover a planted shift. Three consequences follow. CORAL
+at its selected regularisation provably degenerates to a mean shift, confirmed
+to within $0.0061$. Source-side validation cannot detect whether alignment is
+needed, separating unaligned from standardised features by $0.0018$ where the
+target separates them by $0.13$, and on one seed returns a score below the
+chance floor. And the discrepancy--transfer correlation reverses sign with the
+measurement geometry, $-0.444$ against $+0.142$ on identical features, so the
+relationship is not identified until the frame is specified. We recommend that
+reported discrepancy reductions state the geometry they were measured in.
 \end{abstract}
 
 \begin{keyword}

@@ -1,1 +1,41 @@
-% placeholder -- written in a later pass
+\section{Conclusion}
+\label{sec:conclusion}
+
+Feature-space alignment improves cross-corpus speech emotion recognition by a
+substantial margin --- $+0.12$ to $+0.20$ macro-F1 across the two directions
+studied, against chance floors near $0.166$ --- and essentially all of that
+margin is delivered by per-dimension standardisation. Matching covariance, or
+matching higher-order structure through a learned map, buys nothing we can
+measure: no aligned rung is shown to beat standardisation in either direction.
+
+The reason is that these methods remove the wrong discrepancy. After alignment
+the marginal term is at $0.010\times$ its unaligned value while the conditional
+term is still at $0.07\times$, and the residual separating the two corpora is
+$92\%$ conditional. Label shift, the other standard candidate, is excluded by
+measurement rather than by assumption. A covariate-shift correction cannot
+repair a conditional difference, and the elaborate rungs are not failing at
+their objective --- they are succeeding at one that stopped binding after the
+first step.
+
+Three consequences bear on how the alignment literature's evidence should be
+read. CORAL at its own selected regularisation has degenerated to a mean shift,
+so a method may be reported as covariance matching while doing something
+simpler. Source-side validation, the only selection protocol available without
+target labels, cannot tell whether alignment is needed at all, and on one seed
+returns a score below the chance floor; the cost of selection exceeds the
+benefit of alignment. And the discrepancy--transfer correlation that motivates
+the whole family reverses sign with the geometry it is measured in, so that
+relationship is not identified until the measurement frame is stated --- which
+is also our concrete recommendation to the field, since stating it costs
+nothing.
+
+The practical advice is short. Standardise. Spend the effort saved on the layer
+the representation is taken from, which is worth more than any choice among
+alignment methods, and on the selection protocol, which is worth more than
+either. And report the floor beside every score, because the failure mode this
+paper documents is invisible without it.
+
+What we cannot offer is the thing the mechanism implies is needed: a target-side
+signal sensitive to $P(y \mid x)$ that requires no target labels. Until
+something plays that role, methods in this family will keep being selected by
+criteria that cannot see the quantity that determines whether they work.

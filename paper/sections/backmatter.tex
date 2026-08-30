@@ -1,1 +1,113 @@
-% placeholder -- written in a later pass
+\section{Declaration of generative AI and AI-assisted technologies in the
+manuscript preparation process}
+\label{sec:ai-declaration}
+
+This manuscript and the software that produced its results were prepared with
+substantial assistance from a large language model (Anthropic Claude), used
+under the direction of the author. We describe the use specifically, because a
+vague declaration would misrepresent it.
+
+\textbf{Software.} The great majority of the code in the released repository ---
+the feature extraction and caching, the alignment implementations, the grid
+runner and its provenance machinery, the statistical routines, the analysis
+scripts, and the generators for every figure and table in this paper --- was
+drafted by the model in an interactive session, against specifications, review
+and correction supplied by the author at each step. The test suite was written
+the same way. The author reviewed the code, directed its design, and is
+responsible for it.
+
+\textbf{Manuscript.} All sections were drafted by the model from the generated
+results document, section by section, under the author's editorial direction,
+and were revised by the author. Several substantive analyses in this paper exist
+because the author rejected a first draft's framing and required a different
+one: the bound on the among-rung differences replaced a significance claim that
+could not support a null hypothesis, the one-sided and simultaneous versions of
+that bound replaced a two-sided bound that answered the wrong question, the
+multiple-comparison correction on the blending tests was applied at the author's
+insistence, and the frame-dependence result was restated as a well-posedness
+claim and a recommendation after an unverifiable claim about the literature was
+removed.
+
+\textbf{Verification.} Every numerical claim in this paper is generated from the
+result files by script and cross-checked against the released results document;
+no number was transcribed by hand. Every bibliographic entry was verified
+against the publisher's record by the author. This point is not routine for this
+project: an earlier version of this work carried fabricated bibliography
+entries, produced by a model and not caught, and correcting that is part of what
+this rebuild is for. References are not added to the bibliography of this paper
+unless the author has opened the publisher's page for them. Claims that could
+not be supported by a verified source were rewritten rather than cited
+speculatively.
+
+The author reviewed and edited all content and takes full responsibility for the
+contents of this article.
+
+\section*{Data availability}
+
+Both corpora are third-party datasets and are not redistributed here. RAVDESS
+\cite{livingstone2018ryerson} is publicly available under a Creative Commons
+licence. CREMA-D \cite{cao2014crema} is publicly available under its own
+licence from its distributors. The released code includes the manifest
+construction, the exact speaker-disjoint split derivation for every seed, and
+the label mapping, so the partitions used here can be reproduced exactly from
+the source corpora without any data being redistributed.
+
+All derived result files --- the run records for all 5424 grid rows, the layer
+sweep, the $\varepsilon$ probe and the shift decomposition --- are released with
+the code, together with the generated document listing every number the paper
+cites with its interval, floor and run filter.
+
+\section*{Code availability}
+
+The complete pipeline, the frozen configurations, the test suite, and the
+generators for every figure and table in this paper are available at
+\url{https://github.com/prashant290605/Speech-Emotion-Recognition}.
+%% TODO(author): replace with the archived Zenodo DOI before submission, and
+%% cite the archived version rather than the branch. See SUBMISSION_CHECKLIST.md.
+
+\section*{CRediT authorship contribution statement}
+
+\textbf{Prashant Singh:} Conceptualization, Methodology, Software, Formal
+analysis, Investigation, Data curation, Validation, Visualization,
+Writing --- original draft, Writing --- review and editing.
+%% TODO(author): if a supervising co-author joins, add their roles here
+%% (typically Supervision, Conceptualization, Writing -- review and editing)
+%% and update the author block in main.tex.
+
+\section*{Funding}
+
+This research did not receive any specific grant from funding agencies in the
+public, commercial, or not-for-profit sectors.
+
+\section*{Declaration of competing interest}
+
+The author declares that he has no known competing financial interests or
+personal relationships that could have appeared to influence the work reported
+in this paper.
+
+\section*{Ethics statement}
+
+This work uses two existing, publicly available corpora of acted emotional
+speech, collected and released by their original authors under their own ethical
+approvals, and involves no new data collection and no human participants. No
+attempt is made to infer the emotional state of any identifiable individual: the
+speakers are performers producing scripted material, and the labels are the
+intended portrayals recorded by the corpus creators rather than measurements of
+felt emotion.
+
+We note one risk specific to this application area. Emotion recognition systems
+are deployed in contexts --- hiring, security screening, customer monitoring ---
+where errors fall unevenly on the people being classified. The absolute
+performance reported here, macro-F1 of $0.3156$ and $0.4994$ against chance
+floors of $0.1665$ and $0.1656$, is far below what any such deployment would
+require, and the selection failure documented in
+Section~\ref{sec:results-selection} shows that a system built by an
+unimpeachable protocol can land below chance without its builder being able to
+tell. We report these numbers as evidence about a method, not as a capability
+claim, and we would regard the cross-corpus generalisation demonstrated here as
+insufficient for any consequential use.
+
+\section*{Acknowledgements}
+
+%% TODO(author): acknowledgements, if any. This section may be deleted if empty
+%% -- an empty acknowledgements section should not be submitted.
