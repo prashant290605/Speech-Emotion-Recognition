@@ -1,0 +1,55 @@
+%% Speech Communication (Elsevier) -- elsarticle
+%% Compile from within paper/:  pdflatex main && bibtex main && pdflatex main && pdflatex main
+\documentclass[preprint,12pt]{elsarticle}
+
+\usepackage{booktabs}     % the only package the generated tables need
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{../figures/}}
+
+\journal{Speech Communication}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{Alignment helps, but only its cheapest step:\
+       a mechanism for the limits of marginal distribution alignment\
+       in cross-corpus speech emotion recognition}
+
+%% TODO(author): ORCIDs, affiliations, corresponding author. See
+%% paper/SUBMISSION_CHECKLIST.md.
+\author[inst1]{Prashant Singh}
+\ead{2023mcb1309@iitrpr.ac.in}
+\affiliation[inst1]{organization={Indian Institute of Technology Ropar},
+                    country={India}}
+
+\begin{abstract}
+%% Written last, after Results and Discussion exist. See section order in
+%% PROGRESS.md.
+\end{abstract}
+
+\begin{keyword}
+speech emotion recognition \sep cross-corpus \sep domain adaptation \sep
+distribution alignment \sep self-supervised speech representations \sep
+model selection
+\end{keyword}
+
+\end{frontmatter}
+
+\input{sections/introduction}
+\input{sections/related}
+\input{sections/methods}
+\input{sections/results}
+\input{sections/discussion}
+\input{sections/reproducibility}
+\input{sections/conclusion}
+\input{sections/backmatter}
+
+\bibliographystyle{elsarticle-num}
+\bibliography{refs}
+
+\end{document}

@@ -171,7 +171,7 @@ def table_per_class():
              if all(payload["pairs"][f"{a}->{b}"]["classes"][c]["f1"]["value"]
                     < payload["pairs"][f"{a}->{b}"]["macro_f1"]["value"]
                     for a, b in PAIRS)]
-    below_text = " and ".join(f"\texttt{{{c}}}" for c in below)
+    below_text = " and ".join(f"\\texttt{{{c}}}" for c in below)
     return emit(table(
         rows,
         ["class", "$n$", "F1 (RAV $\\rightarrow$ CRE)", "$n$", "F1 (CRE $\\rightarrow$ RAV)"],
@@ -336,7 +336,7 @@ def table_eps(data):
                 number(float(np.mean([r["macro_f1"] for r in g]))),
             ])
         shift = [r for r in pool if r["alignment"] == "mean_shift"]
-        rows.append(["", r"\texttt{mean\_shift}",
+        rows.append(["", r"\\texttt{mean\_shift}",
                      r"\textbf{" + number(float(np.mean(
                          [r["selection_source_val_macro_f1"] for r in shift]))) + "}",
                      r"\textbf{" + number(float(np.mean(
@@ -358,9 +358,91 @@ def table_eps(data):
     ), "eps_asymptote")
 
 
+def table_corpora():
+    """Corpus statistics for the Method section, from the manifest."""
+    from collections import Counter
+
+    from ser.config import load_config
+    from ser.manifest import read_manifest
+
+    config = load_config()
+    rows = read_manifest(config.resolve(config.paths.manifest))
+    classes = list(config.labels.spaces["six"])
+    out_rows = []
+    for corpus in ("ravdess", "cremad"):
+        got = [r for r in rows if r.corpus == corpus]
+        kept = [r for r in got if r.label_six]
+        hours = sum(r.duration_s for r in got) / 3600.0
+        counts = Counter(r.label_six for r in kept)
+        total = sum(counts.values())
+        out_rows.append([
+            {"ravdess": "RAVDESS", "cremad": "CREMA-D"}[corpus],
+            str(len({r.speaker_id for r in got})),
+            str(len(got)),
+            f"{hours:.2f}",
+            f"{sum(r.duration_s for r in got) / len(got):.2f}",
+            str(total),
+        ] + [f"{counts[c] / total:.3f}" for c in classes])
+    return emit(table(
+        out_rows,
+        ["corpus", "spk", "utts", "hours", "mean dur (s)", "$n$ (6-class)"]
+        + [f"\\texttt{{{c[:4]}}}" for c in classes],
+        caption=("Corpora after mapping to the six-class intersection. The last "
+                 "six columns are class priors. The only substantial prior "
+                 "difference is \\texttt{neutral}, an artefact of merging "
+                 "RAVDESS \\texttt{calm}."),
+        label="corpora",
+        notes=["Derived from \\texttt{data/manifest.csv}. RAVDESS "
+               "\\texttt{surprised} (192 utterances) is excluded as having no "
+               "CREMA-D counterpart; RAVDESS \\texttt{calm} is merged into "
+               "\\texttt{neutral}. RAVDESS is balanced across its own eight "
+               "classes but NOT at this intersection."],
+        escape_cells=False,
+    ), "corpora")
+
+
+def table_floors(data):
+    """Split sizes and the floors every metric is read against."""
+    rows = []
+    for source, target in PAIRS:
+        pool = [r for r in data.main
+                if (r["source_corpus"], r["target_corpus"]) == (source, target)]
+        train = sorted({r["source_train_n"] for r in pool if r["source_train_n"]})
+        test = sorted({r["n_target_test"] for r in pool})
+        rows.append([
+            PAIR_TEX[(source, target)],
+            f"{train[0]}" if len(train) == 1 else f"{train[0]}--{train[-1]}",
+            f"{sorted({r['n_val'] for r in pool})[0]}--"
+            f"{sorted({r['n_val'] for r in pool})[-1]}",
+            f"{sorted({r['n_target_adapt'] for r in pool})[0]}--"
+            f"{sorted({r['n_target_adapt'] for r in pool})[-1]}",
+            f"{test[0]}--{test[-1]}" if test[0] != test[-1] else f"{test[0]}",
+            number(float(np.mean([r["chance_macro_f1"] for r in pool]))),
+            number(float(np.mean([r["majority_macro_f1"] for r in pool]))),
+        ])
+    return emit(table(
+        rows,
+        ["pair", "source\_train", "source\_val", "target\_adapt",
+         "target\_test", "chance", "majority"],
+        caption=("Split sizes and the floors every macro-F1 in this paper is "
+                 "read against. Both directions are matched-$n$: CREMA-D "
+                 "source-train is subsampled from 5972 to match RAVDESS, so a "
+                 "reported asymmetry cannot be a training-set size effect."),
+        label="floors",
+        notes=["Ranges span the five seeds within the speaker-disjoint "
+               "constraint. Floors are analytic from the realised "
+               "\\texttt{target\_test} priors, not simulated. Because the "
+               "chance floor is pair-dependent, no result in this paper averages "
+               "macro-F1 across pairs."],
+        escape_cells=False,
+    ), "floors")
+
+
 def main() -> int:
     data = Data()
     print("writing LaTeX tables:")
+    table_corpora()
+    table_floors(data)
     table_headline(data)
     table_ladder(data)
     table_primary(data)

@@ -133,5 +133,11 @@ def test_generated_tables_are_balanced_and_labelled():
         assert text.count(r"\begin{tabular}") == text.count(r"\end{tabular}")
         assert text.count(r"\begin{table}") == text.count(r"\end{table}")
         assert f"\\label{{tab:{path.stem}}}" in text or r"\label{tab:" in text
-        # Every table states the run filter it was computed from.
-        assert "Filter:" in text or "replicates" in text, path.name
+        # Every table states where its numbers came from, in a note block on
+        # the same page. A number whose provenance is not next to it is a
+        # number nobody can check.
+        assert r"\begin{minipage}" in text, f"{path.name}: no provenance note"
+        markers = ("Filter:", "replicates", "Derived from", "Ranges span")
+        assert any(m in text for m in markers), (
+            f"{path.name}: note does not state a run filter or data source"
+        )

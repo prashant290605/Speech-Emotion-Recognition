@@ -1,0 +1,15 @@
+\begin{table}[tb]
+  \centering
+  \caption{Split sizes and the floors every macro-F1 in this paper is read against. Both directions are matched-$n$: CREMA-D source-train is subsampled from 5972 to match RAVDESS, so a reported asymmetry cannot be a training-set size effect.}
+  \label{tab:floors}
+  \begin{tabular}{lrrrrrr}
+    \toprule
+    pair & source\_train & source\_val & target\_adapt & target\_test & chance & majority \\
+    \midrule
+    RAVDESS $\rightarrow$ CREMA-D & 988 & 260--260 & 3752--3765 & 3677--3690 & 0.1665 & 0.0425 \\
+    CREMA-D $\rightarrow$ RAVDESS & 988 & 1470--1476 & 624--624 & 624 & 0.1656 & 0.0444 \\
+    \bottomrule
+  \end{tabular}
+  \\[2pt]
+  \begin{minipage}{\linewidth}\footnotesize Ranges span the five seeds within the speaker-disjoint constraint. Floors are analytic from the realised \texttt{target\_test} priors, not simulated. Because the chance floor is pair-dependent, no result in this paper averages macro-F1 across pairs.\end{minipage}
+\end{table}
