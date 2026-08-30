@@ -56,6 +56,58 @@ attributions.
 
 ---
 
+## Related work
+
+Eighteen placeholders, which is expected for a related-work section written
+without source access. Nothing here is a guess at a reference: each row says
+what claim needs support and what would count as supporting it.
+
+Three of these rows say what to do **if the source does not exist or does not
+support the claim at that strength** — 2.2 (ablation practice), 2.3 (layer-wise
+probing for paralinguistics) and 2.4 (critique of target-domain tuning). Follow
+that instruction rather than substituting the nearest thing you can find. None
+of the paper's five contributions depends on any of these eighteen.
+
+### 2.1 Cross-corpus speech emotion recognition
+
+| # | claim it supports | what would count |
+|---|---|---|
+| 1 | reported gains are not commensurable across papers, because pair, baseline, label mapping and split policy all vary | a survey or meta-analysis of cross-corpus SER that actually documents this heterogeneity. A survey that merely lists methods does not support the claim |
+
+### 2.2 Feature-space alignment under covariate shift
+
+| # | claim it supports | what would count |
+|---|---|---|
+| 2 | the covariate-shift assumption and the importance-weighting correction that follows from it | the standard statement of covariate shift and reweighting. Verify it states the assumption in the form we use (marginal differs, conditional does not) |
+| 3 | target error is bounded by source error plus a divergence between the marginals | the domain-adaptation generalisation bound. **This is the load-bearing one for Section 4.7**: the well-posedness argument is about the divergence term of this bound, so check the bound is stated over marginals and note which divergence it uses |
+| 4 | CORAL in closed form (whiten source, recolour to target covariance) | the original CORAL paper, which is *not* `sun2016deep` — that is the deep variant, already in `refs.bib`. Both should be cited, and they are different papers |
+| 5 | deep domain adaptation minimising a single-kernel MMD between hidden-layer distributions | the paper that introduced MMD as a hidden-layer adaptation loss |
+| 6 | multi-kernel MMD as a domain-adaptation objective | the formulation our `mkmmd_diag` / `mkmmd_full` rungs implement. Verify the kernel family matches what Section 3 describes |
+| 7 | adversarial domain adaptation via a gradient reversal layer or equivalent discriminator | the canonical formulation. Cited only to place the family; no claim is made about its performance |
+| 8 | the full ladder is rarely run, so the share of the gain from the cheapest rung is seldom reported | an ablation-practice survey. **If no source supports this as a general claim, narrow the sentence in `related.tex` to the specific papers already cited in 2.1** rather than citing something weaker |
+| 9 | kernel bandwidth is typically set by the median heuristic | the standard reference for the median heuristic. This is cited to establish common practice, so a source that *uses* it is weaker than one that *proposes or analyses* it |
+| 10 | conditional or target shift, where the class-conditional distribution itself changes | the formulation matching our decomposition in Section 4.3 |
+| 11 | label-shift correction by inverting a source confusion matrix | **the same source as the Results row above (BBSE)** — fill both together and cite the same key |
+
+### 2.3 Self-supervised representations
+
+| # | claim it supports | what would count |
+|---|---|---|
+| 12 | the learned layer-weighting convention for downstream speech tasks | the benchmark that established it. Verify the weighted-sum-over-layers protocol is actually specified there, since that is what we compare against |
+| 13 | information in SSL speech encoders is not uniform across depth, and the most informative layers are not the last | a layer-wise probing analysis. Verify it reports the peak at intermediate layers, which is the part the sentence relies on |
+| 14 | a comparable layer-wise analysis exists for paralinguistic targets | a probing analysis for emotion or another paralinguistic task. **If none exists, delete the clause.** Do not stretch a phonetic or word-level result to cover emotion — our own layer result would then be the evidence, and it is reported as such in Section 4.6 |
+
+### 2.4 Protocol
+
+| # | claim it supports | what would count |
+|---|---|---|
+| 15 | transfer-aware model selection exists: importance-weighted cross-validation, reverse or transfer cross-validation | one source per method, or one covering both. These are named as alternatives we did not use, so the citation only needs to establish they exist |
+| 16 | reporting the grid maximum on the target is reporting an oracle, and the distinction is not always drawn | a methodological critique of tuning on the test domain. A general machine-learning statement is acceptable if none is specific to SER. **If the "not always drawn" half cannot be supported, drop that half** — our oracle column stands on its own |
+| 17 | a classification metric reported without its chance level cannot be read | a source recommending explicit chance-level or permutation baselines |
+| 18 | speaker-independent splits are necessary because speaker identity is recoverable from these representations | evidence that speaker identity is recoverable from SSL speech features, or that speaker-dependent splits inflate SER scores. Either supports the sentence; the first is the stronger form |
+
+---
+
 ## Still to be written
 
 Sections not yet drafted: Introduction, Discussion, Reproducibility, Conclusion,

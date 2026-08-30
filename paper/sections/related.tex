@@ -1,1 +1,140 @@
-% placeholder -- written in a later pass
+\section{Related work}
+\label{sec:related}
+
+\subsection{Cross-corpus speech emotion recognition}
+\label{sec:related-crosscorpus}
+
+That emotion recognition degrades when the test corpus is not the training
+corpus is old enough to have been systematised: cross-corpus evaluation was
+already being posed as a question about variances across corpora, and about
+strategies for absorbing them, fifteen years ago \cite{schuller2010cross}. The
+responses since have been broadly of three kinds. Transfer learning and
+fine-tuning move a model trained on one corpus toward another
+\cite{naderi2023cross}. Multi-task and auxiliary-objective formulations try to
+learn a representation that is not corpus-specific in the first place
+\cite{fu2023cross}. Training-strategy work changes what the model sees rather
+than what it computes \cite{pastor2023cross}. Domain adaptation proper --- the
+family this paper is about --- appears in both adversarial \cite{latif2023self}
+and feature-alignment \cite{naeeni2025feature} forms, the latter on the same
+class of self-supervised encoder used here.
+
+Most of this work is evaluated on some subset of a small pool of corpora, of
+which IEMOCAP \cite{busso2008iemocap}, RAVDESS \cite{livingstone2018ryerson}
+and CREMA-D \cite{cao2014crema} are the most frequent. Two properties of the
+resulting literature matter here. First, the reported quantity is nearly always
+a gain: some method, on some corpus pair, over some baseline. Second, the
+baseline, the pair, the label mapping and the split policy vary between papers,
+so the gains are not directly commensurable
+[CITE: a survey or meta-analysis of cross-corpus SER documenting how corpus
+pairs, label mappings, baselines and split policies vary across the literature;
+needed to support the claim that reported gains are not commensurable]. A
+consequence is that the field has many measurements of how much a given method
+helps, and few of \emph{why} it helps or of what a simpler method would have
+delivered on the same setup.
+
+\subsection{Feature-space alignment under covariate shift}
+\label{sec:related-alignment}
+
+Alignment methods rest on a covariate-shift assumption: the marginal feature
+distribution differs between corpora while the conditional distribution of the
+label given the features does not
+[CITE: the standard covariate-shift formulation and the importance-weighting
+correction that follows from it; needed to state the assumption and its
+consequence precisely]. Theoretical support is usually taken from bounds in
+which target error is controlled by source error plus a divergence between the
+two marginals [CITE: the domain-adaptation generalisation bound expressed in
+terms of a divergence between marginal distributions; needed because the
+well-posedness argument in Section~\ref{sec:results-frames} concerns exactly the
+divergence term of such a bound, and that bound is what licenses treating
+discrepancy reduction as progress].
+
+The methods form a natural ladder, ordered by how many moments they match.
+Per-dimension standardisation matches first moments. CORAL matches second
+moments by whitening the source and recolouring it to the target covariance, in
+a closed form [CITE: the original closed-form CORAL, distinct from the deep
+variant below] and as a differentiable training loss \cite{sun2016deep}.
+MMD-based methods minimise a kernel two-sample statistic
+\cite{gretton2012kernel}, in single-kernel [CITE: deep-network domain adaptation
+minimising a single-kernel MMD between hidden-layer distributions] and
+multi-kernel [CITE: the multi-kernel MMD formulation and its use as a domain
+adaptation objective] forms, and so match higher-order structure in principle.
+Adversarial approaches [CITE: domain-adversarial training with a gradient
+reversal layer or an equivalent discriminator objective] pursue the same target
+through a learned critic rather than a closed-form statistic.
+
+Three things this literature does not usually do bear directly on our results.
+It rarely runs the whole ladder, so the share of the gain available from the
+cheapest rung is seldom reported [CITE: an ablation-practice survey; if no
+source supports this as a general claim, narrow the sentence to the specific
+papers cited above]. It rarely fixes the geometry in which the discrepancy is
+measured: kernel bandwidth is typically set by the median heuristic
+[CITE: the median heuristic for kernel bandwidth selection], which makes the
+statistic a function of the very rescaling the method applies. And it states the
+covariate-shift assumption without testing it, even though the alternatives ---
+conditional shift [CITE: domain adaptation under conditional or target shift,
+where the class-conditional distribution itself changes] and label shift
+[CITE: label-shift correction by inverting a source confusion matrix; the same
+source is needed in Section~\ref{sec:decomposition}] --- have
+well-developed literatures of their own and are separately estimable.
+
+\subsection{Self-supervised representations, and where emotion lives in them}
+\label{sec:related-ssl}
+
+Self-supervised encoders \cite{baevski2020wav2vec,hsu2021hubert,chen2022wavlm}
+supply the features for most current SER systems, including the ones cited
+above. How a stack of transformer layers is reduced to a single vector is a
+choice, and the two common defaults are the final layer and a task-learned
+weighted sum over layers [CITE: the benchmark that established the learned
+layer-weighting convention for downstream speech tasks]. Layer-wise probing has
+shown that what these encoders carry is not distributed uniformly across depth,
+and that the most informative layers are not the last [CITE: layer-wise analysis
+of self-supervised speech representations, establishing that phonetic and
+word-level information peaks in intermediate layers]; comparable analyses exist
+for paralinguistic targets [CITE: layer-wise or probing analysis for emotion or
+another paralinguistic task specifically. If no such analysis exists, delete
+this clause rather than stretching a phonetic result to cover emotion].
+
+Layer choice and alignment are, however, usually studied apart. That separation
+is why a result like ours --- that the layer decision is worth more than any
+choice \emph{among} alignment methods --- is available to be found rather than
+already known.
+
+\subsection{Protocol: selection, floors, and what a reported number means}
+\label{sec:related-protocol}
+
+Cross-corpus transfer is by construction a setting with no labelled target data,
+which makes model selection part of the problem rather than a detail of it. The
+options are source-side validation, or one of the transfer-aware alternatives
+such as importance-weighted cross-validation and reverse validation
+[CITE: importance-weighted cross-validation for model selection under covariate
+shift, and reverse or transfer cross-validation as its unsupervised counterpart].
+Work that instead reports the best configuration found on the target is
+reporting an oracle, and the distinction is not always drawn
+[CITE: a methodological critique of tuning on the test domain in transfer
+learning or domain adaptation; a general machine-learning statement of the
+problem is acceptable if none is specific to SER].
+
+Two further conventions bear on interpretation. Macro-F1 on an imbalanced
+multi-class problem has a chance floor well above zero which depends on the
+realised test priors, so a score reported without its floor cannot be read
+[CITE: a source recommending explicit chance-level or permutation baselines when
+reporting classification metrics]. And speaker-independent splits are necessary
+because speaker identity is recoverable from these representations
+[CITE: evidence that speaker identity is recoverable from self-supervised speech
+representations, or that speaker-dependent splits inflate SER scores]. Benchmark
+efforts have begun to standardise both \cite{ma2024emobox}.
+
+\subsection{Position of this work}
+\label{sec:related-position}
+
+This paper is not a new alignment method and does not report a new best score.
+It takes an existing and widely used family --- the ladder of
+Section~\ref{sec:related-alignment} --- runs all of it under one fixed protocol,
+and asks three questions the work above mostly does not: where the gain actually
+comes from, whether the assumption underneath the family holds, and whether the
+quantity the family optimises is well defined as it is measured. The answers
+are, in order: the first rung; no, because the residual shift is conditional
+rather than marginal; and not until a measurement frame is fixed. The nearest
+precedent is the benchmarking strand represented by \cite{ma2024emobox}, which
+shares the aim of making cross-corpus numbers comparable but pursues it by
+standardising the evaluation rather than by decomposing the effect.
