@@ -29,7 +29,11 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 import numpy as np  # noqa: E402
 
-from ser.phase8 import cluster_bootstrap, seed_interval  # noqa: E402
+from ser.phase8 import (  # noqa: E402
+    cluster_bootstrap,
+    paired_cluster_bootstrap,
+    seed_interval,
+)
 from ser.utils.results import read_rows  # noqa: E402
 
 sys.path.insert(0, str(REPO_ROOT / "tools"))
@@ -334,6 +338,73 @@ def main() -> int:
                "not a mis-centred grid.\n")
 
     # -- retractions -------------------------------------------------------
+    # -- how small is "negligible"? ----------------------------------------
+    # An equivalence-style bound, not a significance test. A significance test
+    # can only establish that a difference exists; the claim here is that the
+    # among-rung differences are SMALL, and only a bound can support that.
+    out.append("## 3b. A bound on the among-rung differences\n")
+    out.append("Outside the pre-registered family. These are not significance "
+               "tests: the claim is that the differences among aligned rungs are "
+               "negligible, which a significance test cannot establish. Reported "
+               "instead is, for every pairwise contrast among the five aligned "
+               "rungs, the largest magnitude its 95% interval admits — "
+               "`max(|lo|, |hi|)` — and the maximum of that over all ten "
+               "contrasts. Paired cluster bootstrap, 500 replicates, intervals "
+               "per contrast rather than simultaneous.\n")
+    aligned = [r for r in LADDER if r != "none"]
+    out.append("| pair | widest contrast | difference | bound on \\|difference\\| | "
+               "smallest `none`→aligned step | bound as % of step |")
+    out.append("|---|---|---|---|---|---|")
+    bounds = {}
+    for source, target in PAIRS:
+        pool = [r for r in data.main
+                if (r["source_corpus"], r["target_corpus"]) == (source, target)]
+        speakers = data.n_speakers(source, target)
+
+        def paired(rung_a, rung_b):
+            buckets = defaultdict(list)
+            for r in pool:
+                if r["alignment"] in (rung_a, rung_b):
+                    buckets[(r["seed"], r["backbone"], r["layer_agg"],
+                             r["classifier"])].append(r)
+            arm_a, arm_b = defaultdict(list), defaultdict(list)
+            for (seed, *_), group in buckets.items():
+                side_a = [r for r in group if r["alignment"] == rung_a]
+                side_b = [r for r in group if r["alignment"] == rung_b]
+                if not side_a or not side_b:
+                    continue
+                arm_a[seed].append(data.confusion(
+                    max(side_a, key=lambda r: r["selection_source_val_macro_f1"])))
+                arm_b[seed].append(data.confusion(
+                    max(side_b, key=lambda r: r["selection_source_val_macro_f1"])))
+            return paired_cluster_bootstrap(dict(arm_b), dict(arm_a), speakers,
+                                            n_boot=500, seed=17)
+
+        widest = None
+        for i, a in enumerate(aligned):
+            for b in aligned[i + 1:]:
+                stat = paired(a, b)
+                if stat["n_seeds"] == 0:
+                    continue
+                magnitude = max(abs(stat["lo"]), abs(stat["hi"]))
+                if widest is None or magnitude > widest[1]:
+                    widest = (f"`{b}` − `{a}`", magnitude, stat)
+
+        steps = [paired("none", rung)["diff"] for rung in aligned]
+        smallest_step = min(steps)
+        name, magnitude, stat = widest
+        bounds[(source, target)] = (magnitude, smallest_step)
+        out.append(f"| {ARROW[(source, target)]} | {name} | "
+                   f"{stat['diff']:+.4f} [{stat['lo']:+.4f}, {stat['hi']:+.4f}] | "
+                   f"**{magnitude:.4f}** | {smallest_step:+.4f} | "
+                   f"**{100 * magnitude / smallest_step:.0f}%** |")
+    out.append("")
+    out.append("So even the most extreme among-rung contrast is bounded, at 95% "
+               "confidence, well below the smallest step from no alignment to "
+               "any alignment. The denominator is the *smallest* of the five "
+               "steps, which is the conservative choice: using the mean step "
+               "would make the fraction smaller.\n")
+
     # -- layer aggregation -------------------------------------------------
     out.append("## 7b. Layer aggregation\n")
     out.append("Filter as §1. Paired differences are comparisons A1 and A2 in "
@@ -409,6 +480,7 @@ def main() -> int:
                "the inner-grid setting the arm used.\n")
     out.append("| pair | rung | alpha | runs | target macro-F1 |")
     out.append("|---|---|---|---|---|")
+    blend_arms = {}
     for source, target in PAIRS:
         blended = [r for r in blend
                    if (r["source_corpus"], r["target_corpus"]) == (source, target)]
@@ -436,14 +508,64 @@ def main() -> int:
                         max(group, key=lambda r: r["selection_source_val_macro_f1"])))
                 stat = cluster_bootstrap(dict(arm), data.n_speakers(source, target),
                                          n_boot=500, seed=17)
+                blend_arms[(source, target, rung, alpha)] = (dict(arm), stat["mean"])
                 note = " *(= unblended)*" if alpha == 1.0 else ""
                 out.append(f"| {ARROW[(source, target)] if alpha == 0.0 and rung == 'coral' else ''} | "
                            f"`{rung}` | {alpha:.2f}{note} | {len(g)} | {ci(stat)} |")
     out.append("")
-    out.append("**Interpolating back toward the unaligned features monotonically "
-               "loses what alignment gained**, in both directions and on both "
-               "rungs. The best setting of the blending parameter is the one "
-               "that turns blending off.\n")
+    out.append("**Interpolating back toward the unaligned features loses what "
+               "alignment gained**, in both directions and on both rungs: every "
+               "arm ends far below its own `alpha=1` endpoint. The best setting "
+               "of the blending parameter is the one that turns blending off.\n")
+    out.append("Whether the *interior* is monotone is a separate question, and "
+               "the reverse direction dips before it climbs. Every adjacent "
+               "step that runs the wrong way is tested below, paired on the "
+               "same resampled speakers and seeds. A step whose interval covers "
+               "zero is not distinguishable from a flat or rising one, so it is "
+               "not evidence against monotonicity.\n")
+    out.append("| pair | rung | step | difference | excludes zero |")
+    out.append("|---|---|---|---|---|")
+    descents, resolved = 0, 0
+    for source, target in PAIRS:
+        rungs = sorted({key[2] for key in blend_arms if key[:2] == (source, target)})
+        for rung in rungs:
+            alphas = sorted(a for (s, t, g, a) in blend_arms
+                            if (s, t, g) == (source, target, rung))
+            for lo_a, hi_a in zip(alphas, alphas[1:]):
+                arm_lo, mean_lo = blend_arms[(source, target, rung, lo_a)]
+                arm_hi, mean_hi = blend_arms[(source, target, rung, hi_a)]
+                if mean_hi >= mean_lo:
+                    continue  # rising: monotone as claimed, nothing to test
+                descents += 1
+                stat = paired_cluster_bootstrap(
+                    arm_hi, arm_lo, data.n_speakers(source, target),
+                    n_boot=500, seed=17)
+                excludes = stat["lo"] > 0 or stat["hi"] < 0
+                resolved += excludes
+                out.append(f"| {ARROW[(source, target)]} | `{rung}` | "
+                           f"{lo_a:.2f} -> {hi_a:.2f} | "
+                           f"{stat['diff']:+.4f} [{stat['lo']:+.4f}, "
+                           f"{stat['hi']:+.4f}] | "
+                           f"{'**yes**' if excludes else 'no'} |")
+    out.append("")
+    if descents and not resolved:
+        out.append(f"All {descents} descending steps have intervals covering "
+                   "zero. **The interior is not distinguishable from monotone.** "
+                   "The dip is within the noise of an arm with two seeds and a "
+                   "624-utterance target test set, and no claim of a non-monotone "
+                   "interior is made.\n")
+    elif resolved:
+        out.append(f"{resolved} of {descents} descending steps has an interval "
+                   "excluding zero. **The interior is therefore not monotone "
+                   "everywhere**, though the evidence is weak in three specific "
+                   "ways and nothing downstream may state it more strongly than "
+                   f"this: the arm has two seeds, the intervals are uncorrected "
+                   f"for the {descents} steps tested, and the surviving interval "
+                   "does not clear zero by much. What the endpoints show is not "
+                   "in doubt; only the shape of the path between them is.\n")
+    else:
+        out.append("No adjacent step runs the wrong way: the interior is "
+                   "monotone as reported.\n")
     out.append("The `alpha=0` rows for the two rungs are distinct `run_id`s "
                "computed over identical features, since alpha=0 discards the "
                "alignment entirely. They agree to every reported digit, which is "
@@ -489,9 +611,10 @@ def main() -> int:
     out.append("Reported because they are results, not omissions.\n")
     out.append("| question | answer | evidence |")
     out.append("|---|---|---|")
-    out.append("| Do the aligned rungs differ from each other? | Barely. Largest "
-               "difference among the five is **0.0151** fwd / **0.0437** rev, an "
-               "order of magnitude below the step off `none`. | Phase 8 §8 |")
+    out.append("| Do the aligned rungs differ from each other? | Barely, and "
+               "the claim is bounded rather than merely untested: the widest "
+               "among-rung interval admits at most **0.0213** fwd / **0.0559** "
+               "rev, which is 18% / 37% of the smallest step off `none`. | §3b |")
     out.append("| Does matching more moments help? | No. `mkmmd_full` reaches the "
                "lowest discrepancy in **both** geometries and is never the best "
                "rung; reverse it is the worst aligned rung. | Phase 8 §2 |")

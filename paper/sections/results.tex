@@ -61,11 +61,26 @@ adjusted $p$ at the bootstrap's resolution floor.
 
 \input{../tables/primary}
 
-Among the five aligned rungs, the largest difference is $0.0151$ in the forward
-direction and $0.0437$ in the reverse --- an order of magnitude smaller than the
-step off \texttt{none}. Those contrasts are outside the pre-registered family
-and we make no significance claim about them; the interval is reported and
-nothing more is asserted.
+Among the five aligned rungs the differences are small, and the claim worth
+making is that they are \emph{negligible}. A significance test cannot establish
+that: failing to reject a null is not evidence for it. We report a bound
+instead. For each of the ten pairwise contrasts among aligned rungs we take the
+largest magnitude its 95\% interval admits, $\max(|\mathrm{lo}|,|\mathrm{hi}|)$,
+and keep the maximum over the ten. The widest is
+\texttt{mkmmd\_diag} $-$ \texttt{coral} at $-0.0151$ $[-0.0213, -0.0079]$
+forward, bounding the difference at $0.0213$, and
+\texttt{mkmmd\_full} $-$ \texttt{zscore} at $-0.0437$ $[-0.0559, -0.0320]$
+reverse, bounding it at $0.0559$. Measured against the \emph{smallest} step from
+\texttt{none} to an aligned rung --- $+0.1208$ forward and $+0.1524$ reverse ---
+those bounds are $18\%$ and $37\%$ of the step. \textbf{At 95\% confidence, no
+choice among alignment methods is worth as much as a fifth of the decision to
+align at all in the forward direction, or two fifths of it in the reverse.}
+
+These contrasts sit outside the pre-registered family, and the bound has two
+properties a reader should hold onto: the denominator is the smallest of the
+five steps rather than their mean, which makes the fraction larger than it needs
+to be, and the intervals are per contrast rather than simultaneous across the
+ten, so each is a 95\% statement on its own and not a joint one.
 
 The ordering does not track discrepancy. \texttt{mkmmd\_full} reaches the lowest
 marginal discrepancy in \emph{both} geometries --- $12.04$ and $23.25$ times the
@@ -260,21 +275,47 @@ The two statistics are computed from the same features, the same layers and the
 same target scores. Only the geometry in which the discrepancy is measured
 differs.
 
-\paragraph{Which frame is correct, in the one case where that is knowable.}
-Sign disagreement alone does not tell us which frame to trust. The
-$\varepsilon$ sweep supplies a case where the answer is known independently of
-any measurement: Equation~\eqref{eq:coral-limit} says that as $\varepsilon$
-grows, CORAL becomes a scalar rescale plus a mean shift. A discrepancy statistic
-that is behaving correctly should therefore report large-$\varepsilon$ CORAL as
-resembling \texttt{mean\_shift}. The reference-frame statistic does; the
-own-geometry statistic does not, because its median-heuristic bandwidth adapts
-to the very rescaling that distinguishes the two.
+\textbf{What this establishes is a well-posedness claim, not a preference
+between frames: the sign of the discrepancy--transfer relationship is not
+identified until the measurement frame is specified.} ``Lower discrepancy goes
+with better transfer'' and its negation are both obtainable from these runs, and
+which one is obtained is settled by a choice --- the bandwidth and the basis in
+which the statistic is evaluated --- that is made before any transfer result is
+seen. That choice is not part of the alignment method, is not implied by the
+data, and is not, in the work we have been able to consult, stated
+[CITE: reporting practice in cross-corpus / domain-adaptation work that
+justifies an alignment method by the discrepancy it removes --- a survey or a
+set of representative papers, needed to support the claim that the measurement
+geometry (kernel bandwidth and basis) is not customarily reported. If the claim
+cannot be supported at this strength, weaken the sentence to what the cited
+sources do show]. A reported discrepancy--transfer correlation whose frame is
+unstated is therefore not yet a falsifiable claim, and two such reports that
+appear to disagree may not be disagreeing about anything.
 
-This does not make the reference frame universally right --- it is one arbitrary
-frame among many, and it is more sensitive to uncorrected mean offsets. It does
-establish that the choice is consequential and that at least one common way of
-measuring discrepancy gives the wrong answer in a case with a known ground
-truth.
+The practical consequence is small and cheap: fix a frame, derive it from data
+that the alignment has not touched, and report it. What must not be done is to
+compare discrepancies across methods that each supply their own geometry, which
+is what a per-rung bandwidth silently does.
+
+\paragraph{Supporting evidence: the one case where the answer is known.} The
+identification claim rests on the reversal alone and needs nothing further. The
+$\varepsilon$ sweep nonetheless supplies a case where the correct behaviour is
+known independently of any measurement, and it is worth reporting because it
+shows the ambiguity is not merely formal.
+Equation~\eqref{eq:coral-limit} says that as $\varepsilon$ grows, CORAL becomes
+a scalar rescale plus a mean shift. A discrepancy statistic that is behaving
+correctly should therefore report large-$\varepsilon$ CORAL as resembling
+\texttt{mean\_shift}. The reference-frame statistic does; the own-geometry
+statistic does not, because its median-heuristic bandwidth adapts to the very
+rescaling that distinguishes the two. In this one case, then, one of the two
+frames gives an answer that is demonstrably wrong.
+
+We do not conclude from that single case that the reference frame is the right
+frame in general. It is one frame among many and is more sensitive to
+uncorrected mean offsets than the alternative. The conclusion is the weaker and
+more durable one: the frame is a free parameter of the measurement, it changes
+the sign of the headline relationship, and it has to be fixed and reported
+before a discrepancy--transfer claim means anything.
 
 \subsection{Per-class transfer}
 \label{sec:results-perclass}
@@ -338,10 +379,24 @@ search it on the two rungs that move the features most.
 
 Performance increases monotonically in $\alpha$ in the forward direction, from
 $0.2987$ $[0.2746, 0.3188]$ at $\alpha = 0$ to $0.4012$ $[0.3802, 0.4186]$ at
-$\alpha = 1$ for CORAL, and the reverse direction shows the same endpoints
-($0.3154$ to $0.3833$) with a non-monotone interior. \textbf{The best setting of
-the blending parameter is the one that turns blending off.} We therefore report
+$\alpha = 1$ for CORAL. The reverse direction has the same endpoints
+--- $0.3154$ $[0.2513, 0.3868]$ to $0.3833$ $[0.3522, 0.4225]$ --- but dips
+before it climbs. \textbf{The best setting of the blending parameter is the one
+that turns blending off}, in both directions and on both rungs, so we report
 blending as a negative result rather than as a method.
 
+\paragraph{Does the dip survive its interval?} Partly. Two adjacent steps in the
+reverse direction run the wrong way, both at $\alpha = 0 \rightarrow 0.25$, and
+we test each paired on the same resampled speakers and seeds. On
+\texttt{mkmmd\_full} the step is $-0.0195$ $[-0.0420, -0.0020]$, which excludes
+zero; on \texttt{coral} it is $-0.0142$ $[-0.0330, +0.0029]$, which does not.
+The interior is therefore \emph{not} distinguishable from monotone on one rung
+and is distinguishable on the other. We do not build anything on the latter: the
+arm has two seeds, the two intervals are uncorrected for having tested two
+steps, and the one that excludes zero clears it by $0.0020$. The endpoints are
+what the section rests on, and they are not in question; the shape of the path
+between them is.
+
 This arm is smaller than the main grid --- 288 runs, one backbone, two seeds ---
-and its intervals are correspondingly wider.
+and its intervals are correspondingly wider. It is outside the pre-registered
+family.
