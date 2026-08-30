@@ -135,6 +135,18 @@ def main() -> int:
                 problems.append(f"{path.name}: contains a literal {what} -- a "
                                 "collapsed backslash escape")
 
+    # -- collapsed line breaks ---------------------------------------------
+    # A line ending in exactly one backslash escapes the newline rather than
+    # breaking the line. It is almost always a `\\` that lost a backslash on
+    # the way in, and it happened for real in the title block of this paper.
+    backslash = chr(92)
+    for path in files:
+        for number, line in enumerate(path.read_text(encoding="utf-8").split("\n"), 1):
+            stripped = line.rstrip()
+            if stripped.endswith(backslash) and not stripped.endswith(backslash * 2):
+                problems.append(f"{path.name}:{number}: line ends in a single "
+                                "backslash; a line break needs two")
+
     # -- placeholders ------------------------------------------------------
     placeholders = re.findall(r"\[CITE:\s*([^\]]+)\]", body)
     listed = ""

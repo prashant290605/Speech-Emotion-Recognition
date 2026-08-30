@@ -9,16 +9,21 @@ reader may reasonably want to overturn.
 \subsection{Corpora and label space}
 \label{sec:corpora}
 
-We use two acted English corpora: RAVDESS \cite{livingstone2018ryerson}
+We use two English corpora: RAVDESS \cite{livingstone2018ryerson}
 (24 speakers, 1440 utterances, 1.48\,h, mean duration 3.70\,s) and CREMA-D
 \cite{cao2014crema} (91 speakers, 7442 utterances, 5.26\,h, mean duration
-2.54\,s). Both directions of transfer are evaluated. IEMOCAP
-\cite{busso2008iemocap} is \emph{not} used: its licence requires a signed
-institutional agreement that was not obtained, and we prefer to state that
-plainly rather than report a two-corpus study as a three-corpus one. Every
-claim in this paper is therefore over two acted English corpora in two
-directions, and Section~\ref{sec:limitations} treats that as the principal
-limitation.
+2.54\,s). Both are publicly redistributable, both carry speaker identity for
+every utterance, and their categorical label sets share a six-class
+intersection large enough to evaluate per-class transfer. The pairing also
+admits a control that a larger corpus set would not: because the two differ
+sixfold in size, capping the larger to the smaller lets each direction be run
+at matched training-set size (Section~\ref{sec:splits}), so a reported
+asymmetry between directions cannot be a data-quantity effect. Both directions
+are evaluated.
+
+Both corpora are elicited from actors rather than recorded spontaneously, and
+no spontaneous corpus is included. Section~\ref{sec:limitations} takes up what
+that does and does not license.
 
 The shared label space is the six-class intersection
 $\{$angry, disgust, fear, happy, neutral, sad$\}$, in alphabetical order, which
@@ -102,8 +107,10 @@ transformer layers, i.e.\ 13 hidden states of dimension 768.
 \textbf{All 13 layers are cached}, not only the final one. Final-layer pooling
 is a common default and is what the earlier version of this work used; caching
 every layer makes the choice of depth a searchable condition rather than an
-unexamined default, and Section~\ref{sec:results-aggregation} shows the choice
-is worth more than the entire alignment ladder.
+unexamined default. Section~\ref{sec:results-aggregation} shows that this
+choice is worth more than any choice \emph{among} alignment methods, though
+less than the decision to align at all --- so it is the axis practitioners tend
+to leave at its default while tuning the one that does not matter.
 
 Two poolings are stored. A \emph{mean pooling} over time gives one 768-d vector
 per utterance per layer, used by the four non-sequential classifiers. A
