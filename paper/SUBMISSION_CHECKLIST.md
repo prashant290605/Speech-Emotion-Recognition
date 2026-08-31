@@ -15,7 +15,7 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | Scope fit | **VERIFY** | The study is a cross-corpus speech evaluation and assessment-methodology paper. Confirm the live journal scope in the submission portal. |
 | Originality, exclusive submission and co-author approval | **PENDING** | Corresponding author confirms in the portal and cover letter. |
 | Review model and anonymity | **MET** | The guide specifies single-anonymized review; the manuscript includes author and affiliation details. |
-| Final author order, affiliations and corresponding author | **BLOCKED** | Hand-off H. Add postal address and explicit corresponding-author marker. |
+| Final author order, affiliations and corresponding author | **VERIFY** | Prashant Singh and Pranav Singh share the IIT Ropar affiliation and equal-contribution note. Prashant Singh is the corresponding author. Confirm the final legal names and contact details in the portal. |
 | ORCIDs | **BLOCKED** | Hand-off H. Add each verified identifier and remove the empty-ORCID suppression in `paper/main.tex`. |
 | CRediT contributions | **VERIFY** | Present in `paper/sections/backmatter.tex`; update after author list is final. |
 | Funding and competing-interest declarations | **VERIFY** | No-funding and no-conflict statements are present; author must confirm they remain true. |
@@ -42,7 +42,7 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | Reference audit | **VERIFY** | `python tools/check_refs.py --tex paper/main.tex --bib paper/refs.bib --out reports/refs_report_submission.md`. |
 | Python test suite | **VERIFY** | Focused reference tests pass. The full suite is blocked here by a Windows pytest temporary-directory/process-permission issue, not a reported assertion failure; rerun in the archived environment. |
 | Hostile-review pass | **MET** | `paper/ANTICIPATED_OBJECTIONS.md`; no new experiment or number was added. |
-| Self-contained Overleaf archive | **MET** | `output/overleaf/cas-v2-release/Speech_Communication_submission_20260831.zip` passed static path, asset, graphics, citation, and bibliography checks. The only nested path is the official CAS email-icon asset. |
+| Self-contained Overleaf archive | **MET** | `output/overleaf/cas-v2-authors/Speech_Communication_submission_20260831.zip` passed static path, asset, graphics, citation, and bibliography checks. The only nested path is the official CAS email-icon asset. |
 | Clean compile and PDF defect resolution | **VERIFY** | A local Tectonic compile of the CAS package produced an 11-page PDF. All pages were visually inspected. Confirm the final journal PDF in Overleaf. |
 | Zenodo archive and DOI | **BLOCKED** | Hand-off H. |
 
@@ -69,3 +69,4 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | 2026-08-31 | Manuscript reduced from 43 to 21 compiled pages. The local PDF and flat upload archive were rebuilt after a visual review of all retained tables and figures. |
 | 2026-08-31 | Replaced the prior class with the supplied official Elsevier CAS single-column template (cas-sc v2.4). Applied the guide's author-date citation style, abstract limit, separate highlights file, and end-of-manuscript generative-AI declaration requirement. |
 | 2026-08-31 | Rebuilt the self-contained CAS archive and PDF. The package includes the official CAS email-icon asset at its required relative path and passed static validation. The 11-page CAS PDF was visually inspected. |
+| 2026-09-01 | Added Pranav Singh as the second author with the shared IIT Ropar affiliation, email address, equal-contribution note, and matching CRediT roles. Rebuilt and visually checked the 11-page CAS PDF. |
