@@ -73,8 +73,8 @@ stopped measuring at the point where they looked true.
     wrong depth.''} \textbf{Contradicted}, and in the opposite direction:
     against a random layer, \texttt{source\_val} is \emph{better} by $-0.0366$
     $[-0.0448, -0.0285]$. Note that this cuts against our own selection-failure
-    result --- source validation is blind to the alignment step but not to
-    depth --- and we report it for that reason.
+    result: source validation is blind to the alignment step but not to
+    depth. We report it for that reason.
   \item \emph{``Extending the $\varepsilon$ grid would move the argmax again.''}
     \textbf{Falsified}: it saturates, and in CREMA-D $\rightarrow$ RAVDESS the
     argmax is interior at $\varepsilon = 100$.
@@ -82,7 +82,7 @@ stopped measuring at the point where they looked true.
 
 Frame dependence itself was promoted on two-seed evidence, demoted when the
 ladder axis showed agreement, and confirmed at full seed count on the layer
-axis --- but re-specified in the process, since it does not hold at rung
+axis, but re-specified in the process, since it does not hold at rung
 \texttt{none}, which is where it was first seen. The claim in
 Section~\ref{sec:results-frames} is the re-specified one.
 

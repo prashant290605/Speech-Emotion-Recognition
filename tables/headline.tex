@@ -1,13 +1,14 @@
-\begin{table}[tb]
+\begin{table}[!htbp]
   \centering
-  \caption{Target macro-F1 of the configuration selected on source validation, against the best configuration present in the grid. The oracle column is an upper bound no protocol can reach and is not a result.}
+  \caption{Target macro-F1 of the source-validation-selected configuration and the highest target score in the grid. The chance floors are 0.1665 and 0.1656. Oracle is an upper bound, not a deployable result.}
   \label{tab:headline}
-  \begin{tabular}{lrrrrr}
+  \small
+  \begin{tabular}{lrrr}
     \toprule
-    pair & validated & oracle & gap & chance & majority \\
+    pair & validated & oracle & gap \\
     \midrule
-    RAVDESS $\rightarrow$ CREMA-D & 0.3156 [0.1880, 0.4432] & 0.4555 [0.4326, 0.4785] & 0.1399 [0.0231, 0.2568] & 0.1665 & 0.0425 \\
-    CREMA-D $\rightarrow$ RAVDESS & 0.4994 [0.4592, 0.5395] & 0.5680 [0.5148, 0.6212] & 0.0687 [0.0090, 0.1283] & 0.1656 & 0.0444 \\
+    RAVDESS $\rightarrow$ CREMA-D & 0.3156 [0.1880, 0.4432] & 0.4555 [0.4326, 0.4785] & 0.1399 [0.0231, 0.2568] \\
+    CREMA-D $\rightarrow$ RAVDESS & 0.4994 [0.4592, 0.5395] & 0.5680 [0.5148, 0.6212] & 0.0687 [0.0090, 0.1283] \\
     \bottomrule
   \end{tabular}
   \\[2pt]

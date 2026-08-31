@@ -43,7 +43,7 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | Python test suite | **VERIFY** | Focused reference tests pass. The full suite is blocked here by a Windows pytest temporary-directory/process-permission issue, not a reported assertion failure; rerun in the archived environment. |
 | Hostile-review pass | **MET** | `paper/ANTICIPATED_OBJECTIONS.md`; no new experiment or number was added. |
 | Flat Overleaf / Editorial Manager archive | **PENDING** | Build with `powershell -ExecutionPolicy Bypass -File tools/make_overleaf_package.ps1`, then inspect the ZIP and compile in Overleaf. |
-| Clean compile and PDF defect resolution | **BLOCKED** | Hand-off G. |
+| Clean compile and PDF defect resolution | **VERIFY** | A local Tectonic compile produced a 21-page PDF after table-width and float-placement corrections. Confirm the final journal PDF in Overleaf. |
 | Zenodo archive and DOI | **BLOCKED** | Hand-off H. |
 
 ## Author hand-off
@@ -66,3 +66,4 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | 2026-08-31 | Review-driven language, interval, unequal-grid and run-ledger corrections completed without new experiments. |
 | 2026-08-31 | BibTeX records integrated, audit extended to BibTeX/included sections, inherited `pastor2023cross` author mismatch repaired, and `pasad2021layer` updated to the ASRU proceedings record. |
 | 2026-08-31 | Official Elsevier class assets vendored and flat upload packaging prepared. |
+| 2026-08-31 | Manuscript reduced from 43 to 21 compiled pages. The local PDF and flat upload archive were rebuilt after a visual review of all retained tables and figures. |

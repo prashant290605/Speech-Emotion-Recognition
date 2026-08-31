@@ -1,13 +1,14 @@
-\begin{table}[tb]
+\begin{table}[!htbp]
   \centering
-  \caption{Corpora after mapping to the six-class intersection. The last six columns are class priors. The only substantial prior difference is \texttt{neutral}, an artefact of merging RAVDESS \texttt{calm}.}
+  \caption{Corpora after mapping to the six-class intersection. RAVDESS \texttt{neutral} has prior 0.231 because \texttt{calm} is merged into \texttt{neutral}; each other retained RAVDESS class has prior 0.154.}
   \label{tab:corpora}
-  \begin{tabular}{lrrrrrrrrrrr}
+  \small
+  \begin{tabular}{lrrrrrr}
     \toprule
-    corpus & spk & utts & hours & mean dur (s) & $n$ (6-class) & \texttt{angr} & \texttt{disg} & \texttt{fear} & \texttt{happ} & \texttt{neut} & \texttt{sad} \\
+    corpus & speakers & utterances & hours & retained $n$ & neutral & each other class \\
     \midrule
-    RAVDESS & 24 & 1440 & 1.48 & 3.70 & 1248 & 0.154 & 0.154 & 0.154 & 0.154 & 0.231 & 0.154 \\
-    CREMA-D & 91 & 7442 & 5.26 & 2.54 & 7442 & 0.171 & 0.171 & 0.171 & 0.171 & 0.146 & 0.171 \\
+    RAVDESS & 24 & 1440 & 1.48 & 1248 & 0.231 & 0.154 \\
+    CREMA-D & 91 & 7442 & 5.26 & 7442 & 0.146 & 0.171 \\
     \bottomrule
   \end{tabular}
   \\[2pt]

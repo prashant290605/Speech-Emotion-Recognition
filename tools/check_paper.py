@@ -101,9 +101,15 @@ def main() -> int:
 
     # -- refs / labels -----------------------------------------------------
     labels = set(re.findall(r"\\label\{([^}]+)\}", body))
-    for table in (REPO_ROOT / "tables").glob("*.tex"):
-        labels |= set(re.findall(r"\\label\{([^}]+)\}",
-                                 table.read_text(encoding="utf-8")))
+    # Generated tables remain available in the repository when a concise
+    # manuscript does not input them. Check labels only for reachable tables.
+    for match in re.finditer(r"\\input\{(\.\./tables/[^}]+)\}", body):
+        table = PAPER / match.group(1)
+        if not table.suffix:
+            table = table.with_suffix(".tex")
+        if table.exists():
+            labels |= set(re.findall(r"\\label\{([^}]+)\}",
+                                     table.read_text(encoding="utf-8")))
     # A dangling \ref into a section that is still a placeholder is expected
     # while the manuscript is being drafted section by section. It becomes a
     # defect once every section has been written, and the count below is what

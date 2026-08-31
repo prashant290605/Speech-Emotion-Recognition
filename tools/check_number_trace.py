@@ -85,17 +85,31 @@ def is_traced(token: str, result_values: set[Decimal]) -> bool:
     return any(abs(value - candidate) < tolerance for candidate in result_values)
 
 
+def input_tables() -> list[Path]:
+    """Return generated tables that are included by the manuscript."""
+    text = (PAPER / "main.tex").read_text(encoding="utf-8")
+    for section in (PAPER / "sections").glob("*.tex"):
+        text += "\n" + section.read_text(encoding="utf-8")
+    paths: list[Path] = []
+    for match in re.finditer(r"\\input\{(\.\./tables/[^}]+)\}", text):
+        path = PAPER / match.group(1)
+        if not path.suffix:
+            path = path.with_suffix(".tex")
+        if path.exists():
+            paths.append(path)
+    return paths
+
+
 def source_files() -> tuple[list[Path], list[Path]]:
     outcomes = [PAPER / "main.tex", PAPER / "highlights.txt"]
     outcomes.extend(
         path for path in sorted((PAPER / "sections").glob("*.tex"))
         if path.name != "methods.tex"
     )
-    outcomes.extend(
-        path for path in sorted((ROOT / "tables").glob("*.tex"))
-        if path.name != "corpora.tex"
-    )
-    context = [PAPER / "sections" / "methods.tex", ROOT / "tables" / "corpora.tex"]
+    tables = input_tables()
+    outcomes.extend(path for path in tables if path.name != "corpora.tex")
+    context = [PAPER / "sections" / "methods.tex"]
+    context.extend(path for path in tables if path.name == "corpora.tex")
     return outcomes, context
 
 

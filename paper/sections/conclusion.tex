@@ -1,40 +1,21 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-Feature-space alignment improves cross-corpus speech emotion recognition by a
-substantial margin --- $+0.12$ to $+0.20$ macro-F1 across the two directions
-studied, against chance floors near $0.166$ --- and no more complex rung is
-shown to improve on per-dimension standardisation. Matching covariance, or
-matching higher-order structure through a learned map, does not yield a further
-measured target-macro-F1 gain.
+On RAVDESS and CREMA-D, feature alignment increases cross-corpus macro-F1 by
+$+0.12$ to $+0.20$ relative to unaligned features. Per-dimension
+standardisation obtains this increase. CORAL and MK-MMD lower the reported
+marginal discrepancy but do not show a further target-score increase.
 
-The diagnostics show that lower marginal discrepancy does not imply better
-transfer here. After alignment the marginal term is at $0.010\times$ its
-unaligned value while the class-conditional diagnostic is still at $0.07\times$,
-bringing their forward ratio to $0.92$. This is not an additive decomposition or
-a direct estimate of $P(y \mid x)$, but it shows that the class-conditional
-diagnostic does not fall with the marginal objective. Observed label-prior
-differences are small in this pair, and the standard corrections examined here
-do not improve transfer. The elaborate rungs are therefore not failing to reduce their
-objective; that reduction simply does not deliver a further target-macro-F1 gain.
+The forward diagnostic changes from marginal and class-conditional values of
+$1496.1$ and $215.1$ without alignment to $15.3$ and $14.0$ at the
+\texttt{mkmmd\_full} endpoint. This pattern does not estimate $P(y\mid x)$,
+but it shows that the class-conditional diagnostic does not decrease at the
+same rate as the marginal objective. Source validation can also miss the
+alignment decision, and the discrepancy-transfer correlation changes sign with
+the measurement frame.
 
-Three consequences bear on how the alignment literature's evidence should be
-read. As shrinkage grows, CORAL approaches a scalar-rescaled mean shift. In the
-forward direction, source-side validation can miss the need for alignment and
-once returns a score below the chance floor; the cost of selection then exceeds
-the observed benefit of alignment. Finally, the discrepancy--transfer
-correlation reverses sign with the geometry it is measured in, so that
-relationship is not invariant until the measurement frame is stated --- which
-is also our concrete recommendation to the field, since stating it costs
-nothing.
-
-The practical advice is short. Standardise. Spend the effort saved on the layer
-the representation is taken from, which is worth more than any choice among
-alignment methods, and on the selection protocol, which is worth more than
-either. And report the floor beside every score, because the failure mode this
-paper documents is invisible without it.
-
-What we cannot offer is an unsupervised target-side signal sensitive to the
-variation that separates successful from unsuccessful configurations. A signal
-that directly tests $P(y \mid x)$ without target labels would be valuable, but
-the present diagnostics do not identify one or establish that it is sufficient.
+The practical reporting requirements are direct: give each target score with
+its chance floor, distinguish source-selected scores from target-score oracles,
+and state the geometry of each discrepancy measurement. The current results do
+not provide an unsupervised target-side selection criterion for the remaining
+cross-corpus variation.
