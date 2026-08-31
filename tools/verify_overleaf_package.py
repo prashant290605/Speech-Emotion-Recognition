@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-"""Statically validate a flat Elsevier/Overleaf upload archive.
+"""Statically validate a self-contained Elsevier/Overleaf upload archive.
 
 Usage:
     python tools/verify_overleaf_package.py dist/Speech_Communication_submission_YYYYMMDD
 
 This intentionally checks only facts available without a TeX installation:
-flat archive structure, manuscript inputs, graphics, citation keys, required
+archive structure, manuscript inputs, graphics, citation keys, required
 BibTeX fields, and ZIP/staging consistency. A PDF compile remains the final
 typesetting check.
 """
@@ -43,33 +43,50 @@ def main() -> int:
     if not zip_path.is_file():
         problems.append(f"missing ZIP: {zip_path}")
 
-    files = {path.name: path for path in stage.iterdir() if path.is_file()}
-    for required in ("main.tex", "refs.bib", "elsarticle.cls", "elsarticle-num.bst"):
-        if required not in files:
+    files = {
+        path.relative_to(stage).as_posix(): path
+        for path in stage.rglob("*")
+        if path.is_file()
+    }
+    root_files = {path.name: path for path in stage.iterdir() if path.is_file()}
+    nested_files = {name for name in files if "/" in name}
+    allowed_nested = {"thumbnails/cas-email.jpeg"}
+    for name in sorted(nested_files - allowed_nested):
+        problems.append(f"unexpected nested file: {name}")
+    for name in sorted(allowed_nested - nested_files):
+        problems.append(f"missing required CAS asset: {name}")
+    for required in ("main.tex", "refs.bib", "cas-sc.cls", "cas-common.sty",
+                     "cas-model2-names.bst"):
+        if required not in root_files:
             problems.append(f"missing required file: {required}")
 
-    tex_files = [path for path in files.values() if path.suffix == ".tex"]
+    tex_files = [path for path in root_files.values() if path.suffix == ".tex"]
     text_by_file = {path.name: path.read_text(encoding="utf-8-sig") for path in tex_files}
     body = "\n".join(text_by_file.values())
+    main_text = text_by_file.get("main.tex", "")
+    if not re.search(r"\\documentclass(?:\[[^]]*\])?\{cas-sc\}", main_text):
+        problems.append("main.tex does not use the official cas-sc class")
+    if "\\bibliographystyle{cas-model2-names}" not in main_text:
+        problems.append("main.tex does not use the CAS author-date bibliography style")
 
     for source, text in text_by_file.items():
         for target in INPUT.findall(text):
             if "/" in target or "\\" in target or ".." in target:
                 problems.append(f"{source}: non-flat input path: {target}")
-            elif f"{target}.tex" not in files and target not in files:
+            elif f"{target}.tex" not in root_files and target not in root_files:
                 problems.append(f"{source}: input does not resolve: {target}")
         for target in GRAPHIC.findall(text):
             name = target if Path(target).suffix else f"{target}.pdf"
             if "/" in target or "\\" in target or ".." in target:
                 problems.append(f"{source}: non-flat graphic path: {target}")
-            elif name not in files:
+            elif name not in root_files:
                 problems.append(f"{source}: graphic does not resolve: {target}")
         chars = sorted({char for char in text if ord(char) > 127})
         if chars:
             notes.append(f"{source}: UTF-8 characters present: {''.join(chars)!r}")
 
-    if "refs.bib" in files:
-        bib_text = files["refs.bib"].read_text(encoding="utf-8-sig")
+    if "refs.bib" in root_files:
+        bib_text = root_files["refs.bib"].read_text(encoding="utf-8-sig")
         chars = sorted({char for char in bib_text if ord(char) > 127})
         if chars:
             notes.append(f"refs.bib: UTF-8 characters present: {''.join(chars)!r}")
@@ -101,8 +118,9 @@ def main() -> int:
     if zip_path.is_file():
         with zipfile.ZipFile(zip_path) as archive:
             names = archive.namelist()
-        if any("/" in name or "\\" in name for name in names):
-            problems.append("ZIP contains a subdirectory; upload archive must be flat")
+        zip_nested = {name for name in names if "/" in name}
+        if zip_nested != allowed_nested:
+            problems.append("ZIP contains files outside the required CAS thumbnail path")
         if set(names) != set(files):
             problems.append("ZIP contents do not match the staging directory")
 
@@ -116,7 +134,7 @@ def main() -> int:
         for problem in problems:
             print(f"- {problem}")
         return 1
-    print("\nflat package checks passed (a TeX compile is still required)")
+    print("\npackage checks passed (a TeX compile is still required)")
     return 0
 
 

@@ -1,5 +1,5 @@
-Alignment adds +0.12 to +0.20 macro-F1; no advanced rung improves on z-score
-Marginal discrepancy falls faster than the class-conditional diagnostic
-CORAL approaches a scalar-rescaled mean shift as shrinkage grows
-Forward source-side validation can miss alignment; one seed falls below chance
-Discrepancy--transfer correlation reverses sign with measurement geometry
+- Alignment adds +0.12 to +0.20 macro-F1; no advanced rung exceeds z-score
+- Marginal discrepancy falls faster than the class-conditional diagnostic
+- CORAL approaches a scalar-rescaled mean shift as shrinkage grows
+- Forward source validation can miss alignment; one seed falls below chance
+- Discrepancy-transfer correlation reverses sign with measurement geometry

@@ -14,21 +14,21 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 |---|---|---|
 | Scope fit | **VERIFY** | The study is a cross-corpus speech evaluation and assessment-methodology paper. Confirm the live journal scope in the submission portal. |
 | Originality, exclusive submission and co-author approval | **PENDING** | Corresponding author confirms in the portal and cover letter. |
-| Review model and anonymity | **PENDING** | Confirm the journal's live review setting before upload; the manuscript is currently identified. |
+| Review model and anonymity | **MET** | The guide specifies single-anonymized review; the manuscript includes author and affiliation details. |
 | Final author order, affiliations and corresponding author | **BLOCKED** | Hand-off H. Add postal address and explicit corresponding-author marker. |
-| ORCIDs | **BLOCKED** | Hand-off H. |
+| ORCIDs | **BLOCKED** | Hand-off H. Add each verified identifier and remove the empty-ORCID suppression in `paper/main.tex`. |
 | CRediT contributions | **VERIFY** | Present in `paper/sections/backmatter.tex`; update after author list is final. |
 | Funding and competing-interest declarations | **VERIFY** | No-funding and no-conflict statements are present; author must confirm they remain true. |
 | Ethics and corpus licence compliance | **PENDING** | Confirm permissions for RAVDESS and CREMA-D, permitted research use, and institutional requirements. |
 | Data and code availability | **PENDING** | Text is present; replace the repository URL with the verified Zenodo DOI before submission. Do not archive third-party raw corpora. |
 | Generative-AI disclosure | **VERIFY** | Detailed disclosure is in `backmatter.tex`; confirm current Elsevier policy and portal requirement. |
 | English-language proofread | **PENDING** | Complete after the compiled-PDF review. |
-| Abstract, keywords, main sections, captions and editable tables | **VERIFY** | Source is complete; validate in compiled PDF. Six keywords are present. |
-| Acknowledgements | **PENDING** | Fill or remove the empty section in `backmatter.tex`. |
+| Abstract, keywords, main sections, captions and editable tables | **VERIFY** | The abstract is 179 words, six keywords are present, sections are numbered, and tables are editable. Validate in the compiled PDF. |
+| Acknowledgements | **MET** | No acknowledgements section is present. Add one only if an author confirms a required acknowledgement. |
 | Bibliography integrity | **VERIFY** | 29 cited records, zero placeholders, zero probable-fabrication findings in `reports/refs_report_submission.md`. Complete the eight publisher-page spot checks in `CITATIONS_NEEDED.md`. |
 | Figures and tables | **VERIFY** | Seven vector PDF figures and nine editable LaTeX tables are packaged. Check legibility and overflow in the PDF. |
-| LaTeX source and bibliography style | **MET** | Official Elsevier `elsarticle` v3.3 and `elsarticle-num.bst` are vendored for the upload package. |
-| Highlights | **VERIFY** | Five highlights in `paper/highlights.txt`; check the journal's live character rule. |
+| LaTeX source and bibliography style | **MET** | Elsevier CAS single-column v2.4, `cas-common.sty`, and `cas-model2-names.bst` are vendored for the upload package. |
+| Highlights | **MET** | Five separate highlights are in `paper/highlights.txt`; each is at most 85 characters including the bullet. |
 | Suggested reviewers | **PENDING** | Hand-off H; use institutional emails and exclude conflicts/recent collaborators. |
 | Cover letter | **PENDING** | Hand-off H, after author block and Zenodo DOI are final. |
 | Copyright/licence agreement | **PENDING** | Completed through Elsevier after acceptance. |
@@ -42,8 +42,8 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | Reference audit | **VERIFY** | `python tools/check_refs.py --tex paper/main.tex --bib paper/refs.bib --out reports/refs_report_submission.md`. |
 | Python test suite | **VERIFY** | Focused reference tests pass. The full suite is blocked here by a Windows pytest temporary-directory/process-permission issue, not a reported assertion failure; rerun in the archived environment. |
 | Hostile-review pass | **MET** | `paper/ANTICIPATED_OBJECTIONS.md`; no new experiment or number was added. |
-| Flat Overleaf / Editorial Manager archive | **PENDING** | Build with `powershell -ExecutionPolicy Bypass -File tools/make_overleaf_package.ps1`, then inspect the ZIP and compile in Overleaf. |
-| Clean compile and PDF defect resolution | **VERIFY** | A local Tectonic compile produced a 21-page PDF after table-width and float-placement corrections. Confirm the final journal PDF in Overleaf. |
+| Self-contained Overleaf archive | **MET** | `output/overleaf/cas-v2-release/Speech_Communication_submission_20260831.zip` passed static path, asset, graphics, citation, and bibliography checks. The only nested path is the official CAS email-icon asset. |
+| Clean compile and PDF defect resolution | **VERIFY** | A local Tectonic compile of the CAS package produced an 11-page PDF. All pages were visually inspected. Confirm the final journal PDF in Overleaf. |
 | Zenodo archive and DOI | **BLOCKED** | Hand-off H. |
 
 ## Author hand-off
@@ -67,3 +67,5 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | 2026-08-31 | BibTeX records integrated, audit extended to BibTeX/included sections, inherited `pastor2023cross` author mismatch repaired, and `pasad2021layer` updated to the ASRU proceedings record. |
 | 2026-08-31 | Official Elsevier class assets vendored and flat upload packaging prepared. |
 | 2026-08-31 | Manuscript reduced from 43 to 21 compiled pages. The local PDF and flat upload archive were rebuilt after a visual review of all retained tables and figures. |
+| 2026-08-31 | Replaced the prior class with the supplied official Elsevier CAS single-column template (cas-sc v2.4). Applied the guide's author-date citation style, abstract limit, separate highlights file, and end-of-manuscript generative-AI declaration requirement. |
+| 2026-08-31 | Rebuilt the self-contained CAS archive and PDF. The package includes the official CAS email-icon asset at its required relative path and passed static validation. The 11-page CAS PDF was visually inspected. |

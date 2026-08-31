@@ -37,6 +37,7 @@ venv/
 htmlcov/
 .tools/
 output/
+.template-inspect/
 
 # --- editors / OS -------------------------------------------------------
 .vscode/

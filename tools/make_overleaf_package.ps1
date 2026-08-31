@@ -28,13 +28,16 @@ Copy-Item (Join-Path $repositoryRoot "paper\main.tex") $stagingDirectory
 Copy-Item (Join-Path $repositoryRoot "paper\refs.bib") $stagingDirectory
 Copy-Item (Join-Path $repositoryRoot "paper\highlights.txt") $stagingDirectory
 Copy-Item (Join-Path $repositoryRoot "paper\OVERLEAF.md") $stagingDirectory
-Copy-Item (Join-Path $repositoryRoot "paper\vendor\elsarticle\elsarticle.cls") $stagingDirectory
-Copy-Item (Join-Path $repositoryRoot "paper\vendor\elsarticle\elsarticle-num.bst") $stagingDirectory
+Copy-Item (Join-Path $repositoryRoot "paper\vendor\cas\cas-sc.cls") $stagingDirectory
+Copy-Item (Join-Path $repositoryRoot "paper\vendor\cas\cas-common.sty") $stagingDirectory
+Copy-Item (Join-Path $repositoryRoot "paper\vendor\cas\cas-model2-names.bst") $stagingDirectory
+Copy-Item (Join-Path $repositoryRoot "paper\vendor\cas\thumbnails") $stagingDirectory -Recurse
 Copy-Item (Join-Path $repositoryRoot "paper\sections\*.tex") $stagingDirectory
 Copy-Item (Join-Path $repositoryRoot "tables\*.tex") $stagingDirectory
 Copy-Item (Join-Path $repositoryRoot "figures\*.pdf") $stagingDirectory
 
-# Elsevier Editorial Manager requires a flat archive; this also works in Overleaf.
+# The official CAS class resolves the corresponding-author email icon from
+# thumbnails/cas-email.jpeg. All manuscript sources and figures remain at root.
 $mainPath = Join-Path $stagingDirectory "main.tex"
 $mainText = Get-Content -LiteralPath $mainPath -Raw
 $mainText = $mainText.Replace("\graphicspath{{../figures/}}", "\graphicspath{{./}}")

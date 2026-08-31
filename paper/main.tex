@@ -1,66 +1,66 @@
-%% Speech Communication (Elsevier) -- elsarticle
-%% Compile from within paper/:  pdflatex main && bibtex main && pdflatex main && pdflatex main
-\documentclass[preprint,12pt]{elsarticle}
+%% Speech Communication submission using Elsevier CAS v2.4 (cas-sc).
+\documentclass[a4paper,fleqn]{cas-sc}
+\usepackage[authoryear,longnamesfirst]{natbib}
 
-\usepackage{booktabs}     % the only package the generated tables need
-\usepackage{graphicx}
-\usepackage{amsmath,amssymb}
-\usepackage{url}
-\usepackage[hidelinks]{hyperref}
+% CAS prints an empty ORCID footnote when no ORCID has been supplied.
+% Remove this override when an \orcidauthor entry is added before submission.
+\RenewDocumentCommand\printorcid{}{}
 
 \graphicspath{{../figures/}}
 
-\journal{Speech Communication}
-
 \begin{document}
+\let\WriteBookmarks\relax
+\def\floatpagepagefraction{1}
+\def\textpagefraction{.001}
 
-\begin{frontmatter}
+\shorttitle{Marginal alignment in cross-corpus SER}
+\shortauthors{P. Singh}
 
-\title{When marginal alignment stops helping: discrepancy geometry and model
-       selection in cross-corpus speech emotion recognition}
+\title[mode=title]{When marginal alignment stops helping: discrepancy geometry
+  and model selection in cross-corpus speech emotion recognition}
 
-%% TODO(author): ORCIDs, affiliations, corresponding author. See
-%% paper/SUBMISSION_CHECKLIST.md.
-\author[inst1]{Prashant Singh}
+\author[1]{Prashant Singh}
+\cormark[1]
 \ead{2023mcb1309@iitrpr.ac.in}
-\affiliation[inst1]{organization={Indian Institute of Technology Ropar},
-                    country={India}}
+\credit{Conceptualization, Methodology, Software, Formal analysis, Validation,
+  Visualization, Writing - original draft, Writing - review and editing}
+
+\affiliation[1]{organization={Indian Institute of Technology Ropar},
+  city={Rupnagar},
+  state={Punjab},
+  postcode={140001},
+  country={India}}
+
+\cortext[1]{Corresponding author}
 
 \begin{abstract}
-Feature-space alignment is an established response to cross-corpus speech emotion
-recognition error. We evaluate standardisation, mean shift, covariance
+Feature-space alignment aims to reduce cross-corpus speech emotion recognition
+error. We compare per-dimension standardisation, mean shift, correlation
 alignment (CORAL), and multi-kernel maximum mean discrepancy (MK-MMD) across
-4986 runs on RAVDESS and
-CREMA-D in both directions, with speaker-disjoint splits, comparisons
-pre-specified before the frozen confirmatory grid, and chance floors reported
-beside every score. Alignment is worth
-$+0.12$ to $+0.20$ macro-F1 against floors near $0.166$, and no rung is shown
-to beat per-dimension standardisation in either direction. The diagnostics
-document why this ordering does not track transfer: alignment drives the
-marginal discrepancy to $0.010\times$ its unaligned value while the
-class-conditional diagnostic falls only to $0.07\times$, raising their ratio
-from $0.14$ to $0.92$. This is a residual diagnostic, not a direct estimate of
-$P(y \mid x)$. The observed prior KL spans $0.022$ to $0.025$ nats, and
-standard label-shift corrections hurt in 238 of 240 cases while the
-same estimators recover a planted shift. Three consequences follow. As
-shrinkage grows, CORAL approaches
-a scalar-rescaled mean shift, confirmed to within $0.0061$. In the forward
-direction, source-side validation can miss the need for alignment: it separates
-unaligned from standardised features by $0.0018$ where the target separates them
-by $0.13$, and on one seed returns a score below the chance floor. Finally, the
-discrepancy--transfer correlation reverses sign with the measurement geometry,
-  $-0.444$ against $+0.142$ on identical features, so the relationship is not
-  invariant to the chosen measurement frame. We recommend that reported discrepancy
-reductions state the geometry they were measured in.
+4986 RAVDESS and CREMA-D runs in both directions. The protocol uses
+speaker-disjoint splits, source-side selection, and chance floors. Alignment
+adds $+0.12$ to $+0.20$ macro-F1 against floors near $0.166$. No evaluated rung
+exceeds per-dimension standardisation. From unaligned to the \texttt{mkmmd\_full}
+endpoint, the forward marginal diagnostic decreases to $0.010$ of its
+unaligned value and the class-conditional diagnostic decreases to $0.07$,
+changing their ratio from $0.14$ to $0.92$. Prior KL spans $0.022$ to $0.025$
+nats. Label-shift corrections reduce macro-F1 in 238 of 240 cases while
+recovering an implanted shift. CORAL converges to a scalar-rescaled mean shift
+with increasing shrinkage, and its endpoint is within $0.0061$ macro-F1 of
+mean shift. Forward source validation separates unaligned and standardised
+features by $0.0018$, while target macro-F1 differs by $0.13$. Finally,
+discrepancy-transfer correlation changes from $-0.444$ in each method's own
+geometry to $+0.142$ in a fixed reference frame. Reported discrepancy
+reductions must specify their measurement geometry.
 \end{abstract}
 
-\begin{keyword}
+\begin{keywords}
 speech emotion recognition \sep cross-corpus \sep domain adaptation \sep
 distribution alignment \sep self-supervised speech representations \sep
 model selection
-\end{keyword}
+\end{keywords}
 
-\end{frontmatter}
+\maketitle
 
 \input{sections/introduction}
 \input{sections/related}
@@ -71,7 +71,7 @@ model selection
 \input{sections/backmatter}
 
 \clearpage
-\bibliographystyle{elsarticle-num}
+\bibliographystyle{cas-model2-names}
 \bibliography{refs}
 
 \end{document}
