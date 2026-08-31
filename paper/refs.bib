@@ -1,20 +1,11 @@
 %% Bibliography for the Speech Communication submission.
 %%
-%% ONLY entries cleared by the Phase 1 reference checker appear here
-%% (reports/refs_report.md). Provenance of every entry:
+%% Reference provenance is recorded in reports/refs_report.md (legacy audit)
+%% and reports/refs_report_submission.md (BibTeX submission audit).
 %%
-%%   Tier A (12 entries) -- Crossref resolved the title, at least one author
-%%     surname overlaps, and volume, pages and year agree. Used as-is.
-%%   [9] -- the v1 entry `jafari2025feature` carried a FABRICATED author list
-%%     and the wrong volume. It is replaced below by the record at the DOI:
-%%     Naeeni and Nasersharif, vol. 194. The v1 author list appears nowhere.
-%%   [11] baevski2020wav2vec and [15] gretton2012kernel -- not indexed in
-%%     Crossref, which is normal for NeurIPS and JMLR and is not itself
-%%     evidence of a problem. Both are AWAITING MANUAL VERIFICATION against the
-%%     publisher page; see paper/SUBMISSION_CHECKLIST.md.
-%%   [16] w2vprosody2023 and [17] li2023cross -- DELETED. Each duplicated a
-%%     Crossref-confirmed reference under a disjoint author list, and neither
-%%     was ever cited. They must not be re-added.
+%% Two fabricated v1 entries, `w2vprosody2023` and `li2023cross`, remain
+%% deleted. A third v1 record, `jafari2025feature`, was replaced by the
+%% Crossref-confirmed `naeeni2025feature` record. Do not restore any of them.
 
 @article{schuller2010cross,
   author  = {Schuller, Bj{\"o}rn and Vlasenko, Bogdan and Eyben, Florian and
@@ -70,7 +61,8 @@
 }
 
 @article{pastor2023cross,
-  author  = {de Velasco, Mikel and Justo, Raquel and Torres, M. In{\'e}s},
+  author  = {Pastor, Miguel A. and Ribas, Dayana and Ortega, Alfonso and
+             Miguel, Antonio and Lleida, Eduardo},
   title   = {Cross-corpus training strategy for speech emotion recognition
              using self-supervised representations},
   journal = {Applied Sciences},
@@ -201,4 +193,171 @@
   volume  = {13},
   pages   = {723--773},
   year    = {2012}
+}
+
+@article{ledoit2004covariance,
+  author  = {Ledoit, Olivier and Wolf, Michael},
+  title   = {A well-conditioned estimator for large-dimensional covariance
+             matrices},
+  journal = {Journal of Multivariate Analysis},
+  volume  = {88},
+  number  = {2},
+  pages   = {365--411},
+  year    = {2004},
+  doi     = {10.1016/S0047-259X(03)00096-4}
+}
+
+@inproceedings{kingma2015adam,
+  author    = {Kingma, Diederik P. and Ba, Jimmy},
+  title     = {Adam: A method for stochastic optimization},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2015},
+  url       = {https://openreview.net/forum?id=8gmWbj1Q-}
+}
+
+@article{cameron2008cluster,
+  author  = {Cameron, A. Colin and Gelbach, Jonah B. and Miller, Douglas L.},
+  title   = {Bootstrap-based improvements for inference with clustered errors},
+  journal = {The Review of Economics and Statistics},
+  volume  = {90},
+  number  = {3},
+  pages   = {414--427},
+  year    = {2008},
+  doi     = {10.1162/rest.90.3.414}
+}
+
+@article{holm1979sequential,
+  author  = {Holm, Sture},
+  title   = {A simple sequentially rejective multiple test procedure},
+  journal = {Scandinavian Journal of Statistics},
+  volume  = {6},
+  number  = {2},
+  pages   = {65--70},
+  year    = {1979},
+  doi     = {10.2307/4615733}
+}
+
+@inproceedings{lipton2018bbse,
+  author    = {Lipton, Zachary C. and Wang, Yu-Xiang and Smola, Alexander J.},
+  title     = {Detecting and correcting for label shift with black box
+               predictors},
+  booktitle = {Proceedings of the 35th International Conference on Machine
+               Learning},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {80},
+  pages     = {3122--3130},
+  year      = {2018},
+  publisher = {PMLR},
+  url       = {https://proceedings.mlr.press/v80/lipton18a.html}
+}
+
+@article{saerens2002adjusting,
+  author  = {Saerens, Marco and Latinne, Patrice and Decaestecker, Christine},
+  title   = {Adjusting the outputs of a classifier to new a priori
+             probabilities: A simple procedure},
+  journal = {Neural Computation},
+  volume  = {14},
+  number  = {1},
+  pages   = {21--41},
+  year    = {2002},
+  doi     = {10.1162/089976602753284446}
+}
+
+@article{shimodaira2000covariate,
+  author  = {Shimodaira, Hidetoshi},
+  title   = {Improving predictive inference under covariate shift by weighting
+             the log-likelihood function},
+  journal = {Journal of Statistical Planning and Inference},
+  volume  = {90},
+  number  = {2},
+  pages   = {227--244},
+  year    = {2000},
+  doi     = {10.1016/S0378-3758(00)00115-4}
+}
+
+@article{bendavid2010theory,
+  author  = {Ben-David, Shai and Blitzer, John and Crammer, Koby and Kulesza,
+             Alex and Pereira, Fernando and Wortman Vaughan, Jennifer},
+  title   = {A theory of learning from different domains},
+  journal = {Machine Learning},
+  volume  = {79},
+  number  = {1--2},
+  pages   = {151--175},
+  year    = {2010},
+  doi     = {10.1007/s10994-009-5152-4}
+}
+
+@inproceedings{sun2016coral,
+  author    = {Sun, Baochen and Feng, Jiashi and Saenko, Kate},
+  title     = {Return of frustratingly easy domain adaptation},
+  booktitle = {Proceedings of the AAAI Conference on Artificial Intelligence},
+  volume    = {30},
+  number    = {1},
+  pages     = {2058--2065},
+  year      = {2016},
+  doi       = {10.1609/aaai.v30i1.10306}
+}
+
+@inproceedings{long2015dan,
+  author    = {Long, Mingsheng and Cao, Yue and Wang, Jianmin and Jordan,
+               Michael I.},
+  title     = {Learning transferable features with deep adaptation networks},
+  booktitle = {Proceedings of the 32nd International Conference on Machine
+               Learning},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {37},
+  pages     = {97--105},
+  year      = {2015},
+  publisher = {PMLR},
+  url       = {https://proceedings.mlr.press/v37/long15.html}
+}
+
+@article{ganin2016dann,
+  author  = {Ganin, Yaroslav and Ustinova, Evgeniya and Ajakan, Hana and
+             Germain, Pascal and Larochelle, Hugo and Laviolette, Fran\c{c}ois
+             and Marchand, Mario and Lempitsky, Victor},
+  title   = {Domain-adversarial training of neural networks},
+  journal = {Journal of Machine Learning Research},
+  volume  = {17},
+  number  = {59},
+  pages   = {1--35},
+  year    = {2016},
+  url     = {https://www.jmlr.org/papers/v17/15-239.html}
+}
+
+@inproceedings{yang2021superb,
+  author    = {Yang, Shu-wen and Chi, Po-Han and Chuang, Yung-Sung and Lai,
+               Cheng-I Jeff and Lakhotia, Kushal and Lin, Yist Y. and Liu,
+               Andy T. and Shi, Jiatong and Chang, Xuankai and Lin, Guan-Ting
+               and Huang, Tzu-Hsien and Tseng, Wei-Cheng and Lee, Ko-tik and
+               Liu, Da-Rong and Huang, Zili and Dong, Shuyan and Li, Shang-Wen
+               and Watanabe, Shinji and Mohamed, Abdelrahman and Lee, Hung-yi},
+  title     = {{SUPERB}: Speech processing universal performance benchmark},
+  booktitle = {Interspeech 2021},
+  pages     = {1194--1198},
+  year      = {2021},
+  doi       = {10.21437/Interspeech.2021-1775}
+}
+
+@inproceedings{pasad2021layer,
+  author  = {Pasad, Ankita and Chou, Ju-Chieh and Livescu, Karen},
+  title   = {Layer-wise analysis of a self-supervised speech representation
+             model},
+  booktitle = {2021 IEEE Automatic Speech Recognition and Understanding
+               Workshop (ASRU)},
+  pages   = {914--921},
+  year    = {2021},
+  doi     = {10.1109/ASRU51503.2021.9688093}
+}
+
+@article{cawley2010selection,
+  author  = {Cawley, Gavin C. and Talbot, Nicola L. C.},
+  title   = {On over-fitting in model selection and subsequent selection bias
+             in performance evaluation},
+  journal = {Journal of Machine Learning Research},
+  volume  = {11},
+  number  = {70},
+  pages   = {2079--2107},
+  year    = {2010},
+  url     = {https://www.jmlr.org/papers/v11/cawley10a.html}
 }

@@ -20,68 +20,46 @@ class of self-supervised encoder used here.
 
 Most of this work is evaluated on some subset of a small pool of corpora, of
 which IEMOCAP \cite{busso2008iemocap}, RAVDESS \cite{livingstone2018ryerson}
-and CREMA-D \cite{cao2014crema} are the most frequent. Two properties of the
-resulting literature matter here. First, the reported quantity is nearly always
-a gain: some method, on some corpus pair, over some baseline. Second, the
-baseline, the pair, the label mapping and the split policy vary between papers,
-so the gains are not directly commensurable
-[CITE: a survey or meta-analysis of cross-corpus SER documenting how corpus
-pairs, label mappings, baselines and split policies vary across the literature;
-needed to support the claim that reported gains are not commensurable]. A
-consequence is that the field has many measurements of how much a given method
-helps, and few of \emph{why} it helps or of what a simpler method would have
-delivered on the same setup.
+and CREMA-D \cite{cao2014crema} are the most frequent. The reported quantity is
+usually a gain: some method, on some corpus pair, over some baseline. In the
+studies just cited, the baseline, corpus pair, label mapping and split policy
+differ, so their gains are not numerically commensurable. This motivates a
+controlled within-protocol comparison of how much each step of an alignment
+ladder contributes.
 
 \subsection{Feature-space alignment under covariate shift}
 \label{sec:related-alignment}
 
 Alignment methods rest on a covariate-shift assumption: the marginal feature
 distribution differs between corpora while the conditional distribution of the
-label given the features does not
-[CITE: the standard covariate-shift formulation and the importance-weighting
-correction that follows from it; needed to state the assumption and its
-consequence precisely]. Theoretical support is usually taken from bounds in
-which target error is controlled by source error plus a divergence between the
-domains --- and, in the standard result, that divergence is
+label given the features does not \cite{shimodaira2000covariate}. One commonly
+invoked form of theoretical support is a bound in which target error is
+controlled by source error plus a divergence between the domains --- and, in
+the standard result, that divergence is
 \emph{classifier-induced}: it is defined over the symmetric difference of the
 hypothesis class, and so depends on which hypotheses the learner can express
-[CITE: the domain-adaptation generalisation bound whose divergence term is
-defined over the symmetric difference hypothesis space and is estimable from
-finite unlabelled samples. Verify that the divergence really is
-hypothesis-class-dependent in the version cited, since the argument in
-Section~\ref{sec:results-frames} turns on it]. This distinction is easy to lose
+\cite{bendavid2010theory}. This distinction is easy to lose
 and matters here: a kernel MMD at a fixed bandwidth is not a
-hypothesis-dependent quantity, so reducing it is not the same as reducing the
-term the bound is stated over.
+hypothesis-dependent quantity, so reducing it alone does not establish a
+reduction in that bound's divergence or in target error.
 
-The methods form a natural ladder, ordered by how many moments they match.
-Per-dimension standardisation matches first moments. CORAL matches second
-moments by whitening the source and recolouring it to the target covariance, in
-a closed form [CITE: the original closed-form CORAL, distinct from the deep
-variant below] and as a differentiable training loss \cite{sun2016deep}.
-MMD-based methods minimise a kernel two-sample statistic
-\cite{gretton2012kernel}, in single-kernel [CITE: deep-network domain adaptation
-minimising a single-kernel MMD between hidden-layer distributions] and
-multi-kernel [CITE: the multi-kernel MMD formulation and its use as a domain
-adaptation objective] forms, and so match higher-order structure in principle.
-Adversarial approaches [CITE: domain-adversarial training with a gradient
-reversal layer or an equivalent discriminator objective] pursue the same target
-through a learned critic rather than a closed-form statistic.
+The methods form a natural ladder, ordered by how much structure they match.
+Per-dimension standardisation matches first and second moments separately in
+each dimension but not their cross-dimension terms. CORAL matches the full
+second-order structure by whitening the source and recolouring it to the target
+covariance in a closed form \cite{sun2016coral} and as a differentiable training
+loss \cite{sun2016deep}. MMD-based methods minimise a kernel two-sample
+statistic \cite{gretton2012kernel}; deep adaptation networks use multi-kernel
+mean-embedding matching in hidden layers \cite{long2015dan}. Adversarial
+approaches use a learned domain discriminator and gradient reversal rather than
+a closed-form statistic \cite{ganin2016dann}.
 
-Three things this literature does not usually do bear directly on our results.
-It rarely runs the whole ladder, so the share of the gain available from the
-cheapest rung is seldom reported [CITE: an ablation-practice survey; if no
-source supports this as a general claim, narrow the sentence to the specific
-papers cited above]. It rarely fixes the geometry in which the discrepancy is
-measured: kernel bandwidth is typically set by the median heuristic
-[CITE: the median heuristic for kernel bandwidth selection], which makes the
-statistic a function of the very rescaling the method applies. And it states the
-covariate-shift assumption without testing it, even though the alternatives ---
-conditional shift [CITE: domain adaptation under conditional or target shift,
-where the class-conditional distribution itself changes] and label shift
-[CITE: label-shift correction by inverting a source confusion matrix; the same
-source is needed in Section~\ref{sec:decomposition}] --- have
-well-developed literatures of their own and are separately estimable.
+This paper is deliberately narrower than a survey of those methods. It fixes
+the candidate rungs, their tuning budgets, the selection rule and the geometry
+in which their discrepancy is measured, then reports where the observed gain
+appears. The conditional and label-shift diagnostics are reported as diagnostics
+of this corpus pair, not as a test of every assumption needed for domain
+adaptation.
 
 \subsection{Self-supervised representations, and where emotion lives in them}
 \label{sec:related-ssl}
@@ -90,15 +68,11 @@ Self-supervised encoders \cite{baevski2020wav2vec,hsu2021hubert,chen2022wavlm}
 supply the features for most current SER systems, including the ones cited
 above. How a stack of transformer layers is reduced to a single vector is a
 choice, and the two common defaults are the final layer and a task-learned
-weighted sum over layers [CITE: the benchmark that established the learned
-layer-weighting convention for downstream speech tasks]. Layer-wise probing has
-shown that what these encoders carry is not distributed uniformly across depth,
-and that the most informative layers are not the last [CITE: layer-wise analysis
-of self-supervised speech representations, establishing that phonetic and
-word-level information peaks in intermediate layers]; comparable analyses exist
-for paralinguistic targets [CITE: layer-wise or probing analysis for emotion or
-another paralinguistic task specifically. If no such analysis exists, delete
-this clause rather than stretching a phonetic result to cover emotion].
+weighted sum over layers \cite{yang2021superb}. Layer-wise probing has shown
+that information in self-supervised speech representations changes across depth
+\cite{pasad2021layer}; the present study tests the downstream consequence for
+cross-corpus emotion recognition rather than assuming it from phonetic or
+lexical probes.
 
 Layer choice and alignment are, however, usually studied apart. That separation
 is why a result like ours --- that the layer decision is worth more than any
@@ -108,27 +82,20 @@ already known.
 \subsection{Protocol: selection, floors, and what a reported number means}
 \label{sec:related-protocol}
 
-Cross-corpus transfer is by construction a setting with no labelled target data,
-which makes model selection part of the problem rather than a detail of it. The
-options are source-side validation, or one of the transfer-aware alternatives
-such as importance-weighted cross-validation and reverse validation
-[CITE: importance-weighted cross-validation for model selection under covariate
-shift, and reverse or transfer cross-validation as its unsupervised counterpart].
-Work that instead reports the best configuration found on the target is
-reporting an oracle, and the distinction is not always drawn
-[CITE: a methodological critique of tuning on the test domain in transfer
-learning or domain adaptation; a general machine-learning statement of the
-problem is acceptable if none is specific to SER].
+Cross-corpus transfer has no labelled target data available for model selection,
+which makes selection part of the evaluation protocol rather than a detail of
+implementation. Optimising any finite-sample selection criterion can introduce
+selection bias into performance evaluation \cite{cawley2010selection}. We
+therefore distinguish a source-validation-selected score from the maximum target
+score in the grid, which is labelled as an oracle rather than reported as an
+achievable result.
 
-Two further conventions bear on interpretation. Macro-F1 on an imbalanced
-multi-class problem has a chance floor well above zero which depends on the
-realised test priors, so a score reported without its floor cannot be read
-[CITE: a source recommending explicit chance-level or permutation baselines when
-reporting classification metrics]. And speaker-independent splits are necessary
-because speaker identity is recoverable from these representations
-[CITE: evidence that speaker identity is recoverable from self-supervised speech
-representations, or that speaker-dependent splits inflate SER scores]. Benchmark
-efforts have begun to standardise both \cite{ma2024emobox}.
+Two further protocol choices bear on interpretation. We report each macro-F1
+beside its analytic chance and majority-class floors, because the realised test
+prior makes those floors pair-specific. We also use speaker-disjoint partitions
+throughout, so a target speaker is absent from both model fitting and alignment.
+Benchmark efforts have begun to standardise related evaluation choices
+\cite{ma2024emobox}.
 
 \subsection{Position of this work}
 \label{sec:related-position}
@@ -136,11 +103,13 @@ efforts have begun to standardise both \cite{ma2024emobox}.
 This paper is not a new alignment method and does not report a new best score.
 It takes an existing and widely used family --- the ladder of
 Section~\ref{sec:related-alignment} --- runs all of it under one fixed protocol,
-and asks three questions the work above mostly does not: where the gain actually
-comes from, whether the assumption underneath the family holds, and whether the
-quantity the family optimises is well defined as it is measured. The answers
-are, in order: the first rung; no, because the residual shift is conditional
-rather than marginal; and not until a measurement frame is fixed. The nearest
+and asks three questions the work above does not answer within one controlled
+protocol: where the gain actually comes from, whether a marginal diagnostic
+tracks transfer, and whether the quantity the family optimises is stable under
+its measurement frame. The answers
+are, in order: the first rung; the measured class-conditional diagnostic does
+not fall as quickly as the marginal statistic; and not until a measurement
+frame is fixed. The nearest
 precedent is the benchmarking strand represented by \cite{ma2024emobox}, which
 shares the aim of making cross-corpus numbers comparable but pursues it by
 standardising the evaluation rather than by decomposing the effect.

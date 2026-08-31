@@ -1,5 +1,5 @@
-Alignment adds +0.12-0.20 macro-F1; standardisation alone delivers all of it
-Residual shift after alignment is 92% conditional, which alignment cannot remove
-Label-shift correction hurts in 238 of 240 cases; prior KL is 0.022-0.025 nats
-CORAL at its selected regularisation degenerates to a mean shift, confirmed
-Source-side validation misses the alignment step; one seed falls below chance
+Alignment adds +0.12-0.20 macro-F1; no complex rung is shown to improve it
+Marginal discrepancy falls faster than the class-conditional diagnostic
+CORAL approaches a scalar-rescaled mean shift as shrinkage grows
+Forward source-side validation can miss alignment; one seed falls below chance
+Discrepancy--transfer correlation reverses sign with measurement geometry

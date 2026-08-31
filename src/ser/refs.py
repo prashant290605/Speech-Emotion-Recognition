@@ -42,6 +42,7 @@ __all__ = [
     "CrossrefRecord",
     "Finding",
     "parse_bibliography",
+    "parse_bibtex",
     "parse_citation_keys",
     "normalise_title",
     "surnames_from_authors",
@@ -84,6 +85,7 @@ class Reference:
     pages: Optional[str]
     year: Optional[int]
     raw: str
+    doi: Optional[str] = None
 
     @property
     def label(self) -> str:
@@ -136,6 +138,164 @@ def parse_bibliography(tex: str) -> List[Reference]:
         chunk = body[start:end].strip()
         references.append(_parse_entry(order, match.group("key"), chunk))
     return references
+
+
+_BIB_ENTRY = re.compile(
+    r"@(?P<kind>[A-Za-z]+)\s*\{\s*(?P<key>[^,\s]+)\s*,", re.MULTILINE
+)
+
+
+def parse_bibtex(bib: str) -> List[Reference]:
+    """Extract citation metadata from a BibTeX database without editing it.
+
+    The submission manuscript uses BibTeX rather than an inline
+    ``thebibliography`` block. This deliberately small parser handles the
+    balanced-brace records used by the project and keeps the audit free of a
+    third-party parsing dependency.
+    """
+    references: List[Reference] = []
+    for match in _BIB_ENTRY.finditer(bib):
+        kind = match.group("kind").lower()
+        if kind in {"comment", "preamble", "string"}:
+            continue
+        end = _bib_entry_end(bib, match.end())
+        if end is None:
+            raise ValueError(f"unterminated BibTeX entry: {match.group('key')}")
+        fields = _bib_fields(bib[match.end():end - 1])
+        authors_raw = _clean_latex(fields.get("author", ""))
+        title = _clean_latex(fields.get("title", ""))
+        venue = _clean_latex(
+            fields.get("journal") or fields.get("booktitle") or fields.get("series", "")
+        )
+        year_match = re.search(r"(?:19|20)\d{2}", fields.get("year", ""))
+        references.append(
+            Reference(
+                index=len(references) + 1,
+                key=match.group("key"),
+                authors_raw=authors_raw,
+                surnames=_bib_surnames(authors_raw),
+                title=title,
+                venue=venue,
+                volume=_clean_latex(fields["volume"]) if fields.get("volume") else None,
+                issue=_clean_latex(fields["number"]) if fields.get("number") else None,
+                pages=_clean_latex(fields["pages"]) if fields.get("pages") else None,
+                year=int(year_match.group()) if year_match else None,
+                raw=bib[match.start():end],
+                doi=_clean_latex(fields["doi"]).lower() if fields.get("doi") else None,
+            )
+        )
+    if not references:
+        raise ValueError("BibTeX file contains no citation entries")
+    return references
+
+
+def _bib_entry_end(text: str, start: int) -> Optional[int]:
+    """Return the position after the outer brace of a BibTeX entry."""
+    depth, quoted, escaped = 1, False, False
+    for position in range(start, len(text)):
+        char = text[position]
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if char == '"':
+            quoted = not quoted
+            continue
+        if quoted:
+            continue
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return position + 1
+    return None
+
+
+def _balanced_brace_end(text: str, start: int) -> Optional[int]:
+    """Return the position after a brace-delimited BibTeX field value."""
+    if start >= len(text) or text[start] != "{":
+        return None
+    depth, escaped = 0, False
+    for position in range(start, len(text)):
+        char = text[position]
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return position + 1
+    return None
+
+
+def _bib_fields(text: str) -> Dict[str, str]:
+    """Read simple BibTeX field assignments, preserving nested braces."""
+    fields: Dict[str, str] = {}
+    pos, length = 0, len(text)
+    while pos < length:
+        while pos < length and text[pos] in "\t\r\n ,":
+            pos += 1
+        name = re.match(r"[A-Za-z][A-Za-z0-9_-]*", text[pos:])
+        if not name:
+            break
+        key = name.group().lower()
+        pos += len(name.group())
+        while pos < length and text[pos].isspace():
+            pos += 1
+        if pos >= length or text[pos] != "=":
+            break
+        pos += 1
+        while pos < length and text[pos].isspace():
+            pos += 1
+        if pos >= length:
+            break
+        if text[pos] == "{":
+            end = _balanced_brace_end(text, pos)
+            if end is None:
+                break
+            fields[key] = text[pos + 1:end - 1]
+            pos = end
+        elif text[pos] == '"':
+            end = pos + 1
+            escaped = False
+            while end < length:
+                if not escaped and text[end] == '"':
+                    break
+                escaped = (not escaped and text[end] == "\\")
+                if text[end] != "\\":
+                    escaped = False
+                end += 1
+            fields[key] = text[pos + 1:end]
+            pos = end + 1
+        else:
+            end = text.find(",", pos)
+            if end == -1:
+                end = length
+            fields[key] = text[pos:end].strip()
+            pos = end + 1
+    return fields
+
+
+def _bib_surnames(authors_raw: str) -> Tuple[str, ...]:
+    """BibTeX author values use ``Surname, Given and ...`` ordering."""
+    surnames: List[str] = []
+    for person in re.split(r"\s+and\s+", authors_raw, flags=re.IGNORECASE):
+        person = person.strip()
+        if not person:
+            continue
+        surname = person.split(",", 1)[0].strip() if "," in person else person.split()[-1]
+        token = _normalise_token(surname)
+        if token:
+            surnames.append(token)
+    return tuple(dict.fromkeys(surnames))
 
 
 def _parse_entry(index: int, key: str, chunk: str) -> Reference:
@@ -206,6 +366,27 @@ def parse_citation_keys(tex: str) -> set[str]:
     for match in _CITE.finditer(body):
         keys.update(part.strip() for part in match.group("keys").split(",") if part.strip())
     return keys
+
+
+def _tex_tree(path: Path) -> str:
+    """Read a manuscript root and its ``\\input`` files for citation auditing."""
+    root = path.parent.resolve()
+    seen: set[Path] = set()
+
+    def visit(candidate: Path) -> str:
+        candidate = candidate.resolve()
+        if candidate in seen or not candidate.exists():
+            return ""
+        seen.add(candidate)
+        text = candidate.read_text(encoding="utf-8", errors="ignore")
+        chunks = [text]
+        for match in re.finditer(r"\\input\{([^}]+)\}", text):
+            name = match.group(1)
+            child = root / (name if Path(name).suffix else name + ".tex")
+            chunks.append(visit(child))
+        return "\n".join(chunks)
+
+    return visit(path)
 
 
 # --------------------------------------------------------------------------
@@ -335,6 +516,28 @@ class CrossrefClient:
         self._flush()
         return items
 
+    def by_doi(self, doi: str) -> Optional[Dict[str, Any]]:
+        """Resolve an explicit DOI before falling back to fuzzy title search."""
+        clean = doi.removeprefix("https://doi.org/").lower()
+        key = f"doi:{clean}"
+        if key in self._cache:
+            return self._cache[key]
+        if not self.allow_network:
+            return None
+        elapsed = time.monotonic() - self._last_request
+        if elapsed < self.delay_seconds:
+            time.sleep(self.delay_seconds - elapsed)
+        url = f"{CROSSREF_ENDPOINT}/{urllib.parse.quote(clean, safe='')}"
+        request = urllib.request.Request(
+            url, headers={"User-Agent": f"ser-refs-audit/1.0 (mailto:{self.mailto or 'n/a'})"}
+        )
+        with urllib.request.urlopen(request, timeout=30) as response:
+            item = json.loads(response.read().decode("utf-8")).get("message", {})
+        self._last_request = time.monotonic()
+        self._cache[key] = item
+        self._flush()
+        return item
+
     def _flush(self) -> None:
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
         with open(self.cache_path, "w", encoding="utf-8") as handle:
@@ -363,8 +566,8 @@ def _to_record(item: Dict[str, Any], similarity: float) -> CrossrefRecord:
         for a in authors
     )
     containers = item.get("container-title") or []
-    issued = (item.get("issued") or {}).get("date-parts") or [[None]]
-    year = issued[0][0] if issued and issued[0] else None
+    dated = (item.get("published-print") or item.get("issued") or {}).get("date-parts") or [[None]]
+    year = dated[0][0] if dated and dated[0] else None
 
     return CrossrefRecord(
         doi=item.get("DOI", ""),
@@ -809,6 +1012,7 @@ def run_audit(
     out_path: Path,
     cache_path: Path,
     *,
+    bib_path: Optional[Path] = None,
     mailto: Optional[str] = None,
     offline: bool = False,
 ) -> int:
@@ -824,8 +1028,18 @@ def run_audit(
         return 2
 
     tex = tex_path.read_text(encoding="utf-8", errors="ignore")
-    references = parse_bibliography(tex)
-    cited = parse_citation_keys(tex)
+    if bib_path is None:
+        references = parse_bibliography(tex)
+        cited = parse_citation_keys(tex)
+        source = tex_path.name
+    else:
+        bib_path = Path(bib_path)
+        if not bib_path.exists():
+            print(f"error: {bib_path} not found", file=sys.stderr)
+            return 2
+        references = parse_bibtex(bib_path.read_text(encoding="utf-8", errors="ignore"))
+        cited = parse_citation_keys(_tex_tree(tex_path))
+        source = f"{tex_path.name} + {bib_path.name}"
 
     client = CrossrefClient(cache_path, mailto=mailto, allow_network=not offline)
 
@@ -833,17 +1047,21 @@ def run_audit(
         if not reference.title:
             return None
         try:
+            if reference.doi:
+                item = client.by_doi(reference.doi)
+                if item:
+                    return _to_record(item, title_similarity(reference.title, (item.get("title") or [""])[0]))
             return best_crossref_match(reference, client.search(reference.title))
         except Exception as exc:  # network failures must not lose the whole run
             print(f"  ! Crossref lookup failed for {reference.label}: {exc}", file=sys.stderr)
             return None
 
-    print(f"Parsed {len(references)} references from {tex_path.name}")
+    print(f"Parsed {len(references)} references from {bib_path.name if bib_path else tex_path.name}")
     print(f"Distinct keys cited in the body: {len(cited)}")
 
     findings = audit(references, cited, lookup)
 
-    report = render_report(findings, source=str(tex_path), offline=offline)
+    report = render_report(findings, source=source, offline=offline)
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(report, encoding="utf-8")

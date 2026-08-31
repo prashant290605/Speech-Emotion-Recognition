@@ -28,13 +28,15 @@ exercises. A duplicate worker recomputed 23 WavLM sweep cells and produced
 \textbf{bit-identical} target scores. The 151 sweep runs that share coordinates
 with main-grid rows agree on all 57 non-volatile fields, \textbf{zero mismatches
 across 8607 values}. Recomputing every \texttt{run\_id} from its own recorded
-coordinates reproduces the stored identifier in \textbf{5424 of 5424} cases.
+coordinates reproduces the stored identifier in \textbf{5424 of 5424 retained
+result rows}.
 And the Stage 1 sweep and Stage 2 grid, run weeks apart under different
 enumerations, agree at rung \texttt{none} to $0.3700$ against $0.3698$.
 
-Across the whole study, \textbf{0 of 5424 grid runs failed}, along with 0 of
-2340 sweep rows and 0 of 120 probe rows, and \textbf{0 of 99{,}720 classifier
-trials failed to converge}.
+Across the retained result ledger, \textbf{0 of 5424 rows failed}: 0 of the
+4,986 frozen confirmatory runs, and 0 of the 438 retained Stage~0, Stage~1 and
+baseline rows. In addition, 0 of 2340 sweep rows and 0 of 120 probe rows failed,
+and \textbf{0 of 99{,}720 classifier trials failed to converge}.
 
 \subsection{Retractions}
 \label{sec:repro-retractions}

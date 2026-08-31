@@ -18,8 +18,8 @@ intersection large enough to evaluate per-class transfer. The pairing also
 admits a control that a larger corpus set would not: because the two differ
 sixfold in size, capping the larger to the smaller lets each direction be run
 at matched training-set size (Section~\ref{sec:splits}), so a reported
-asymmetry between directions cannot be a data-quantity effect. Both directions
-are evaluated.
+asymmetry between directions is not attributable to source-training-set size
+alone. Both directions are evaluated.
 
 Both are elicited from actors rather than recorded spontaneously.
 Section~\ref{sec:limitations} takes up what that does and does not license.
@@ -84,8 +84,12 @@ class with largest-remainder allocation, so the prior is preserved to within
 one utterance per class, and drawn from within the existing speaker-disjoint
 split, so utterances are only removed and never moved between roles. Every
 leakage guarantee therefore still holds, and the cap is derived per (pair, seed)
-rather than hard-coded. \textbf{Both directions reported here are
-matched-$n$}; a full-$n$ reverse arm was not run.
+rather than hard-coded. \textbf{Both directions reported here are matched in
+source-training size only}; a full-$n$ reverse arm was not run.
+Source-validation, target-adaptation and target-test sizes remain different
+between directions. Consequently this control removes one important
+data-quantity confound but does not license an attribution of every directional
+asymmetry to corpus properties.
 
 \subsection{Features}
 \label{sec:features}
@@ -158,8 +162,7 @@ anchoring to the mean eigenvalue matters because a fixed absolute ridge means
 something different for every backbone and layer. $\varepsilon$ is a
 \emph{searched} axis over $\{10^{-4}, \ldots, 10\}$ in decades, selected on
 \texttt{source\_val} and recorded on every row, with a Ledoit--Wolf variant
-[CITE: Ledoit and Wolf, a well-conditioned estimator for large-dimensional
-covariance matrices, Journal of Multivariate Analysis 2004] as a
+\cite{ledoit2004covariance} as a
 parameter-free alternative. Condition number and effective rank are recorded
 after regularisation; a matrix still singular there raises rather than being
 pseudo-inverted.
@@ -183,8 +186,8 @@ $\lambda \rightarrow \infty$ recovers the identity, so the rung degrades toward
 \texttt{none} rather than toward noise. $\lambda$ is searched over
 $\{10^{-3}, \ldots, 10^{2}\}$ in decades.
 
-Optimisation uses Adam [CITE: Kingma and Ba, Adam: a method for stochastic
-optimization, ICLR 2015] for 200 steps at batch size 256, warm-started from the
+Optimisation uses Adam \cite{kingma2015adam} for 200 steps at batch size 256,
+warm-started from the
 CORAL solution (full) or a diagonal moment match (diagonal). The learning rate
 is $\eta = \eta_0 / \sqrt{P}$ with $\eta_0 = 0.01$ and $P$ the parameter count:
 Adam normalises per parameter, so a fixed rate gives a step whose Frobenius
@@ -195,10 +198,11 @@ which does not converge.
 improve on its warm start, the fitted map reverts to the warm start and the run
 records that it did so. This is not a rare guard. Across the main grid it fires
 in \textbf{64.9\%} of \texttt{mkmmd\_diag} runs and \textbf{55.2\%} of
-\texttt{mkmmd\_full} runs. In those cells the fitted map \emph{is} the CORAL
-warm start, and reporting them as a distinct sixth rung without saying so would
-overstate what was actually fitted. Every table in this paper containing an
-MK-MMD row states the rate.
+\texttt{mkmmd\_full} runs. In those cells the fitted map is the warm start:
+the diagonal moment match for \texttt{mkmmd\_diag}, and CORAL for
+\texttt{mkmmd\_full}. Reporting either as a distinct learned map without saying
+so would overstate what was actually fitted. The rates accompany the ladder
+result in Section~\ref{sec:results-ladder} and the generated results document.
 
 \subsection{Measuring distribution discrepancy}
 \label{sec:discrepancy}
@@ -234,6 +238,18 @@ weaker shrinkage would amplify hundreds of near-null directions.
 Neither frame is privileged by theory. We report both throughout, because
 Section~\ref{sec:results-frames} shows they disagree about the sign of the
 relationship between discrepancy and transfer.
+
+\paragraph{Class-conditional diagnostic.} For each class $k$, the analysis
+computes the same unbiased multi-kernel MMD$^2$ between aligned
+$X_s \mid y=k$ and $X_t \mid y=k$. Its bandwidth is the seeded median
+pairwise distance in that class's pooled source and target samples; the
+normaliser is the mean absolute MMD$^2$ across five random half-splits of the
+aligned source samples for that same class. A class is undefined rather than
+estimated when either side has fewer than 50 examples. The reported conditional
+value is the unweighted mean over defined classes, first within seed and then
+over seeds. Thus its ratio to marginal MMD is a descriptive comparison of two
+normalised diagnostics, not a probability decomposition or an estimate of
+$P(y \mid x)$.
 
 \subsection{Classifiers and the search budget}
 \label{sec:classifiers}
@@ -293,6 +309,17 @@ The gap between them is the quantity of interest. Reporting only the oracle ---
 which is what selecting on target scores amounts to, and what the earlier
 version of this work did --- makes a method look as good as its best run.
 
+\paragraph{How the ladder handles unequal inner grids.} Each result row already
+contains the best of its classifier family's 20 source-validation trials. For a
+ladder summary, we then hold (pair, seed, backbone, layer aggregation,
+classifier family) fixed and select that rung's best remaining inner setting
+($\varepsilon$ for CORAL or $\lambda$ for MK-MMD) by
+\texttt{source\_val} macro-F1. Target predictions from only these selected
+cells enter the paired cluster bootstrap. The row counts in Table~\ref{tab:ladder}
+are therefore candidate rows before this second selection, not equally weighted
+observations in a rung mean; they differ because the rungs legitimately have
+different inner grids.
+
 \subsection{Metrics, floors and inference}
 \label{sec:metrics}
 
@@ -314,8 +341,7 @@ Table~\ref{tab:floors} collects the split sizes and both floors.
 
 \paragraph{Intervals.} Target-score intervals come from a \textbf{paired
 cluster bootstrap} that resamples \texttt{target\_test} speakers and seeds
-together, 2000 replicates [CITE: a standard reference for the cluster bootstrap
-/ bootstrap for clustered data]. Speakers are the resampling unit because
+together, 2000 replicates \cite{cameron2008cluster}. Speakers are the resampling unit because
 recognition errors cluster hard by talker, and an utterance-level bootstrap
 would report intervals several times too narrow. Seeds are resampled because
 the seed is the replication unit for everything the design controls --- split
@@ -329,18 +355,17 @@ the discrepancy columns --- have no per-utterance form and instead receive a
 $t$-interval over seeds.
 
 \paragraph{Multiple comparisons.} A primary comparison family of seven
-contrasts $\times$ two directions was \textbf{declared in code before any of
-its numbers were computed}: the five ladder rungs against \texttt{none}, and
+contrasts $\times$ two directions was \textbf{pre-specified in code before the
+frozen confirmatory grid was run}: the five ladder rungs against \texttt{none}, and
 two layer-aggregation contrasts. Holm--Bonferroni correction
-[CITE: Holm 1979, a simple sequentially rejective multiple test procedure,
-Scandinavian Journal of Statistics] is applied across exactly those 14 tests.
+\cite{holm1979sequential} is applied across exactly those 14 tests.
 Holm rather than Bonferroni because it is uniformly more powerful at the same
 family-wise error rate, and rather than a false-discovery-rate procedure
-because the family is small and pre-registered, where controlling the
+because the family is small and pre-specified, where controlling the
 family-wise rate is the stricter guarantee.
 
 Comparisons outside that family are reported as such, and are never presented
-as though they had been pre-registered. Where such a comparison supports a
+as though they had been pre-specified. Where such a comparison supports a
 \emph{null} claim --- that some difference is negligible --- we report a bound
 rather than a test, since failing to reject a null is not evidence for it.
 Where one supports a positive claim, correction is applied within that

@@ -1,10 +1,10 @@
 \begin{table}[tb]
   \centering
-  \caption{The alignment ladder. Target macro-F1 rises once, off \texttt{none}, and then does not track discrepancy: \texttt{mkmmd\_full} reaches the lowest discrepancy in both geometries and is never the best rung.}
+  \caption{The alignment ladder. Within each (pair, seed, backbone, layer aggregation, classifier) cell, the source-validation-best inner setting is selected before target scoring. Target macro-F1 rises once, off \texttt{none}, and then does not track discrepancy: \texttt{mkmmd\_full} reaches the lowest discrepancy in both geometries and is never the best rung.}
   \label{tab:ladder}
   \begin{tabular}{lrrrrr}
     \toprule
-    pair & rung & runs & target macro-F1 & effect (own) & effect (ref) \\
+    pair & rung & candidate rows & target macro-F1 & effect (own) & effect (ref) \\
     \midrule
     RAVDESS $\rightarrow$ CREMA-D & \texttt{none} & 153 & 0.2289 [0.2133, 0.2444] & 1432.93 & 36905.40 \\
      & \texttt{zscore} & 153 & 0.3599 [0.3483, 0.3726] & 51.79 & 480.85 \\
@@ -21,5 +21,5 @@
     \bottomrule
   \end{tabular}
   \\[2pt]
-  \begin{minipage}{\linewidth}\footnotesize Filter: \texttt{freeze\_tag=grid-freeze-v3}, \texttt{blending=none}. Target intervals are a paired cluster bootstrap over target-test speakers and seeds, 2000 replicates; discrepancy columns are $t$-intervals over seeds. Both geometries are reported because they disagree (Table~\ref{tab:frames}).\end{minipage}
+  \begin{minipage}{\linewidth}\footnotesize Filter: \texttt{freeze\_tag=grid-freeze-v3}, \texttt{blending=none}. Target intervals are a paired cluster bootstrap over target-test speakers and seeds, 2000 replicates; discrepancy columns are $t$-intervals over seeds. Candidate-row counts differ because CORAL and MK-MMD have larger inner grids; rows are not averaged before selection. Both geometries are reported because they disagree (Table~\ref{tab:frames}).\end{minipage}
 \end{table}

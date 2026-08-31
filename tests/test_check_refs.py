@@ -21,6 +21,7 @@ from ser.refs import (
     find_duplicate_coordinates,
     find_duplicate_titles,
     normalise_title,
+    parse_bibtex,
     parse_bibliography,
     parse_citation_keys,
     render_report,
@@ -67,6 +68,26 @@ def test_article_number_style_pages_are_parsed(references):
 def test_missing_bibliography_raises():
     with pytest.raises(ValueError, match="thebibliography"):
         parse_bibliography("no bibliography here")
+
+
+def test_bibtex_parser_preserves_nested_latex_and_author_surnames():
+    references = parse_bibtex(
+        """@article{sample,
+  author = {Doe, Jane and van Rossum, Guido},
+  title = {{A} {B}ibTeX title},
+  journal = {Example Journal},
+  volume = {7},
+  number = {2},
+  pages = {10--20},
+  year = {2026}
+}"""
+    )
+    assert len(references) == 1
+    reference = references[0]
+    assert reference.key == "sample"
+    assert reference.title == "A BibTeX title"
+    assert reference.surnames == ("doe", "vanrossum")
+    assert reference.pages == "10-20"
 
 
 # -- citation extraction ---------------------------------------------------

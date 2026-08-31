@@ -30,14 +30,14 @@ removed.
 
 \textbf{Verification.} Every numerical claim in this paper is generated from the
 result files by script and cross-checked against the released results document;
-no number was transcribed by hand. Every bibliographic entry was verified
-against the publisher's record by the author. This point is not routine for this
-project: an earlier version of this work carried fabricated bibliography
-entries, produced by a model and not caught, and correcting that is part of what
-this rebuild is for. References are not added to the bibliography of this paper
-unless the author has opened the publisher's page for them. Claims that could
-not be supported by a verified source were rewritten rather than cited
-speculatively.
+no number was transcribed by hand. Every citation key resolves to a bibliography
+record and the BibTeX audit reports no probable-fabrication finding. The final
+author checklist retains eight proceedings or journal records for publisher-page
+spot checks because they are not reliably indexed by Crossref. This point is not
+routine for this project: an earlier version of this work carried fabricated
+bibliography entries, produced by a model and not caught, and correcting that is
+part of what this rebuild is for. Claims that cannot be supported by a verified
+source will be rewritten rather than cited speculatively.
 
 The author reviewed and edited all content and takes full responsibility for the
 contents of this article.
@@ -52,10 +52,11 @@ construction, the exact speaker-disjoint split derivation for every seed, and
 the label mapping, so the partitions used here can be reproduced exactly from
 the source corpora without any data being redistributed.
 
-All derived result files --- the run records for all 5424 grid rows, the layer
-sweep, the $\varepsilon$ probe and the shift decomposition --- are released with
-the code, together with the generated document listing every number the paper
-cites with its interval, floor and run filter.
+All derived result files --- the 4,986-run frozen confirmatory grid, 438
+retained Stage~0, Stage~1 and baseline rows, the layer sweep, the
+$\varepsilon$ probe and the shift decomposition --- are released with the code,
+together with the generated document listing every number the paper cites with
+its interval, floor and run filter.
 
 \section*{Code availability}
 

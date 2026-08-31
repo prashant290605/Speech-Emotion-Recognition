@@ -1,6 +1,6 @@
 \begin{table}[tb]
   \centering
-  \caption{The three-way shift decomposition. Label shift is negligible. Alignment drives the marginal term down by two orders of magnitude while the conditional term falls far less, so the ratio rises toward one: what remains after alignment is conditional shift, which no marginal alignment can remove.}
+  \caption{Label-prior, marginal and class-conditional diagnostics across the alignment ladder. Observed label-prior differences are small. Alignment drives the marginal statistic down by two orders of magnitude while the class-conditional diagnostic falls less, so their ratio rises toward one. The diagnostics are not an additive decomposition or a direct estimate of $P(y \mid x)$.}
   \label{tab:decomposition}
   \begin{tabular}{lrrrrr}
     \toprule
@@ -21,5 +21,5 @@
     \bottomrule
   \end{tabular}
   \\[2pt]
-  \begin{minipage}{\linewidth}\footnotesize Filter: hubert, \texttt{layer\_agg=last}, logreg, 5 seeds, both discrepancies measured between the same two sets (aligned source-train and aligned target-test). KL is $\mathrm{KL}(P_{\mathrm{target}} \| P_{\mathrm{source}})$ in nats between realised partition priors. The conditional term reads target labels and is computed behind the A10 firewall (\texttt{ser.analysis}); it is never written to the result schema.\end{minipage}
+  \begin{minipage}{\linewidth}\footnotesize Filter: hubert, \texttt{layer\_agg=last}, logreg, 5 seeds, both discrepancies measured between the same two sets (aligned source-train and aligned target-test). KL is $\mathrm{KL}(P_{\mathrm{target}} \| P_{\mathrm{source}})$ in nats between realised partition priors. The conditional term reads target labels and is computed behind the A10 firewall (\texttt{ser.analysis}); it is never written to the result schema. Per-class MMD uses the same 5-kernel statistic, a seeded median bandwidth and a class-specific half-split null; classes with fewer than 50 examples on either side are excluded before the unweighted mean is formed.\end{minipage}
 \end{table}

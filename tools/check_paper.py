@@ -110,12 +110,16 @@ def main() -> int:
     # makes that transition automatic rather than remembered.
     undrafted = {f.stem for f in files
                  if f.read_text(encoding="utf-8").lstrip().startswith("% placeholder")}
-    for key in sorted(set(re.findall(r"\\ref\{([^}]+)\}", body)) - labels):
+    refs = set(re.findall(r"\\ref\{([^}]+)\}", body))
+    for key in sorted(refs - labels):
         if key.startswith("sec:") and undrafted:
             notes.append(f"forward \\ref{{{key}}} -- "
-                         f"{len(undrafted)} section(s) still undrafted")
+                        f"{len(undrafted)} section(s) still undrafted")
         else:
             problems.append(f"\\ref{{{key}}} has no \\label")
+    for key in sorted(label for label in labels if label.startswith(("fig:", "tab:"))
+                      and label not in refs):
+        problems.append(f"\\label{{{key}}} is never referenced in the text")
 
     # -- balance -----------------------------------------------------------
     for name in ("document", "table", "figure", "tabular", "equation",

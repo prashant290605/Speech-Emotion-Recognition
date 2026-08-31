@@ -14,82 +14,85 @@ suggests. Alignment does help, substantially: between $+0.1208$ and $+0.1359$
 macro-F1 for RAVDESS $\rightarrow$ CREMA-D and between $+0.1524$ and $+0.1961$
 for CREMA-D $\rightarrow$ RAVDESS, against chance floors of $0.1665$ and
 $0.1656$. But essentially all of it is available from per-dimension
-standardisation, and the reason is that alignment removes the wrong
-discrepancy.
+standardisation. The diagnostics below test one explanation for why further
+marginal discrepancy reduction does not yield a further transfer gain.
 
-\paragraph{The mechanism.} Decomposing the shift into label, marginal and
-conditional components shows what the ladder is doing. Alignment drives the
-marginal term down to $0.010\times$ its unaligned value while the conditional
-term falls only to $0.07\times$; the ratio of conditional to marginal rises from
-$0.14$ to $0.92$ in the forward direction. After alignment, what separates the
-two corpora is almost entirely a difference in $P(y \mid x)$ --- exactly the
-thing a covariate-shift correction assumes is absent and cannot repair. Label
-shift is not the explanation either: the prior KL is $0.02235$ and $0.02541$
-nats, and correcting for it \emph{hurts} in 238 of 240 cases while the same
-estimators recover a planted shift. Two of the three standard shift families are
-excluded by measurement, and the third accounts for what is left.
+\paragraph{The diagnostic.} Measuring label shift, marginal discrepancy and a
+class-conditional discrepancy shows what the ladder is doing. Alignment drives
+the marginal term down to $0.010\times$ its unaligned value while the
+class-conditional term falls only to $0.07\times$; their ratio rises from $0.14$
+to $0.92$ in the forward direction. This is not an additive decomposition or a
+direct estimate of $P(y \mid x)$: it is evidence that the remaining
+class-conditional mismatch is not removed as quickly as the marginal quantity
+the ladder optimises. The observed prior difference is small: the KL is
+$0.02235$ and $0.02541$ nats, and the standard corrections examined here
+\emph{hurt} in 238 of 240 cases while the same estimators recover a planted
+shift. This does not establish that label shift is absent, because those
+corrections assume stable class-conditionals.
 
-This explains the plateau rather than merely reporting it. The elaborate rungs
-are not failing at their objective --- \texttt{mkmmd\_full} reaches the lowest
-marginal discrepancy in both measurement geometries --- they are succeeding at
-an objective that stopped binding after the first step.
+This distinguishes the observed plateau from an optimiser that simply failed
+to reduce its objective. The elaborate rungs --- \texttt{mkmmd\_full} reaches
+the lowest marginal discrepancy in both measurement geometries --- reduce that
+objective without a corresponding target-macro-F1 gain. The diagnostic does
+not establish why that correspondence fails.
 
 \paragraph{What follows from it.} Three further results fall out, each of which
 qualifies how the alignment literature's evidence should be read.
 
-CORAL, at the regularisation its own source-side validation selects, is not
-doing what its name describes. We derive analytically that as the shrinkage
-$\varepsilon$ grows the CORAL map tends to a scalar rescale plus a mean shift,
-and confirm it: at the selected $\varepsilon = 10$ the map is already $86\%$ of
-the way to a pure scalar, and at $\varepsilon = 1000$ its scores land within
-$0.0061$ of \texttt{mean\_shift} in both directions. A covariance-matching
-method that has degenerated to a mean shift will still be reported as covariance
-matching.
+CORAL, at the regularisation its own source-side validation selects, approaches
+the simpler rung. We derive analytically that as the shrinkage $\varepsilon$
+grows the CORAL map tends to a scalar rescale plus a mean shift, and confirm it:
+at the selected $\varepsilon = 10$ the map is already $86\%$ of the way to a
+pure scalar, and at $\varepsilon = 1000$ its scores land within $0.0061$ of
+\texttt{mean\_shift} in both directions.
 
-Source-side validation cannot detect whether alignment is needed. It separates
-\texttt{none} from \texttt{zscore} by $0.0018$ where the target separates them
-by $0.13$. It is not a noisy estimate of the target ordering; on this decision it
-is nearly blind to it, and it selects the unaligned configuration on 2 of 5
-seeds. One of those seeds returns $0.1508$ --- \textbf{below the $0.1665$ chance
-floor} --- from a protocol that touched no target labels at any point. The gap
-between validated and oracle selection, $0.1399$ $[0.0231, 0.2568]$ forward, is
-larger than the entire benefit of alignment.
+In the forward direction, source-side validation can miss whether alignment is
+needed. It separates \texttt{none} from \texttt{zscore} by $0.0018$ where the
+target separates them by $0.13$. On this decision it is nearly blind to the
+target ordering, selecting the unaligned configuration on 2 of 5 seeds. One of
+those seeds returns $0.1508$ --- \textbf{below the $0.1665$ chance floor} ---
+from a protocol that touched no target labels at any point. The gap between
+validated and oracle selection, $0.1399$ $[0.0231, 0.2568]$ forward, is larger
+than the entire benefit of alignment.
 
-Finally, the discrepancy--transfer relationship that justifies the whole family
-does not have a well-defined sign. Measured in each method's own geometry the
+Finally, the discrepancy--transfer relationship that motivates the whole family
+is not invariant to measurement geometry. Measured in each method's own geometry the
 correlation is $\rho = -0.444$ $[-0.505, -0.383]$; measured in a single fixed
 reference frame, on the same features, layers and scores, it is $+0.142$
 $[+0.062, +0.221]$. The signs are opposite and neither interval covers zero.
 Which one a study obtains is fixed by a measurement choice made before any
-transfer result is seen, and usually not reported. The $\varepsilon$ sweep
-supplies a case where the correct answer is known independently, and one frame
-gets it wrong.
+transfer result is seen, and often left implicit. The $\varepsilon$ sweep
+supplies a case where the limiting map is known independently, and the two
+frames disagree about its proximity to that limit.
 
 \paragraph{What this paper is and is not.} It is not a new alignment method and
 does not report a new best score; the absolute numbers here are modest. It is an
 account of why a widely used family behaves as it does, on a protocol built so
-that the account can be checked: pre-registered comparisons, speaker-disjoint
-splits, chance floors beside every score, an equal search budget across
+that the account can be checked: comparisons pre-specified before the frozen
+confirmatory grid, speaker-disjoint splits, chance floors beside every score,
+an equal search budget across
 classifier families, and a validated-versus-oracle distinction drawn explicitly
 rather than blurred. Section~\ref{sec:reproducibility} lists the seven claims we
 made during this work and later withdrew, which is part of the same commitment.
 
 \paragraph{Contributions.}
 \begin{enumerate}
-  \item \textbf{A mechanism for the alignment plateau.} The residual shift after
-    alignment is $92\%$ conditional; label shift is negligible and correcting it
-    hurts in 238 of 240 cases while recovering a planted shift.
+  \item \textbf{A diagnostic for the alignment plateau.} Marginal discrepancy
+    falls to $0.010\times$ its unaligned value while the class-conditional
+    diagnostic falls to $0.07\times$; observed prior differences are small, and
+    the standard corrections examined here hurt in 238 of 240 cases while
+    recovering a planted shift.
     (Section~\ref{sec:decomposition})
   \item \textbf{The gain is the first rung.} Alignment is worth $+0.12$ to
     $+0.20$, and no aligned rung is shown to beat per-dimension standardisation
     in either direction. (Section~\ref{sec:results-ladder})
-  \item \textbf{CORAL degenerates at its selected regularisation.} Derived
-    analytically and confirmed to within $0.0061$.
+  \item \textbf{CORAL approaches a scalar-rescaled mean shift as shrinkage
+    grows.} Derived analytically and confirmed to within $0.0061$.
     (Section~\ref{sec:results-eps})
-  \item \textbf{Source-side validation cannot detect whether alignment is
+  \item \textbf{Forward source-side validation can miss whether alignment is
     needed}, and once returns a score below the chance floor.
     (Section~\ref{sec:results-selection})
   \item \textbf{Discrepancy--transfer correlations reverse sign with the
-    measurement frame}, so the relationship is not identified until the frame is
+    measurement frame}, so the relationship is not invariant until the frame is
     specified. (Section~\ref{sec:results-frames})
 \end{enumerate}

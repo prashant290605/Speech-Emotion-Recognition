@@ -117,6 +117,8 @@ def _build_parser() -> argparse.ArgumentParser:
         "check-refs", help="[1] audit the bibliography against Crossref (reports only)"
     )
     refs.add_argument("--tex", default="legacy/SER_Report.tex")
+    refs.add_argument("--bib", default=None,
+                      help="Optional BibTeX database; citations are read from --tex and its inputs")
     refs.add_argument("--out", default="reports/refs_report.md")
     refs.add_argument("--cache", default=".cache/crossref.json")
     refs.add_argument("--mailto", default=None, help="Contact for Crossref's polite pool")
@@ -432,6 +434,7 @@ def _cmd_check_refs(args: argparse.Namespace) -> int:
         tex_path=root / args.tex,
         out_path=root / args.out,
         cache_path=root / args.cache,
+        bib_path=(root / args.bib) if args.bib else None,
         mailto=args.mailto,
         offline=args.offline,
     )

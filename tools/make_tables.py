@@ -4,7 +4,8 @@
     python tools/make_tables.py
 
 Writes tables/*.tex. Each table states its own run filter in a note, so a
-reader can see which slice of 5424 rows produced it without leaving the page.
+reader can see which slice of the retained result ledger produced it without
+leaving the page.
 
 Requires only `booktabs` in the document preamble.
 """
@@ -102,8 +103,10 @@ def table_ladder(data):
             ])
     return emit(table(
         rows,
-        ["pair", "rung", "runs", "target macro-F1", "effect (own)", "effect (ref)"],
-        caption=("The alignment ladder. Target macro-F1 rises once, off "
+        ["pair", "rung", "candidate rows", "target macro-F1", "effect (own)", "effect (ref)"],
+        caption=("The alignment ladder. Within each (pair, seed, backbone, "
+                 "layer aggregation, classifier) cell, the source-validation-best "
+                 "inner setting is selected before target scoring. Target macro-F1 rises once, off "
                  "\\texttt{none}, and then does not track discrepancy: "
                  "\\texttt{mkmmd\\_full} reaches the lowest discrepancy in both "
                  "geometries and is never the best rung."),
@@ -112,7 +115,8 @@ def table_ladder(data):
                "\\texttt{blending=none}. Target intervals are a paired cluster "
                "bootstrap over target-test speakers and seeds, "
                f"{N_BOOT} replicates; discrepancy columns are $t$-intervals over "
-               "seeds. Both geometries are reported because they disagree "
+               "seeds. Candidate-row counts differ because CORAL and MK-MMD have "
+               "larger inner grids; rows are not averaged before selection. Both geometries are reported because they disagree "
                "(Table~\\ref{tab:frames})."],
         escape_cells=False,
     ), "ladder")
@@ -134,9 +138,9 @@ def table_primary(data):
     return emit(table(
         rows,
         ["id", "comparison", "pair", "difference in target macro-F1", "Holm $p$", "verdict"],
-        caption=("The pre-registered primary comparisons. All 14 survive Holm "
-                 "correction. The family was fixed in code before any of these "
-                 "numbers was computed."),
+        caption=("The pre-specified primary comparisons. All 14 survive Holm "
+                 "correction. The family was fixed in code before the frozen "
+                 "confirmatory grid was run."),
         label="primary",
         notes=[f"Paired cluster bootstrap over target-test speakers and seeds, "
                f"{payload[0]['n_boot']} replicates. $p$ values marked $<$ are at "
@@ -216,11 +220,12 @@ def table_decomposition():
     return emit(table(
         rows,
         ["pair", "rung", "label shift (KL)", "marginal", "conditional", "ratio"],
-        caption=("The three-way shift decomposition. Label shift is negligible. "
+        caption=("The three-way shift decomposition. Observed label-prior differences are small. "
                  "Alignment drives the marginal term down by two orders of "
                  "magnitude while the conditional term falls far less, so the "
-                 "ratio rises toward one: what remains after alignment is "
-                 "conditional shift, which no marginal alignment can remove."),
+                 "ratio rises toward one. This class-conditional diagnostic is "
+                 "not an additive decomposition or a direct estimate of "
+                 "$P(y\\mid x)$."),
         label="decomposition",
         notes=["Filter: hubert, \\texttt{layer\\_agg=last}, logreg, 5 seeds, "
                "both discrepancies measured between the same two sets "
@@ -229,7 +234,10 @@ def table_decomposition():
                "in nats between realised partition priors. The conditional term "
                "reads target labels and is computed behind the A10 firewall "
                "(\\texttt{ser.analysis}); it is never written to the result "
-               "schema."],
+               "schema. Per-class MMD uses the same 5-kernel statistic, a seeded "
+               "median bandwidth and a class-specific half-split null; classes with "
+               "fewer than 50 examples on either side are excluded before the "
+               "unweighted mean is formed."],
         escape_cells=False,
     ), "decomposition")
 
@@ -296,7 +304,7 @@ def table_frames():
         caption=("Frame dependence. Spearman $\\rho$ between a layer's marginal "
                  "discrepancy and its target macro-F1, across the 13 layers. The "
                  "two geometries give opposite signs, so the relationship between "
-                 "discrepancy and transfer is not well posed until the geometry "
+                 "discrepancy and transfer is not invariant until the geometry "
                  "is fixed."),
         label="frames",
         notes=["Filter: 13-layer sweep, 2340 runs, logreg, 6 rungs, 3 backbones, "
@@ -422,16 +430,16 @@ def table_floors(data):
         ])
     return emit(table(
         rows,
-        ["pair", "source\_train", "source\_val", "target\_adapt",
-         "target\_test", "chance", "majority"],
+        ["pair", "source\\_train", "source\\_val", "target\\_adapt",
+         "target\\_test", "chance", "majority"],
         caption=("Split sizes and the floors every macro-F1 in this paper is "
                  "read against. Both directions are matched-$n$: CREMA-D "
                  "source-train is subsampled from 5972 to match RAVDESS, so a "
-                 "reported asymmetry cannot be a training-set size effect."),
+                 "reported asymmetry is not a source-training-size effect alone."),
         label="floors",
         notes=["Ranges span the five seeds within the speaker-disjoint "
                "constraint. Floors are analytic from the realised "
-               "\\texttt{target\_test} priors, not simulated. Because the "
+               "\\texttt{target\\_test} priors, not simulated. Because the "
                "chance floor is pair-dependent, no result in this paper averages "
                "macro-F1 across pairs."],
         escape_cells=False,
@@ -450,7 +458,7 @@ def main() -> int:
     table_decomposition()
     table_frames()
     table_eps(data)
-    print(f"\n7 tables written to {TABLE_DIR.relative_to(REPO_ROOT).as_posix()}/")
+    print(f"\n9 tables written to {TABLE_DIR.relative_to(REPO_ROOT).as_posix()}/")
     return 0
 
 
