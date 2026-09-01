@@ -89,11 +89,11 @@ Section~\ref{sec:results-frames} is the re-specified one.
 \subsection{Null results}
 \label{sec:repro-nulls}
 
-Reported because they are results rather than omissions. Matching more moments
-does not help: \texttt{mkmmd\_full} reaches the lowest discrepancy in
-\emph{both} geometries and is never the best rung. Label-shift correction does
-not help, hurting in 238 of 240 cases. Searching $\lambda$ for the MK-MMD rungs
-is not worth the compute: \texttt{source\_val} varies by $0.0066$ (diagonal) and
+Reported because they are results rather than omissions. The evaluated affine
+\texttt{mkmmd\_full} map reaches the lowest discrepancy in \emph{both}
+geometries and is never the best rung. Label-shift correction does not help,
+hurting in 238 of 240 cases. Searching $\lambda$ for the MK-MMD rungs is not
+worth the compute: \texttt{source\_val} varies by $0.0066$ (diagonal) and
 $0.0196$ (full) across the entire grid. And the depth-divergence effect above
 does not generalise, at a pooled gap of $+0.00$ layers.
 

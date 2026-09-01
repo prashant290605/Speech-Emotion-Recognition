@@ -21,7 +21,7 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | Funding and competing-interest declarations | **VERIFY** | No-funding and no-conflict statements are present; author must confirm they remain true. |
 | Ethics and corpus licence compliance | **PENDING** | Confirm permissions for RAVDESS and CREMA-D, permitted research use, and institutional requirements. |
 | Data and code availability | **PENDING** | Text is present; replace the repository URL with the verified Zenodo DOI before submission. Do not archive third-party raw corpora. |
-| Generative-AI disclosure | **VERIFY** | Detailed disclosure is in `backmatter.tex`; confirm current Elsevier policy and portal requirement. |
+| Generative-AI disclosure | **MET** | `backmatter.tex` names OpenAI ChatGPT and OpenAI Codex, states their drafting and software-assistance roles, and records author review and responsibility. Confirm the portal field before final upload. |
 | English-language proofread | **PENDING** | Complete after the compiled-PDF review. |
 | Abstract, keywords, main sections, captions and editable tables | **VERIFY** | The abstract is 179 words, six keywords are present, sections are numbered, and tables are editable. Validate in the compiled PDF. |
 | Acknowledgements | **MET** | No acknowledgements section is present. Add one only if an author confirms a required acknowledgement. |
@@ -73,3 +73,4 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | 2026-09-01 | Audited the earlier condensation against the complete manuscript. Restored 6,178 words of scientific narrative, all detailed methods and results text, and the reproducibility section. No result, experiment, or numerical claim was added. |
 | 2026-09-01 | Confirmed that published Speech Communication articles use a two-column production layout. Switched the manuscript to the supplied official Elsevier CAS double-column class (`cas-dc` v2.4). |
 | 2026-09-01 | Rebuilt the final flat CAS archive. Static package validation, manuscript structure validation, outcome-number tracing, focused citation tests, and a visual review of all 19 PDF pages passed. |
+| 2026-09-01 | Reviewer-revision Phase 1 completed: bounded the paper to a RAVDESS--CREMA-D case study, replaced `cost of selection` with `oracle gap`, replaced `chance floor` with `chance baseline`, limited MK-MMD claims to the evaluated affine maps and budget, removed the prospective DOI statement, and made the OpenAI ChatGPT/Codex disclosure specific. |

@@ -1,18 +1,18 @@
 \section{Introduction}
 \label{sec:introduction}
 
-A speech emotion recogniser trained on one corpus does markedly worse on
+A speech emotion recogniser trained on one corpus can perform poorly on
 another. A standard response is to align the two feature distributions before
 training. Per-dimension standardisation, CORAL, MMD minimisation, and related
 methods form a well-established family. Studies usually support a member of
 this family by showing improved transfer and lower measured discrepancy between
 the domains.
 
-This paper runs that family end to end on one fixed protocol and asks what the
-improvement is actually made of. The answer is not the one the framing
-suggests. Alignment adds between $+0.1208$ and $+0.1359$
+This controlled RAVDESS and CREMA-D case study runs that family end to end on
+one fixed protocol. It asks what the observed improvement consists of. Alignment
+adds between $+0.1208$ and $+0.1359$
 macro-F1 for RAVDESS $\rightarrow$ CREMA-D and between $+0.1524$ and $+0.1961$
-for CREMA-D $\rightarrow$ RAVDESS, against chance floors of $0.1665$ and
+for CREMA-D $\rightarrow$ RAVDESS, against chance baselines of $0.1665$ and
 $0.1656$. But essentially all of it is available from per-dimension
 standardisation. The diagnostics below test one explanation for why further
 marginal discrepancy reduction does not yield a further transfer gain.
@@ -20,24 +20,25 @@ marginal discrepancy reduction does not yield a further transfer gain.
 \paragraph{The diagnostic.} Measuring label shift, marginal discrepancy and a
 class-conditional discrepancy shows what the ladder is doing. Alignment drives
 the marginal term down to $0.010\times$ its unaligned value while the
-class-conditional term falls only to $0.07\times$; their ratio rises from $0.14$
-to $0.92$ in the forward direction. This is not an additive decomposition or a
-direct estimate of $P(y \mid x)$: it is evidence that the remaining
-class-conditional mismatch is not removed as quickly as the marginal quantity
-the ladder optimises. The observed prior difference is small: the KL is
+class-conditional term falls only to $0.07\times$. These diagnostics use
+different null normalisers, so their numerical ratio is descriptive rather than
+a decomposition. The observed pattern indicates that the class-conditional
+diagnostic does not decline as quickly as the marginal quantity the ladder
+optimises. The observed prior difference is small: the KL is
 $0.02235$ and $0.02541$ nats, and the standard corrections examined here
 \emph{hurt} in 238 of 240 cases while the same estimators recover a planted
 shift. This does not establish that label shift is absent, because those
 corrections assume stable class-conditionals.
 
-This distinguishes the observed plateau from an optimiser that simply failed
-to reduce its objective. The elaborate rungs reduce the objective without a
+The evaluated affine maps reduce their marginal objectives without a
 corresponding target-macro-F1 gain. \texttt{mkmmd\_full} reaches the lowest
-marginal discrepancy in both measurement geometries. The diagnostic does not
-establish why the discrepancy reduction does not improve transfer.
+marginal discrepancy in both measurement geometries. Its documented optimiser
+fallback rate means this is evidence about the evaluated optimisation budget,
+not every possible MK-MMD map. The diagnostic does not establish why the
+discrepancy reduction does not improve transfer.
 
 \paragraph{What follows from it.} Three further results fall out, each of which
-qualifies how the alignment literature's evidence should be read.
+qualifies the interpretation of this controlled corpus-pair result.
 
 CORAL, at the regularisation its own source-side validation selects, approaches
 the simpler rung. We derive analytically that as the shrinkage $\varepsilon$
@@ -50,10 +51,11 @@ In the forward direction, source-side validation can miss whether alignment is
 needed. It separates \texttt{none} from \texttt{zscore} by $0.0018$ where the
 target separates them by $0.13$. On this decision it is nearly blind to the
 target ordering, selecting the unaligned configuration on 2 of 5 seeds. One of
-those seeds returns $0.1508$, \textbf{below the $0.1665$ chance floor}. The
+those seeds returns $0.1508$, \textbf{below the $0.1665$ chance baseline}. The
 protocol touched no target labels at any point. The gap between
-validated and oracle selection, $0.1399$ $[0.0231, 0.2568]$ forward, is larger
-than the entire benefit of alignment.
+validated and oracle selection, $0.1399$ $[0.0231, 0.2568]$ forward, is the
+oracle gap. It is larger than the observed alignment gain, but it also includes
+target-set maximisation and search-space effects.
 
 Finally, the relationship between discrepancy and transfer is not invariant to
 measurement geometry. Measured in each method's own geometry the
@@ -66,31 +68,31 @@ supplies a case where the limiting map is known independently, and the two
 frames disagree about its proximity to that limit.
 
 \paragraph{What this paper is and is not.} It is not a new alignment method and
-does not report a new best score; the absolute numbers here are modest. It is an
-account of why a widely used family behaves as it does, on a protocol built so
-that the account can be checked: comparisons pre-specified before the frozen
-confirmatory grid, speaker-disjoint splits, chance floors beside every score,
-an equal search budget across
-classifier families, and a validated-versus-oracle distinction drawn explicitly
-rather than blurred. Section~\ref{sec:reproducibility} lists the seven claims we
-made during this work and later withdrew, which is part of the same commitment.
+does not report a new best score; the absolute numbers here are modest. It is a
+controlled analysis of one English acted-speech corpus pair. The protocol makes
+the analysis checkable: comparisons were pre-specified before the frozen
+confirmatory grid, splits are speaker-disjoint, each score carries a chance
+baseline, classifier families have equal search budgets, and validated and
+oracle scores are distinguished explicitly. The accompanying materials record
+the frozen protocol, provenance, and withdrawn interim claims.
 
 \paragraph{Contributions.}
 \begin{enumerate}
   \item \textbf{A diagnostic for the alignment plateau.} Marginal discrepancy
     falls to $0.010\times$ its unaligned value while the class-conditional
-    diagnostic falls to $0.07\times$; observed prior differences are small, and
+    diagnostic falls to $0.07\times$. Observed prior differences are small, and
     the standard corrections examined here hurt in 238 of 240 cases while
     recovering a planted shift.
     (Section~\ref{sec:decomposition})
-  \item \textbf{The gain is the first rung.} Alignment is worth $+0.12$ to
-    $+0.20$, and no aligned rung is shown to beat per-dimension standardisation
-    in either direction. (Section~\ref{sec:results-ladder})
+  \item \textbf{The gain is the first rung in this case study.} Alignment is
+    worth $+0.12$ to $+0.20$, and no aligned rung is shown to beat
+    per-dimension standardisation in either direction.
+    (Section~\ref{sec:results-ladder})
   \item \textbf{CORAL approaches a scalar-rescaled mean shift as shrinkage
     grows.} Derived analytically and confirmed to within $0.0061$.
     (Section~\ref{sec:results-eps})
   \item \textbf{Forward source-side validation can miss whether alignment is
-    needed}, and once returns a score below the chance floor.
+    needed}, and once returns a score below the chance baseline.
     (Section~\ref{sec:results-selection})
   \item \textbf{The relationship between discrepancy and transfer reverses
     sign with the measurement frame}, so it is not invariant until the frame is

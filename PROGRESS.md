@@ -2715,5 +2715,46 @@ None. `legacy/` is byte-identical to the upstream clone.
    did; `frustrated`→`angry` in particular deserves a deliberate decision rather
    than inheritance.
 
-4. **Raw corpora are not present.** Phase 2 needs RAVDESS, CREMA-D, and IEMOCAP
+   4. **Raw corpora are not present.** Phase 2 needs RAVDESS, CREMA-D, and IEMOCAP
    under `data/raw/`. Paths are configurable in `configs/default.yaml`.
+
+## 2026-09-01 - Reviewer-revision Phase 1: scope, terminology, and compliance
+
+### Files created
+
+- `paper/REVISION_PLAN.md`, an evidence-bound plan for every actionable reviewer issue.
+
+### Files modified
+
+- `paper/main.tex`, `paper/highlights.txt`, `paper/sections/introduction.tex`,
+  `paper/sections/methods.tex`, `paper/sections/results.tex`,
+  `paper/sections/discussion.tex`, `paper/sections/conclusion.tex`,
+  `paper/sections/reproducibility.tex`, `paper/sections/backmatter.tex`,
+  `tables/floors.tex`, `tables/headline.tex`, and
+  `paper/SUBMISSION_CHECKLIST.md`.
+
+### Tests and validation
+
+- `python tools/check_paper.py` passed.
+- `python tools/check_number_trace.py` passed, tracing 778 outcome occurrences.
+- `pytest -q --basetemp .pytest-phase1` passed.
+- `git diff --check` reported no whitespace errors.
+
+### Decisions made
+
+- The current article is described as a controlled RAVDESS--CREMA-D case study,
+  not as a field-wide cross-corpus SER result.
+- `oracle gap` replaces the causal-sounding `cost of selection`; it is explicitly
+  an upper-bound difference that includes target-test maximisation and search effects.
+- `chance baseline` replaces `chance floor` in reporting text.
+- The MK-MMD conclusion is restricted to the evaluated affine maps, warm start,
+  and fixed optimisation budget.
+- The manuscript names OpenAI ChatGPT and OpenAI Codex and describes author
+  oversight. No DOI is claimed before a Zenodo archive exists.
+
+### Deferred
+
+- Formal measurement-frame analysis, calm-label sensitivity, current-literature
+  integration, and a third-corpus confirmation remain in `paper/REVISION_PLAN.md`.
+- IEMOCAP cannot be run until its licensed raw data are available; no IEMOCAP
+  result is claimed.

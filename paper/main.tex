@@ -13,11 +13,11 @@
 \def\floatpagepagefraction{1}
 \def\textpagefraction{.001}
 
-\shorttitle{Marginal alignment in cross-corpus SER}
+\shorttitle{A controlled cross-corpus SER case study}
 \shortauthors{P. Singh and P. Singh}
 
-\title[mode=title]{When marginal alignment stops helping: discrepancy geometry
-  and model selection in cross-corpus speech emotion recognition}
+\title[mode=title]{Marginal alignment, measurement geometry, and model selection:
+  a controlled RAVDESS and CREMA-D speech emotion recognition case study}
 
 \author[1]{Prashant Singh}
 \cormark[1]
@@ -43,23 +43,24 @@
 
 \begin{abstract}
 Feature-space alignment aims to reduce cross-corpus speech emotion recognition
-error. We compare per-dimension standardisation, mean shift, correlation
-alignment (CORAL), and multi-kernel maximum mean discrepancy (MK-MMD) across
-4986 RAVDESS and CREMA-D runs in both directions. The protocol uses
-speaker-disjoint splits, source-side selection, and chance floors. Alignment
-adds $+0.12$ to $+0.20$ macro-F1 against floors near $0.166$. No evaluated rung
-exceeds per-dimension standardisation. From unaligned to the \texttt{mkmmd\_full}
-endpoint, the forward marginal diagnostic decreases to $0.010$ of its
-unaligned value and the class-conditional diagnostic decreases to $0.07$,
-changing their ratio from $0.14$ to $0.92$. Prior KL spans $0.022$ to $0.025$
-nats. Label-shift corrections reduce macro-F1 in 238 of 240 cases while
-recovering an implanted shift. CORAL converges to a scalar-rescaled mean shift
-with increasing shrinkage, and its endpoint is within $0.0061$ macro-F1 of
-mean shift. Forward source validation separates unaligned and standardised
-features by $0.0018$, while target macro-F1 differs by $0.13$. Finally,
-discrepancy-transfer correlation changes from $-0.444$ in each method's own
-geometry to $+0.142$ in a fixed reference frame. Reported discrepancy
-reductions must specify their measurement geometry.
+error. This controlled case study compares per-dimension standardisation, mean
+shift, correlation alignment (CORAL), and affine multi-kernel maximum mean
+discrepancy (MK-MMD) maps across 4986 RAVDESS and CREMA-D runs in both
+directions. The protocol uses speaker-disjoint splits, source-side selection,
+and chance baselines. Alignment adds $+0.12$ to $+0.20$ macro-F1 against
+baselines near $0.166$. No evaluated rung exceeds per-dimension
+standardisation. From unaligned to the \texttt{mkmmd\_full} endpoint, the
+forward marginal diagnostic decreases to $0.010$ of its unaligned value while
+the class-conditional diagnostic decreases to $0.07$. Prior KL spans $0.022$
+to $0.025$ nats. Label-shift corrections reduce macro-F1 in 238 of 240 cases
+while recovering an implanted shift. CORAL converges to a scalar-rescaled mean
+shift with increasing shrinkage, and its endpoint is within $0.0061$ macro-F1
+of mean shift. Forward source validation separates unaligned and standardised
+features by $0.0018$, while target macro-F1 differs by $0.13$. Finally, the
+correlation between marginal discrepancy and target macro-F1 changes from
+$-0.444$ in each method's own geometry to $+0.142$ in a fixed reference frame.
+These results describe two English acted-speech corpora; they do not establish
+a universal alignment recommendation.
 \end{abstract}
 
 \begin{keywords}

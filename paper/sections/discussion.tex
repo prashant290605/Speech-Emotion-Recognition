@@ -10,12 +10,12 @@ context, but do not identify a causal mechanism.
 \paragraph{Why standardisation suffices.} The ladder and its one-sided bounds
 show that per-dimension standardisation captures the observed improvement: no
 more complex rung is shown to improve target macro-F1 in either direction.
-Matching covariance, or matching higher-order structure through a learned map,
-does not yield a further gain. The diagnostics document the mismatch between the
-objective and transfer: marginal discrepancy falls to $0.010\times$ its
-unaligned value while the class-conditional diagnostic falls only to
-$0.07\times$, and their ratio rises from $0.14$ to $0.92$ forward and from
-$0.29$ to $0.53$ reverse.
+The evaluated CORAL and affine MK-MMD maps do not yield a further gain. The
+diagnostics document the mismatch between their marginal objective and transfer:
+marginal discrepancy falls to $0.010\times$ its unaligned value while the
+class-conditional diagnostic falls only to $0.07\times$. The two diagnostics
+have different null normalisers, so their ratio is descriptive rather than a
+physical decomposition.
 
 \paragraph{Why lower marginal discrepancy does not help further here.}
 \texttt{mkmmd\_full} reaches the lowest marginal discrepancy in \emph{both}
@@ -25,14 +25,15 @@ improving the task, and these runs show that it can. The class-conditional
 diagnostic provides a plausible account of the mismatch, but it is not a direct
 estimate of $P(y \mid x)$.
 
-The point generalises beyond these rungs. Covariate-shift correction is
-justified by the assumption that $P(y \mid x)$ is stable across domains. Our
-diagnostics do not directly test that assumption. Observed label-prior differences are
-small: the prior KL is $0.02235$ and $0.02541$ nats, and the standard
-corrections examined here \emph{hurt} in 238 of 240 cases, by $0.013$ to
-$0.24$ macro-F1, while the same estimators recover a planted shift. This does
-not establish the absence of label shift, because these corrections rely on
-class-conditional assumptions that the diagnostic does not verify.
+This analysis is limited to these rungs and this corpus pair. Covariate-shift
+correction is justified by the assumption that $P(y \mid x)$ is stable across
+domains. Our diagnostics do not directly test that assumption. Observed
+label-prior differences are small: the prior KL is $0.02235$ and $0.02541$
+nats, and the standard corrections examined here \emph{hurt} in 238 of 240
+cases, by $0.013$ to $0.24$ macro-F1, while the same estimators recover a
+planted shift. This does not establish the absence of label shift, because these
+corrections rely on class-conditional assumptions that the diagnostic does not
+verify.
 
 \paragraph{What a correct selection protocol would have to measure.} The
 forward selection result establishes a specific failure: source-side validation
@@ -48,9 +49,10 @@ Section~\ref{sec:results-selection} shows how wide that gap is.
 \label{sec:discussion-selection}
 
 Table~\ref{tab:headline} gives the practitioner-facing validated scores and the
-oracle gaps. \textbf{The forward gap is larger than the observed benefit of
-alignment.} Choosing the configuration can therefore be a bigger problem than
-choosing the alignment method.
+oracle gaps. \textbf{The forward oracle gap is larger than the observed
+alignment gain.} It describes the room between source-side selection and the
+target-set maximum; it does not isolate a causal effect of source-side
+selection.
 
 The forward selection surface is specific rather than universal: source-side
 validation is nearly blind to the alignment distinction in that direction and
@@ -59,8 +61,9 @@ the protocol uses no target labels and has no source-side indication of that
 failure. By contrast, source-side validation is informative on the layer-depth
 axis; Section~\ref{sec:repro-retractions} reports that result explicitly.
 
-This is also the argument for reporting floors beside every performance number.
-Without the floor, a below-chance result reads only as a weak score.
+This is also the argument for reporting baselines beside every performance
+number. Without the chance baseline, a below-baseline result reads only as a
+weak score.
 
 \subsection{Testing the conditional-shift explanation directly}
 \label{sec:discussion-testing}
@@ -116,7 +119,7 @@ families and its intervals are correspondingly wider.
 \textbf{The MK-MMD rungs frequently fall back.} Optimisation reverts to its
 warm start in $64.9\%$ of \texttt{mkmmd\_diag} runs and $55.2\%$ of
 \texttt{mkmmd\_full} runs, so in the majority of cells the fitted map \emph{is}
-the CORAL or diagonal warm start. This qualifies the negative result about
-higher-moment matching: we have shown that this optimiser, at this budget, does
-not beat standardisation, which is weaker than showing no such map could. A
-better-optimised MK-MMD might do better; these runs do not decide that question.
+the CORAL or diagonal warm start. This qualifies the negative result about the
+evaluated affine MK-MMD maps: this optimiser, at this budget, does not beat
+standardisation. A better-optimised MK-MMD map might do better; these runs do
+not decide that question.

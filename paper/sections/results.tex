@@ -2,8 +2,8 @@
 \label{sec:results}
 
 Numbers come first in each subsection and interpretation is separated from
-them. Every macro-F1 is reported against its own pair's chance floor, and
-because that floor is pair-dependent, nothing is averaged across pairs. Unless
+them. Every macro-F1 is reported against its own pair's chance baseline, and
+because that baseline is pair-dependent, nothing is averaged across pairs. Unless
 stated otherwise, intervals are 95\% paired cluster bootstrap intervals over
 target-test speakers and seeds.
 
@@ -21,14 +21,17 @@ validation alone, alongside the best configuration present in the grid.
 \input{../tables/headline}
 
 Validated macro-F1 is $0.3156$ $[0.1880, 0.4432]$ for
-RAVDESS $\rightarrow$ CREMA-D against a chance floor of $0.1665$, and
+RAVDESS $\rightarrow$ CREMA-D against a chance baseline of $0.1665$, and
 $0.4994$ $[0.4592, 0.5395]$ for CREMA-D $\rightarrow$ RAVDESS against
 $0.1656$. The oracle values are $0.4555$ $[0.4326, 0.4785]$ and
 $0.5680$ $[0.5148, 0.6212]$; \textbf{the oracle is an upper bound that no
-protocol can reach} and is reported only to bound the cost of selection. The
-gap is $0.1399$ $[0.0231, 0.2568]$ and $0.0687$ $[0.0090, 0.1283]$.
+deployable protocol can reach}. The validated-to-oracle difference is the
+\emph{oracle gap}: $0.1399$ $[0.0231, 0.2568]$ and $0.0687$
+$[0.0090, 0.1283]$. It does not identify a causal effect of source-side
+selection because it also includes target-set maximisation, finite-sample
+variation, and search-space effects.
 
-Both directions clear their chance floors, and both fall well short of
+Both directions clear their chance baselines, and both fall well short of
 in-domain SER performance. The validated interval for the forward direction is
 notably wide; Section~\ref{sec:results-selection} shows why, and the reason is
 itself a result.
@@ -45,7 +48,7 @@ columns, and Figure~\ref{fig:ladder} plots them together.
   \centering
   \includegraphics[width=\textwidth]{ladder.pdf}
   \caption{Target macro-F1 by alignment rung (left axis, with 95\% intervals
-    and the chance floor) against marginal discrepancy in the rung's own
+    and the chance baseline) against marginal discrepancy in the rung's own
     geometry (right axis, log scale). Moving off \texttt{none} improves
     performance, but lower discrepancy does not yield a further improvement
     consistently across the two directions. The shaded region marks the aligned
@@ -125,20 +128,23 @@ $51.79$ and $480.85$; and is never the best rung. In the reverse direction it
 is the \emph{worst} aligned rung, at $0.3885$ $[0.3653, 0.4099]$ against
 \texttt{zscore}'s $0.4321$ $[0.4070, 0.4547]$.
 
-\paragraph{What this does and does not show.} Alignment helps, substantially and
-reproducibly. Per-dimension standardisation captures the observed improvement:
-no more complex rung is shown to improve on it. CORAL matches covariance and
-MK-MMD matches higher-order feature structure. Neither gives a further
-target-macro-F1 gain while reducing marginal discrepancy
-by one to two orders of magnitude. That combination is what the rest of this
-section explains rather than merely reports.
+\paragraph{What this does and does not show.} Alignment improves target macro-F1
+in this corpus pair. Per-dimension standardisation captures the observed
+improvement: no more complex rung is shown to improve on it. CORAL uses a
+covariance-based affine map. The MK-MMD rungs optimise a characteristic-kernel
+marginal-discrepancy objective through an affine map. Neither evaluated method
+adds a further target-macro-F1 gain while reducing the reported marginal
+diagnostic by one to two orders of magnitude. This is evidence about the
+implemented maps and optimisation budgets, not about all possible
+higher-order alignment procedures.
 
 \paragraph{A caveat that must accompany the MK-MMD rows.} In
 \textbf{64.9\%} of \texttt{mkmmd\_diag} runs and \textbf{55.2\%} of
 \texttt{mkmmd\_full} runs, optimisation failed to improve on its warm start and
 the fitted map reverted to it. In those cells the map is the diagonal moment
-match or CORAL warm start, respectively, and reporting it as a distinct learned
-map without saying so would overstate what was fitted.
+match or CORAL warm start, respectively. The result therefore evaluates this
+optimiser and its budget rather than establishing that a better-optimised
+MK-MMD map cannot improve transfer.
 
 \subsection{Diagnostic: marginal and class-conditional discrepancy}
 \label{sec:decomposition}
@@ -248,7 +254,7 @@ Figure~\ref{fig:selection} shows it per seed.
   \caption{Validated against oracle target macro-F1 for each seed, with the
     rung the protocol selected annotated on each validated bar. In the forward
     direction the protocol selects the unaligned condition on two of five
-    seeds; on one of them the result falls below the chance floor.}
+    seeds; on one of them the result falls below the chance baseline.}
   \label{fig:selection}
 \end{figure*}
 
@@ -259,12 +265,12 @@ The criterion is effectively blind to this distinction.
 
 The consequence is that selection falls back to \texttt{none} on two of five
 forward seeds, returning target macro-F1 of $0.2803$ and $0.1508$. \textbf{The
-second is below that pair's chance floor of $0.1665$.} A protocol that uses no
-target labels; the only protocol available to a practitioner; therefore
-produces, on one seed in five, a system worse than random guessing, while an
-oracle over the same grid reaches $0.4555$. This is an axis-specific failure,
-not a general indictment of source validation: Section~\ref{sec:repro-retractions}
-shows that on the layer-depth axis it outperforms a random-layer choice.
+second is below that pair's chance baseline of $0.1665$.} The protocol uses no
+target labels and has no source-side indication of this outcome. An oracle over
+the same grid reaches $0.4555$, but that value is an optimistic upper bound on
+this target set. This is an axis-specific failure, not a general indictment of
+source validation: Section~\ref{sec:repro-retractions} shows that on the
+layer-depth axis it outperforms a random-layer choice.
 
 The reverse direction selects an aligned rung on all five seeds
 (\texttt{mean\_shift} four times, \texttt{zscore} once) and its gap is
@@ -418,7 +424,7 @@ Both directions are run at matched training-set size: CREMA-D's
 \texttt{source\_train} is capped from 5972 to 988, so any asymmetry cannot be
 attributed to source-training size alone. Excluding the reduced-seed transformer arm, which
 ran the primary direction only, target macro-F1 is $0.3429$
-$[0.3265, 0.3627]$ for RAVDESS $\rightarrow$ CREMA-D against a chance floor of
+$[0.3265, 0.3627]$ for RAVDESS $\rightarrow$ CREMA-D against a chance baseline of
 $0.1665$, and $0.3987$ $[0.3793, 0.4155]$ for the reverse against $0.1656$.
 
 The reverse direction has the higher target macro-F1 in this comparison at

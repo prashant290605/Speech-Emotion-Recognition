@@ -203,6 +203,9 @@ the diagonal moment match for \texttt{mkmmd\_diag}, and CORAL for
 \texttt{mkmmd\_full}. Reporting either as a distinct learned map without saying
 so would overstate what was actually fitted. The rates accompany the ladder
 result in Section~\ref{sec:results-ladder} and the generated results document.
+They qualify every MK-MMD comparison in this paper: the experiment evaluates
+these affine maps, this warm start, and this optimisation budget. It does not
+establish what a differently optimised MK-MMD map would achieve.
 
 \subsection{Measuring distribution discrepancy}
 \label{sec:discrepancy}
@@ -302,8 +305,11 @@ is the configuration with the highest \texttt{source\_val} macro-F1 within a
 given (pair, seed), scored on \texttt{target\_test}; it is what a practitioner
 could actually obtain, using no target labels at any point. \textbf{Oracle} is
 the highest \texttt{target\_test} macro-F1 present in the grid for that
-(pair, seed): an \textbf{upper bound no protocol can reach}, reported to bound
-the cost of selection, never quoted as a result.
+(pair, seed): an \textbf{upper bound no deployable protocol can reach}. The
+validated-to-oracle difference is called the \emph{oracle gap}. It does not
+identify a causal effect of source-side selection because it also contains
+finite-target-sample noise, search-space size, and optimism from maximising the
+target score.
 
 The gap between them is the quantity of interest. Reporting only the oracle
 amounts to selecting on target scores. The earlier version of this work did
@@ -320,22 +326,23 @@ are therefore candidate rows before this second selection, not equally weighted
 observations in a rung mean; they differ because the rungs legitimately have
 different inner grids.
 
-\subsection{Metrics, floors and inference}
+\subsection{Metrics, baselines and inference}
 \label{sec:metrics}
 
 The primary metric is macro-F1 on \texttt{target\_test}. Accuracy and
 unweighted average recall are also recorded on every row.
 
-\textbf{Every performance number is reported against its floors.} An analytic
-chance floor (the expected macro-F1 of a uniformly random classifier, given the
-realised target-test priors) and a majority-class floor are computed on every
-row from the realised distribution rather than by simulation. Here the chance
-floor is $0.1665$ (RAVDESS $\rightarrow$ CREMA-D) and $0.1656$
-(CREMA-D $\rightarrow$ RAVDESS), the majority floor $0.0425$ and $0.0444$. A
-macro-F1 without its floor alongside is not interpretable, and one number below
-falls \emph{beneath} its chance floor. Because the floor is pair-dependent,
+\textbf{Every performance number is reported against its baselines.} An analytic
+chance baseline (the expected macro-F1 of a uniformly random classifier, given
+the realised target-test priors) and a majority-class baseline are computed on
+every row from the realised distribution rather than by simulation. Here the
+chance baseline is $0.1665$ (RAVDESS $\rightarrow$ CREMA-D) and $0.1656$
+(CREMA-D $\rightarrow$ RAVDESS), and the majority baseline is $0.0425$ and
+$0.0444$. A macro-F1 without its baselines is not interpretable, and one number
+below its chance baseline is below the expected random-classifier score. Because
+the baseline is pair-dependent,
 \textbf{no figure in this paper averages macro-F1 across pairs}.
-Table~\ref{tab:floors} collects the split sizes and both floors.
+Table~\ref{tab:floors} collects the split sizes and both baselines.
 
 \input{../tables/floors}
 
@@ -353,6 +360,11 @@ which is what makes the difference paired.
 The discrepancy columns are properties of a fitted map, not of a prediction.
 They have no per-utterance form and instead receive a
 $t$-interval over seeds.
+
+\paragraph{AI-assisted code development.} OpenAI Codex was used to assist with
+code scaffolding and maintenance. The authors specified the experimental
+protocol, reviewed and edited all generated code, ran the tests and experiments,
+and verified every reported result against the generated artifacts.
 
 \paragraph{Multiple comparisons.} A primary comparison family of seven
 contrasts $\times$ two directions was \textbf{pre-specified in code before the
