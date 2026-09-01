@@ -3,9 +3,14 @@
 # row's label-map and configuration hashes.
 version: calm-drop-v1
 output: results/calm_dropped_sensitivity.jsonl
+report: reports/calm_dropped_sensitivity.md
+table: tables/calm_sensitivity.tex
+table_label: calm-sensitivity
 variant:
   name: calm_dropped_six
   ravdess_calm_to_neutral: false
+  label_space: six
+  description: drops RAVDESS \texttt{calm} rather than merging it into \texttt{neutral}.
 backbone: hubert
 classifier: logreg
 layer_agg: last
@@ -19,3 +24,9 @@ rungs:
   - alignment: mean_shift
   - alignment: coral
     eps: 10.0
+diagnostics:
+  output: results/calm_dropped_diagnostics.jsonl
+  report: reports/calm_dropped_diagnostics.md
+  max_samples: 128
+  null_repeats: 5
+  bandwidth_rule: median_pairwise_distance_source_target

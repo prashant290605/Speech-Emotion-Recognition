@@ -1,6 +1,6 @@
-# RAVDESS calm-drop sensitivity
+# Calm Dropped Six sensitivity
 
-This pre-specified sensitivity drops RAVDESS `calm` rather than merging it into `neutral`. It reuses cached HuBERT final-layer features, runs logistic regression, fixes CORAL at epsilon 10.0, and scores five speaker-disjoint seeds in each transfer direction. It is a robustness control, not a replacement full classifier grid.
+This pre-specified sensitivity drops RAVDESS \texttt{calm} rather than merging it into \texttt{neutral}. It reuses cached hubert last-layer features, runs logreg, and scores 5 speaker-disjoint seeds in each transfer direction. It is a robustness control, not a replacement full classifier grid.
 
 | direction | alignment | target macro-F1 | source-val macro-F1 | chance baseline | n train | n target test |
 |---|---|---|---|---|---|---|

@@ -1,6 +1,6 @@
 \begin{table*}[!t]
   \centering
-  \caption{Target macro-F1 in the pre-specified calm-drop sensitivity. RAVDESS \texttt{calm} is dropped rather than merged into \texttt{neutral}. Values are means over five speaker-disjoint seeds with 95\% $t$-intervals.}
+  \caption{Target macro-F1 in the pre-specified label-harmonisation sensitivity. Drops RAVDESS \texttt{calm} rather than merging it into \texttt{neutral}. Values are means over 5 speaker-disjoint seeds with 95\% $t$-intervals.}
   \label{tab:calm-sensitivity}
   \small
   \begin{tabular}{lrr}
@@ -14,5 +14,5 @@
     \bottomrule
   \end{tabular}
   \\[2pt]
-  \begin{minipage}{\linewidth}\footnotesize Filter: cached HuBERT final-layer features, logistic regression, and CORAL $\varepsilon=10.0$. The chance baselines are 0.1665 and 0.1645. This robustness control is not a replacement full classifier grid.\end{minipage}
+  \begin{minipage}{\linewidth}\footnotesize Filter: cached hubert last-layer features, logreg, and none, zscore, mean_shift, coral. The chance baselines are 0.1665 and 0.1645. This robustness control is not a replacement full classifier grid.\end{minipage}
 \end{table*}

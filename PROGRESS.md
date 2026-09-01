@@ -2854,3 +2854,61 @@ None. `legacy/` is byte-identical to the upstream clone.
 - The `neutral_excluded_five` control and class-conditional diagnostic reruns
   are Phase 4.
 - A licensed IEMOCAP confirmation remains externally blocked.
+
+## 2026-09-01 - Reviewer-revision Phase 4: label-harmonisation diagnostic extension
+
+### Files created
+
+- `configs/neutral_excluded_sensitivity.yaml` and
+  `configs/label_harmonisation_summary.yaml`, which define the five-class
+  control and the generated combined diagnostic table.
+- `tools/run_label_sensitivity_diagnostics.py`,
+  `tools/report_label_sensitivity_diagnostics.py`, and
+  `tools/make_label_harmonisation_table.py`.
+- `results/neutral_excluded_sensitivity_v2.jsonl`,
+  `results/calm_dropped_diagnostics.jsonl`, and
+  `results/neutral_excluded_diagnostics.jsonl`, each complete with 40 rows.
+- `reports/neutral_excluded_sensitivity.md`,
+  `reports/calm_dropped_diagnostics.md`,
+  `reports/neutral_excluded_diagnostics.md`,
+  `tables/neutral_excluded_sensitivity.tex`, and
+  `tables/label_harmonisation_diagnostics.tex`.
+
+### Files modified
+
+- `configs/calm_sensitivity.yaml`, `tools/run_calm_sensitivity.py`,
+  `tools/report_calm_sensitivity.py`, `tools/check_number_trace.py`,
+  `tests/test_calm_sensitivity.py`, `paper/sections/methods.tex`,
+  `paper/sections/results.tex`, `paper/REVISION_PLAN.md`, and
+  `paper/SUBMISSION_CHECKLIST.md`.
+
+### Tests and validation
+
+- `pytest -q tests/test_calm_sensitivity.py tests/test_mmd.py
+  tests/test_analysis_shift.py --basetemp .pytest-label-final` passed
+  (21 tests).
+- `python tools/check_paper.py` passed.
+- `python tools/check_number_trace.py` passed, tracing 855 outcome occurrences
+  to generated reports.
+- `python -m py_compile` passed for each new and modified sensitivity tool.
+- `git diff --check` reported no whitespace errors.
+
+### Decisions made
+
+- The five-class neutral-exclusion control is reported separately because its
+  chance baseline and macro-F1 class set differ from the six-class case study.
+- Both mapping-specific MMD analyses use per-rung adaptive median bandwidths.
+  Their raw and null-scaled values are descriptive only; the paper makes no
+  fixed-geometry ranking, conditional-to-marginal ratio, or causal
+  conditional-shift claim from them.
+- An initial `neutral-excluded-v1` execution recorded 40 cache-permission
+  failures caused by the sandbox. Those rows remain untouched in
+  `results/neutral_excluded_sensitivity.jsonl`. The versioned v2 configuration
+  used an approved read-only cache path and produced the complete valid ledger.
+
+### Deferred
+
+- The third-corpus confirmation requires licensed IEMOCAP raw data.
+- Current-literature positioning, moving the detailed provenance ledger to the
+  supplement, final PDF generation, and Overleaf archive regeneration remain
+  Phase 6 work.

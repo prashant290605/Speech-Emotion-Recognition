@@ -25,6 +25,9 @@ RESULT_SOURCES = (
     ROOT / "reports" / "RESULTS.md",
     ROOT / "reports" / "phase9_reference_geometry.md",
     ROOT / "reports" / "calm_dropped_sensitivity.md",
+    ROOT / "reports" / "neutral_excluded_sensitivity.md",
+    ROOT / "reports" / "calm_dropped_diagnostics.md",
+    ROOT / "reports" / "neutral_excluded_diagnostics.md",
 )
 NUMBER = re.compile(r"(?<![A-Za-z0-9_])[-+]?\d+(?:\.\d+)?(?:e[-+]?\d+)?(?![A-Za-z_])")
 # Fixed analysis parameters which appear in an otherwise outcome-bearing table.
@@ -33,6 +36,10 @@ KNOWN_DESIGN_TOKENS = {
     ("calm_sensitivity.tex", "5"),
     ("calm_sensitivity.tex", "10.0"),
     ("calm_sensitivity.tex", "95"),
+    ("neutral_excluded_sensitivity.tex", "5"),
+    ("neutral_excluded_sensitivity.tex", "95"),
+    ("label_harmonisation_diagnostics.tex", "5"),
+    ("label_harmonisation_diagnostics.tex", "10.0"),
 }
 
 

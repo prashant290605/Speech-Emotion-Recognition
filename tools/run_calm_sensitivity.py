@@ -32,39 +32,69 @@ def load_spec(path: Path) -> dict:
     missing = required - set(spec or {})
     if missing:
         raise ValueError(f"sensitivity config missing {sorted(missing)}")
-    if spec["variant"].get("ravdess_calm_to_neutral") is not False:
-        raise ValueError("this runner is only for the calm-dropped control")
+    variant = spec["variant"]
+    if variant.get("ravdess_calm_to_neutral") is not False:
+        raise ValueError("label-sensitivity controls must drop RAVDESS calm")
+    label_space = variant.get("label_space", "six")
+    if not isinstance(label_space, str) or not label_space:
+        raise ValueError("variant.label_space must be a non-empty string")
+    classes = variant.get("classes")
+    if classes is not None and (not isinstance(classes, list) or classes != sorted(set(classes))):
+        raise ValueError("variant.classes must be a sorted list of unique labels")
+    if label_space != "six" and not classes:
+        raise ValueError("a custom variant.label_space requires variant.classes")
     return spec
 
 
-def sensitivity_config(base, spec):
+def variant_label_space(spec: dict) -> str:
+    return spec["variant"].get("label_space", "six")
+
+
+def sensitivity_config(base, spec, *, source_path: str | None = None):
     """Clone only semantic config fields, making a distinct label-map hash."""
     raw = copy.deepcopy(base.raw)
+    label_space = variant_label_space(spec)
+    spaces = copy.deepcopy(base.labels.spaces)
+    if spec["variant"].get("classes") is not None:
+        spaces[label_space] = list(spec["variant"]["classes"])
     raw["labels"]["ravdess_calm_to_neutral"] = False
     raw["labels"]["label_map_version"] = spec["version"]
+    raw["labels"]["spaces"] = copy.deepcopy(spaces)
+    raw["labels"]["space_for_other_pairs"] = label_space
     raw["project"]["results_path"] = spec["output"]
     labels = replace(
         base.labels,
         ravdess_calm_to_neutral=False,
         label_map_version=spec["version"],
+        spaces=spaces,
+        space_for_other_pairs=label_space,
     )
     project = replace(base.project, results_path=spec["output"])
-    return replace(base, project=project, labels=labels, raw=raw, source_path=str(SPEC_PATH))
+    return replace(
+        base,
+        project=project,
+        labels=labels,
+        raw=raw,
+        source_path=source_path or str(SPEC_PATH),
+    )
 
 
-def project_rows(rows, config):
+def project_rows(rows, config, label_space: str = "six"):
+    """Project one requested label space into the manifest field splits use."""
     policy = LabelPolicy.from_config(config)
     projected = []
     for row in rows:
-        label = map_label(row.corpus, row.original_label, "six", policy) or ""
-        projected.append(replace(row, label_six=label))
+        label = map_label(row.corpus, row.original_label, label_space, policy) or ""
+        field = "label_six" if label_space == "six" else "label_four"
+        projected.append(replace(row, **{field: label}))
     return projected
 
 
 class SensitivityContext:
-    def __init__(self, config, rows):
+    def __init__(self, config, rows, label_space: str):
         self.config = config
         self.rows = rows
+        self.label_space = label_space
         self.by_id = {row.utterance_id: row for row in rows}
         self._loaders = {}
         self._splits = {}
@@ -78,7 +108,9 @@ class SensitivityContext:
     def split(self, source, target, seed):
         key = (source, target, seed)
         if key not in self._splits:
-            self._splits[key] = make_pair_split(self.rows, self.config, source, target, seed, "six")
+            self._splits[key] = make_pair_split(
+                self.rows, self.config, source, target, seed, self.label_space
+            )
         return self._splits[key]
 
     def labels(self, pair, role):
@@ -112,9 +144,12 @@ def main(argv=None) -> int:
     parser.add_argument("--config", default=str(SPEC_PATH))
     args = parser.parse_args(argv)
     spec = load_spec(Path(args.config))
-    config = sensitivity_config(load_config(), spec)
-    rows = project_rows(read_manifest(config.resolve(config.paths.manifest)), config)
-    context = SensitivityContext(config, rows)
+    label_space = variant_label_space(spec)
+    config = sensitivity_config(load_config(), spec, source_path=str(Path(args.config)))
+    rows = project_rows(
+        read_manifest(config.resolve(config.paths.manifest)), config, label_space
+    )
+    context = SensitivityContext(config, rows, label_space)
     output = config.results_path
     output.parent.mkdir(parents=True, exist_ok=True)
     completed = completed_run_ids(output)

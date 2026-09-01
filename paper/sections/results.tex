@@ -188,6 +188,30 @@ grid or identify a conditional-shift mechanism.
 
 \input{../tables/calm_sensitivity}
 
+\paragraph{Neutral-exclusion sensitivity.} We also exclude \texttt{neutral}
+from both corpora and drop RAVDESS \texttt{calm}, changing the task to five
+classes and its analytic chance baseline to $0.20$. Table~\ref{tab:neutral-excluded-sensitivity}
+shows that every aligned rung again exceeds \texttt{none} in both directions.
+The forward increases range from $+0.0612$ to $+0.0946$, and the reverse
+increases range from $+0.1310$ to $+0.1697$. This five-class control cannot be
+numerically pooled with the six-class result, but it rules out the affected
+\texttt{neutral} class as necessary for the basic aligned-versus-unaligned
+performance contrast.
+
+\input{../tables/neutral_excluded_sensitivity}
+
+\paragraph{Diagnostic sensitivity.} Table~\ref{tab:label-harmonisation-diagnostics}
+reports the matching MMD control rows. Within every aligned rung, the marginal
+and class-conditional values use the same adaptive source-target bandwidth.
+The mean class-conditional MMD$^2$ remains nonzero after alignment for both
+label mappings. Thus, this descriptive residual is not created only by merging
+\texttt{calm} into \texttt{neutral}, or by retaining \texttt{neutral}. The
+bandwidth and class sample composition vary across rows, so the table does not
+rank marginal reduction across rungs. It also does not identify a change in
+$P(y \mid x)$.
+
+\input{../tables/label_harmonisation_diagnostics}
+
 \textbf{A single fixed bandwidth can itself fail.} The z-score cells in
 Table~\ref{tab:decomposition} are near zero because the scale-changing map
 saturates the RBF kernels under a bandwidth fixed in the unaligned source

@@ -79,6 +79,11 @@ grid.
 
 ## Phase 4: Label-harmonisation diagnostic extension
 
+**Status:** Complete on 2026-09-01. The five-class neutral-exclusion control
+and both mapping-specific diagnostic ledgers are complete. The manuscript now
+reports their performance and descriptive MMD results without restoring the
+invalid conditional-to-marginal ratio.
+
 **Purpose:** address the residual reviewer concern about the class-conditional
 diagnostic rather than only the target-score ladder.
 
@@ -90,9 +95,10 @@ conditional-to-marginal ratio or claim that a fixed RBF bandwidth is a general
 closeness scale. Every result remains in a separate ledger and is integrated
 only at the strength it supports.
 
-**Acceptance criterion:** both controls are complete, their labels and run IDs
-are unit-tested, and the manuscript distinguishes a performance robustness
-result from a class-conditional diagnostic robustness result.
+**Acceptance criterion:** passed. Both controls are complete, their labels and
+diagnostic run IDs are unit-tested, and the manuscript distinguishes a
+performance robustness result from a class-conditional diagnostic robustness
+result.
 
 ## Phase 5: Third-corpus confirmatory study
 
@@ -132,6 +138,6 @@ generated results support the same qualified finding.
 | 1 | Complete | Text and compliance corrections use existing evidence only. |
 | 2 | Complete | Measurement-frame claims now match the diagnostic protocol. |
 | 3 | Complete | Calm-drop performance control is generated and integrated. |
-| 4 | Pending | Uses existing caches; no external data required. |
+| 4 | Complete | Two label mappings and their diagnostic ledgers are integrated. |
 | 5 | Waiting for licensed IEMOCAP | Raw data are absent; this is an external dependency, not a reason to claim results. |
 | 6 | Pending | Runs after the scientific changes and source verification. |
