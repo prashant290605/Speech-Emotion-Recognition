@@ -55,7 +55,7 @@ def main() -> int:
         problems.append(f"unexpected nested file: {name}")
     for name in sorted(allowed_nested - nested_files):
         problems.append(f"missing required CAS asset: {name}")
-    for required in ("main.tex", "refs.bib", "cas-sc.cls", "cas-common.sty",
+    for required in ("main.tex", "refs.bib", "cas-dc.cls", "cas-common.sty",
                      "cas-model2-names.bst"):
         if required not in root_files:
             problems.append(f"missing required file: {required}")
@@ -64,8 +64,8 @@ def main() -> int:
     text_by_file = {path.name: path.read_text(encoding="utf-8-sig") for path in tex_files}
     body = "\n".join(text_by_file.values())
     main_text = text_by_file.get("main.tex", "")
-    if not re.search(r"\\documentclass(?:\[[^]]*\])?\{cas-sc\}", main_text):
-        problems.append("main.tex does not use the official cas-sc class")
+    if not re.search(r"\\documentclass(?:\[[^]]*\])?\{cas-dc\}", main_text):
+        problems.append("main.tex does not use the official cas-dc class")
     if "\\bibliographystyle{cas-model2-names}" not in main_text:
         problems.append("main.tex does not use the CAS author-date bibliography style")
 

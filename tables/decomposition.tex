@@ -1,4 +1,4 @@
-\begin{table}[!htbp]
+\begin{table*}[!t]
   \centering
   \caption{Label-prior, marginal, and class-conditional diagnostics across the alignment ladder. Prior KL is 0.02235 or 0.02541 nats. Alignment reduces the marginal statistic by about two orders of magnitude in the forward direction, while the class-conditional ratio changes from 0.14 to 0.92. The diagnostics are not an additive decomposition and do not estimate $P(y \mid x)$.}
   \label{tab:decomposition}
@@ -22,4 +22,4 @@
   \end{tabular}
   \\[2pt]
   \begin{minipage}{\linewidth}\footnotesize Filter: hubert, \texttt{layer\_agg=last}, logreg, 5 seeds, both discrepancies measured between the same two sets (aligned source-train and aligned target-test). KL is $\mathrm{KL}(P_{\mathrm{target}} \| P_{\mathrm{source}})$ in nats between realised partition priors. The conditional term reads target labels and is computed behind the A10 firewall (\texttt{ser.analysis}); it is never written to the result schema. Per-class MMD uses the same 5-kernel statistic, a seeded median bandwidth and a class-specific half-split null; classes with fewer than 50 examples on either side are excluded before the unweighted mean is formed.\end{minipage}
-\end{table}
+\end{table*}

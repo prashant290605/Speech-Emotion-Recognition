@@ -28,7 +28,7 @@ Copy-Item (Join-Path $repositoryRoot "paper\main.tex") $stagingDirectory
 Copy-Item (Join-Path $repositoryRoot "paper\refs.bib") $stagingDirectory
 Copy-Item (Join-Path $repositoryRoot "paper\highlights.txt") $stagingDirectory
 Copy-Item (Join-Path $repositoryRoot "paper\OVERLEAF.md") $stagingDirectory
-Copy-Item (Join-Path $repositoryRoot "paper\vendor\cas\cas-sc.cls") $stagingDirectory
+Copy-Item (Join-Path $repositoryRoot "paper\vendor\cas\cas-dc.cls") $stagingDirectory
 Copy-Item (Join-Path $repositoryRoot "paper\vendor\cas\cas-common.sty") $stagingDirectory
 Copy-Item (Join-Path $repositoryRoot "paper\vendor\cas\cas-model2-names.bst") $stagingDirectory
 Copy-Item (Join-Path $repositoryRoot "paper\vendor\cas\thumbnails") $stagingDirectory -Recurse

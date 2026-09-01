@@ -18,7 +18,7 @@ The package includes only the files needed to compile the manuscript:
 main.tex
 refs.bib
 highlights.txt
-cas-sc.cls
+cas-dc.cls
 cas-common.sty
 cas-model2-names.bst
 thumbnails/cas-email.jpeg
@@ -29,7 +29,7 @@ OVERLEAF.md
 
 Overleaf should run the required LaTeX/BibTeX passes automatically. The expected
 engine is pdfLaTeX with BibTeX. The archive carries Elsevier's official CAS
-single-column template (cas-sc v2.4, 2024-05-04), its required common style,
+double-column template (cas-dc v2.4, 2024-05-04), its required common style,
 and the CAS author-date bibliography style, so it does not depend on an
 installed template version.
 

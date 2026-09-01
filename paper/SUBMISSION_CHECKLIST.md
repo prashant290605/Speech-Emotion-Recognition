@@ -2,7 +2,7 @@
 
 **Target:** *Speech Communication* (Elsevier)  
 **Article type:** Original Research Article  
-**Last reviewed:** 2026-08-31
+**Last reviewed:** 2026-09-01
 
 Status values: **MET** means the repository contains the item; **VERIFY** means
 it needs a final PDF or portal check; **PENDING** is an author action; and
@@ -27,7 +27,7 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | Acknowledgements | **MET** | No acknowledgements section is present. Add one only if an author confirms a required acknowledgement. |
 | Bibliography integrity | **VERIFY** | 29 cited records, zero placeholders, zero probable-fabrication findings in `reports/refs_report_submission.md`. Complete the eight publisher-page spot checks in `CITATIONS_NEEDED.md`. |
 | Figures and tables | **VERIFY** | Seven vector PDF figures and nine editable LaTeX tables are packaged. Check legibility and overflow in the PDF. |
-| LaTeX source and bibliography style | **MET** | Elsevier CAS single-column v2.4, `cas-common.sty`, and `cas-model2-names.bst` are vendored for the upload package. |
+| LaTeX source and bibliography style | **MET** | Elsevier CAS double-column v2.4, `cas-common.sty`, and `cas-model2-names.bst` are vendored for the upload package. |
 | Highlights | **MET** | Five separate highlights are in `paper/highlights.txt`; each is at most 85 characters including the bullet. |
 | Suggested reviewers | **PENDING** | Hand-off H; use institutional emails and exclude conflicts/recent collaborators. |
 | Cover letter | **PENDING** | Hand-off H, after author block and Zenodo DOI are final. |
@@ -42,8 +42,8 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | Reference audit | **VERIFY** | `python tools/check_refs.py --tex paper/main.tex --bib paper/refs.bib --out reports/refs_report_submission.md`. |
 | Python test suite | **VERIFY** | Focused reference tests pass. The full suite is blocked here by a Windows pytest temporary-directory/process-permission issue, not a reported assertion failure; rerun in the archived environment. |
 | Hostile-review pass | **MET** | `paper/ANTICIPATED_OBJECTIONS.md`; no new experiment or number was added. |
-| Self-contained Overleaf archive | **MET** | `output/overleaf/cas-v2-authors/Speech_Communication_submission_20260831.zip` passed static path, asset, graphics, citation, and bibliography checks. The only nested path is the official CAS email-icon asset. |
-| Clean compile and PDF defect resolution | **VERIFY** | A local Tectonic compile of the CAS package produced an 11-page PDF. All pages were visually inspected. Confirm the final journal PDF in Overleaf. |
+| Self-contained Overleaf archive | **MET** | `output/overleaf/cas-dc-release/Speech_Communication_submission_20260901.zip` passed static path, asset, graphics, citation, and bibliography checks. The only nested path is the official CAS email-icon asset. |
+| Clean compile and PDF defect resolution | **MET** | A local Tectonic compile of the final CAS double-column archive produced a 19-page PDF. All pages were visually inspected. Confirm the final journal PDF in Overleaf. |
 | Zenodo archive and DOI | **BLOCKED** | Hand-off H. |
 
 ## Author hand-off
@@ -66,7 +66,10 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | 2026-08-31 | Review-driven language, interval, unequal-grid and run-ledger corrections completed without new experiments. |
 | 2026-08-31 | BibTeX records integrated, audit extended to BibTeX/included sections, inherited `pastor2023cross` author mismatch repaired, and `pasad2021layer` updated to the ASRU proceedings record. |
 | 2026-08-31 | Official Elsevier class assets vendored and flat upload packaging prepared. |
-| 2026-08-31 | Manuscript reduced from 43 to 21 compiled pages. The local PDF and flat upload archive were rebuilt after a visual review of all retained tables and figures. |
+| 2026-08-31 | An intermediate condensation reduced the manuscript from 43 to 21 compiled pages. This intermediate version was superseded after the 2026-09-01 content audit. |
 | 2026-08-31 | Replaced the prior class with the supplied official Elsevier CAS single-column template (cas-sc v2.4). Applied the guide's author-date citation style, abstract limit, separate highlights file, and end-of-manuscript generative-AI declaration requirement. |
 | 2026-08-31 | Rebuilt the self-contained CAS archive and PDF. The package includes the official CAS email-icon asset at its required relative path and passed static validation. The 11-page CAS PDF was visually inspected. |
 | 2026-09-01 | Added Pranav Singh as the second author with the shared IIT Ropar affiliation, email address, equal-contribution note, and matching CRediT roles. Rebuilt and visually checked the 11-page CAS PDF. |
+| 2026-09-01 | Audited the earlier condensation against the complete manuscript. Restored 6,178 words of scientific narrative, all detailed methods and results text, and the reproducibility section. No result, experiment, or numerical claim was added. |
+| 2026-09-01 | Confirmed that published Speech Communication articles use a two-column production layout. Switched the manuscript to the supplied official Elsevier CAS double-column class (`cas-dc` v2.4). |
+| 2026-09-01 | Rebuilt the final flat CAS archive. Static package validation, manuscript structure validation, outcome-number tracing, focused citation tests, and a visual review of all 19 PDF pages passed. |

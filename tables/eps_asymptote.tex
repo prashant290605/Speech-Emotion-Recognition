@@ -1,4 +1,4 @@
-\begin{table}[!htbp]
+\begin{table*}[!t]
   \centering
   \caption{CORAL's shrinkage asymptote for both transfer directions. As $\epsilon$ grows the regularised covariances approach a scaled identity, the map tends to $\sqrt{\mathrm{tr}(C_t)/\mathrm{tr}(C_s)}\,I$, and the rung approaches a scalar rescale plus a mean shift. Both columns approach \texttt{mean\_shift}.}
   \label{tab:eps}
@@ -26,4 +26,4 @@
   \end{tabular}
   \\[2pt]
   \begin{minipage}{\linewidth}\footnotesize Filter: hubert, \{logreg, svm\_rbf, mlp\} $\times$ \{last, layer:6\}, 5 seeds. $\epsilon \leq 10$ is the frozen Stage 2 grid; $\epsilon \in \{100, 1000\}$ is a 120-run off-grid probe carrying the same facet hashes. Means over seeds.\end{minipage}
-\end{table}
+\end{table*}

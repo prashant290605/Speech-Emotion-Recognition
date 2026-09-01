@@ -533,7 +533,7 @@ def figure_per_class(data):
              if all(payload["pairs"][f"{s2}->{t2}"]["classes"][c]["f1"]["value"]
                     < payload["pairs"][f"{s2}->{t2}"]["macro_f1"]["value"]
                     for s2, t2 in PAIRS)]
-    fig.suptitle(", ".join(f"`{c}`" for c in below)
+    fig.suptitle(", ".join(below)
                  + " fall below macro-F1 in both directions", fontsize=9, y=1.02)
     return emit(fig, "per_class_f1")
 

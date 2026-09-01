@@ -1,40 +1,115 @@
 \section{Related work}
 \label{sec:related}
 
-Cross-corpus speech emotion recognition has long documented degradation when
-training and evaluation use different corpora \cite{schuller2010cross}.
-Published responses include fine-tuning \cite{naderi2023cross}, auxiliary
-objectives \cite{fu2023cross}, training strategies \cite{pastor2023cross}, and
-domain adaptation \cite{latif2023self,naeeni2025feature}. RAVDESS, CREMA-D,
-and IEMOCAP are frequently used corpora \cite{livingstone2018ryerson,
-cao2014crema,busso2008iemocap}. Differences in label mapping, splits, and
-metrics prevent a numerical comparison of gains between those studies. We
-therefore compare fixed alignment conditions within one protocol.
+\subsection{Cross-corpus speech emotion recognition}
+\label{sec:related-crosscorpus}
 
-\subsection{Alignment and discrepancy}
+That emotion recognition degrades when the test corpus is not the training
+corpus is old enough to have been systematised: cross-corpus evaluation was
+already being posed as a question about variances across corpora, and about
+strategies for absorbing them, fifteen years ago \cite{schuller2010cross}. The
+responses since have been broadly of three kinds. Transfer learning and
+fine-tuning move a model trained on one corpus toward another
+\cite{naderi2023cross}. Multi-task and auxiliary-objective formulations try to
+learn a representation that is not corpus-specific in the first place
+\cite{fu2023cross}. Training-strategy work changes what the model sees rather
+than what it computes \cite{pastor2023cross}. Domain adaptation proper; the
+family this paper is about; appears in both adversarial \cite{latif2023self}
+and feature-alignment \cite{naeeni2025feature} forms, the latter on the same
+class of self-supervised encoder used here.
+
+Most of this work is evaluated on some subset of a small pool of corpora, of
+which IEMOCAP \cite{busso2008iemocap}, RAVDESS \cite{livingstone2018ryerson}
+and CREMA-D \cite{cao2014crema} are the most frequent. The reported quantity is
+usually a gain: some method, on some corpus pair, over some baseline. In the
+studies just cited, the baseline, corpus pair, label mapping and split policy
+differ, so their gains are not numerically commensurable. This motivates a
+controlled within-protocol comparison of how much each step of an alignment
+ladder contributes.
+
+\subsection{Feature-space alignment under covariate shift}
 \label{sec:related-alignment}
 
-Covariate-shift methods assume that $P(y\mid x)$ remains stable while the
-feature marginal changes \cite{shimodaira2000covariate}. Domain-adaptation
-bounds use a classifier-dependent divergence
-\cite{bendavid2010theory}. Kernel MMD is not that divergence; it depends on
-the feature samples and its kernel specification. CORAL whitens source
-covariance and recolours it with target covariance
-\cite{sun2016coral,sun2016deep}. MMD methods minimise a kernel two-sample
-statistic \cite{gretton2012kernel}, including multi-kernel deep adaptation
-\cite{long2015dan}. Adversarial methods instead use a domain discriminator
-\cite{ganin2016dann}. This study evaluates CORAL and MK-MMD as affine
-feature-space transformations rather than as training losses.
+Alignment methods rest on a covariate-shift assumption: the marginal feature
+distribution differs between corpora while the conditional distribution of the
+label given the features does not \cite{shimodaira2000covariate}. One commonly
+invoked form of theoretical support is a bound in which target error is
+controlled by source error plus a divergence between the domains; and, in
+the standard result, that divergence is
+\emph{classifier-induced}: it is defined over the symmetric difference of the
+hypothesis class, and so depends on which hypotheses the learner can express
+\cite{bendavid2010theory}. This distinction is easy to lose
+and matters here: a kernel MMD at a fixed bandwidth is not a
+hypothesis-dependent quantity, so reducing it alone does not establish a
+reduction in that bound's divergence or in target error.
 
-\subsection{Representations and evaluation}
+The methods form a natural ladder, ordered by how much structure they match.
+Per-dimension standardisation matches first and second moments separately in
+each dimension but not their cross-dimension terms. CORAL matches the full
+second-order structure by whitening the source and recolouring it to the target
+covariance in a closed form \cite{sun2016coral} and as a differentiable training
+loss \cite{sun2016deep}. MMD-based methods minimise a kernel two-sample
+statistic \cite{gretton2012kernel}; deep adaptation networks use multi-kernel
+mean-embedding matching in hidden layers \cite{long2015dan}. Adversarial
+approaches use a learned domain discriminator and gradient reversal rather than
+a closed-form statistic \cite{ganin2016dann}.
+
+This paper is deliberately narrower than a survey of those methods. It fixes
+the candidate rungs, their tuning budgets, the selection rule and the geometry
+in which their discrepancy is measured, then reports where the observed gain
+appears. The conditional and label-shift diagnostics are reported as diagnostics
+of this corpus pair, not as a test of every assumption needed for domain
+adaptation.
+
+\subsection{Self-supervised representations, and where emotion lives in them}
+\label{sec:related-ssl}
+
+Self-supervised encoders \cite{baevski2020wav2vec,hsu2021hubert,chen2022wavlm}
+supply the features for most current SER systems, including the ones cited
+above. How a stack of transformer layers is reduced to a single vector is a
+choice, and the two common defaults are the final layer and a task-learned
+weighted sum over layers \cite{yang2021superb}. Layer-wise probing has shown
+that information in self-supervised speech representations changes across depth
+\cite{pasad2021layer}; the present study tests the downstream consequence for
+cross-corpus emotion recognition rather than assuming it from phonetic or
+lexical probes.
+
+Layer choice and alignment are, however, usually studied apart. That separation
+is why a result like ours; that the layer decision is worth more than any
+choice \emph{among} alignment methods; is available to be found rather than
+already known.
+
+\subsection{Protocol: selection, floors, and what a reported number means}
 \label{sec:related-protocol}
 
-HuBERT, wav2vec~2.0, and WavLM provide the frozen speech representations
-\cite{hsu2021hubert,baevski2020wav2vec,chen2022wavlm}. Information differs
-across transformer layers \cite{pasad2021layer}; learned layer aggregation is
-therefore an experimental axis rather than a fixed default
-\cite{yang2021superb}. Target labels cannot select cross-corpus configurations.
-Selecting by target score produces selection bias \cite{cawley2010selection}.
-We distinguish source-validation selection from the target-score oracle and
-use speaker-disjoint partitions. This follows the evaluation motivation of
-recent SER benchmarks \cite{ma2024emobox}.
+Cross-corpus transfer has no labelled target data available for model selection,
+which makes selection part of the evaluation protocol rather than a detail of
+implementation. Optimising any finite-sample selection criterion can introduce
+selection bias into performance evaluation \cite{cawley2010selection}. We
+therefore distinguish a source-validation-selected score from the maximum target
+score in the grid, which is labelled as an oracle rather than reported as an
+achievable result.
+
+Two further protocol choices bear on interpretation. We report each macro-F1
+beside its analytic chance and majority-class floors, because the realised test
+prior makes those floors pair-specific. We also use speaker-disjoint partitions
+throughout, so a target speaker is absent from both model fitting and alignment.
+Benchmark efforts have begun to standardise related evaluation choices
+\cite{ma2024emobox}.
+
+\subsection{Position of this work}
+\label{sec:related-position}
+
+This paper is not a new alignment method and does not report a new best score.
+It takes an existing and widely used family; the ladder of
+Section~\ref{sec:related-alignment}; runs all of it under one fixed protocol,
+and asks three questions the work above does not answer within one controlled
+protocol: where the gain actually comes from, whether a marginal diagnostic
+tracks transfer, and whether the quantity the family optimises is stable under
+its measurement frame. The answers
+are, in order: the first rung; the measured class-conditional diagnostic does
+not fall as quickly as the marginal statistic; and not until a measurement
+frame is fixed. The nearest
+precedent is the benchmarking strand represented by \cite{ma2024emobox}, which
+shares the aim of making cross-corpus numbers comparable but pursues it by
+standardising the evaluation rather than by decomposing the effect.

@@ -1,111 +1,386 @@
 \section{Method}
 \label{sec:method}
 
-\subsection{Corpora, labels, and splits}
+This section specifies the experimental design in enough detail to reconstruct
+it. Where a choice was contestable we state the alternative and why it was
+rejected, because several of the conclusions below depend on choices that a
+reader may reasonably want to overturn.
+
+\subsection{Corpora and label space}
 \label{sec:corpora}
 
-We use RAVDESS \cite{livingstone2018ryerson} (24 speakers, 1440 utterances,
-1.48\,h) and CREMA-D \cite{cao2014crema} (91 speakers, 7442 utterances,
-5.26\,h). Both contain speaker identifiers. The shared labels are angry,
-disgust, fear, happy, neutral, and sad. RAVDESS \texttt{calm} is mapped to
-\texttt{neutral}; \texttt{surprised} is excluded. The resulting RAVDESS
-sample contains 1248 utterances. Table~\ref{tab:corpora} reports the retained
-corpus statistics and priors.
+We use two English corpora: RAVDESS \cite{livingstone2018ryerson}
+(24 speakers, 1440 utterances, 1.48\,h, mean duration 3.70\,s) and CREMA-D
+\cite{cao2014crema} (91 speakers, 7442 utterances, 5.26\,h, mean duration
+2.54\,s). Both are publicly redistributable, both carry speaker identity for
+every utterance, and their categorical label sets share a six-class
+intersection large enough to evaluate per-class transfer. The pairing also
+admits a control that a larger corpus set would not: because the two differ
+sixfold in size, capping the larger to the smaller lets each direction be run
+at matched training-set size (Section~\ref{sec:splits}), so a reported
+asymmetry between directions is not attributable to source-training-set size
+alone. Both directions are evaluated.
+
+Both are elicited from actors rather than recorded spontaneously.
+Section~\ref{sec:limitations} takes up what that does and does not license.
+
+The shared label space is the six-class intersection
+$\{$angry, disgust, fear, happy, neutral, sad$\}$, in alphabetical order, which
+is also the index order of every confusion matrix we report. Two mapping
+decisions affect the priors and are stated because they are contestable.
+
+\emph{RAVDESS \texttt{calm} is merged into \texttt{neutral}}, since calm exists
+only in RAVDESS and cannot transfer. Merging gives neutral 288 utterances
+against 192 for every other class; dropping would leave it at 96. Neither
+option is balanced: RAVDESS is balanced across its own eight classes,
+\emph{not} at the six-class intersection, and a claim to the contrary in an
+earlier draft of this work is withdrawn here.
+\emph{RAVDESS \texttt{surprised} is excluded} as it has no CREMA-D counterpart,
+removing 192 utterances and leaving 1248. CREMA-D contributes all 7442.
+Table~\ref{tab:corpora} gives the resulting statistics.
 
 \input{../tables/corpora}
 
-Each seed creates \texttt{source\_train}, \texttt{source\_val},
-\texttt{target\_adapt}, and \texttt{target\_test} partitions. Speakers are
-disjoint across roles. Alignment receives source-train and target-adapt
-features only. The target test set is accessed only for scoring. Four
-assertions run for every split: speakers do not cross roles, utterance IDs do
-not cross corpora, fitted alignment IDs exclude target-test IDs, and the label
-map is pure. We use five seeds in both directions. CREMA-D source training is
-capped to RAVDESS source-training size by class-stratified subsampling. This
-matches source-training size; target adaptation and test sizes remain different.
+Class priors are close but not identical: RAVDESS carries $0.231$ neutral and
+$0.154$ for each remaining class, against CREMA-D's $0.146$ and $0.171$. The
+entire prior difference therefore sits in one class and is an artefact of the
+\texttt{calm} merge rather than a property of the corpora; which matters for
+Section~\ref{sec:decomposition}, where the measured label shift is small and we
+can say exactly where it comes from.
 
-\subsection{Features and classifiers}
+\subsection{Splits and leakage control}
+\label{sec:splits}
+
+Each corpus pair is partitioned into four roles. The source corpus yields
+\texttt{source\_train} and \texttt{source\_val}; the target corpus yields
+\texttt{target\_adapt} and \texttt{target\_test}. Partitioning is
+\textbf{speaker-disjoint} throughout: no speaker appears in more than one role.
+
+The separation between \texttt{target\_adapt} and \texttt{target\_test} is the
+central design constraint. Alignment methods require target-domain features by
+construction, and they are given \texttt{target\_adapt} only.
+\texttt{target\_test} is read exactly once per run, at scoring time, and never
+by any fitted object. This is enforced rather than described: every alignment
+object records the utterance identifiers it was fitted on, and an assertion
+runs on the \emph{real fitted object in every run}, not on a mock and not once
+at start-up. Model selection likewise never sees target data; the selection
+routine is not passed target features at all, and the target score is computed
+afterwards, by the caller, from a model already chosen. Four leakage assertions
+hold over all 20 splits (4 pairs $\times$ 5 seeds): no group appears in more
+than one split within a corpus; no utterance appears in both a source and a
+target split; \texttt{target\_test} never appears in any fitted alignment
+object; and the label mapping is a pure function.
+
+At seed 0, RAVDESS $\rightarrow$ CREMA-D gives 988 / 260 / 3765 / 3677
+utterances across the four roles, and CREMA-D $\rightarrow$ RAVDESS gives
+5972 / 1470 / 624 / 624. Sizes vary slightly across seeds within the
+speaker-disjoint constraint.
+
+\paragraph{Matched-$n$ reverse direction.} The two directions differ sixfold in
+training-set size, so any asymmetry between them would be confounded with the
+amount of source data. We therefore cap \texttt{source\_train} to the smaller
+direction's size per seed, subsampling CREMA-D from 5972 to 988: stratified by
+class with largest-remainder allocation, so the prior is preserved to within
+one utterance per class, and drawn from within the existing speaker-disjoint
+split, so utterances are only removed and never moved between roles. Every
+leakage guarantee therefore still holds, and the cap is derived per (pair, seed)
+rather than hard-coded. \textbf{Both directions reported here are matched in
+source-training size only}; a full-$n$ reverse arm was not run.
+Source-validation, target-adaptation and target-test sizes remain different
+between directions. Consequently this control removes one important
+data-quantity confound but does not license an attribution of every directional
+asymmetry to corpus properties.
+
+\subsection{Features}
 \label{sec:features}
 
-Audio is converted to 16\,kHz mono and peak-normalised. HuBERT Base,
-wav2vec~2.0 Base, and WavLM Base are frozen feature extractors
-\cite{hsu2021hubert,baevski2020wav2vec,chen2022wavlm}. Each cache stores 13
-hidden states of dimension 768. Mean pooling produces one vector per state.
-Eight segment means produce a sequence for the Transformer classifier. The
-cache also includes 78-dimensional MFCC statistics; this branch is not used in
-the reported analyses.
+Audio is resampled to 16\,kHz mono and peak-normalised. Three self-supervised
+base models are used as frozen feature extractors: HuBERT Base
+\cite{hsu2021hubert}, wav2vec 2.0 Base \cite{baevski2020wav2vec} and WavLM Base
+\cite{chen2022wavlm}, each providing a CNN encoder output plus twelve
+transformer layers, i.e.\ 13 hidden states of dimension 768.
 
-The classifier families are logistic regression, linear SVM, RBF SVM, MLP, and
-a segment Transformer. Each family receives 20 source-validation random-search
-trials. A failed fit consumes a trial. The classifier does not standardise its
-input, because that operation is an alignment condition in this experiment.
-The searchable layer conditions are \texttt{last}, \texttt{layer:6}, and a
-learned softmax over 13 states. The Transformer uses two seeds in the forward
-direction and is excluded from five-seed summaries.
+\textbf{All 13 layers are cached}, not only the final one. Final-layer pooling
+is the common default and is what the earlier version of this work used;
+caching every layer makes depth a searchable condition instead.
+Section~\ref{sec:results-aggregation} shows that this choice is worth more than
+any choice \emph{among} alignment methods, though less than the decision to
+align at all; so it is the axis practitioners tend to leave at its default
+while tuning the one that does not matter.
 
-\subsection{Alignment ladder}
+Two poolings are stored. \emph{Mean pooling} over time gives one 768-d vector
+per utterance per layer, used by the four non-sequential classifiers.
+\emph{Segment pooling} into 8 uniform temporal segments gives an
+$8 \times 768$ sequence, so the Transformer head receives genuine sequence
+structure; this costs $8\times$ storage and is the reason that arm exists at
+all. Extraction runs at batch size 1 so no utterance is padded against a longer
+neighbour: padding would place silence inside the pooled average, and would do
+so unevenly across corpora, since RAVDESS utterances average $1.16$\,s longer
+than CREMA-D's. A classical MFCC branch is also cached (13 coefficients with
+deltas and delta-deltas, mean- and std-pooled, 78 dimensions) but is unused
+here.
+
+\subsection{The alignment ladder}
 \label{sec:ladder}
 
-Let $X_s\in\mathbb{R}^{n_s\times d}$ be source-train features and $X_t$ be
-target-adapt features, with means $\mu_s,\mu_t$ and covariances $C_s,C_t$.
-All alignment maps are fitted only to $X_s$ and $X_t$.
+The core comparison is a series of feature-space alignments ordered by how many
+moments of the source distribution each matches to the target. Let
+$X_s \in \mathbb{R}^{n_s \times d}$ be source-train features and $X_t$ be
+\texttt{target\_adapt} features, with means $\mu_s, \mu_t$ and covariances
+$C_s, C_t$. All six rungs are fitted on $X_s$ and $X_t$ only.
+
 \begin{description}
-  \item[\texttt{none}] $x\mapsto x$.
-  \item[\texttt{zscore}] Standardise each domain independently:
-    $x\mapsto(x-\mu)\oslash\sigma$.
-  \item[\texttt{mean\_shift}] $x\mapsto x+(\mu_t-\mu_s)$.
-  \item[\texttt{coral}] $x\mapsto(x-\mu_s)C_s^{-1/2}C_t^{1/2}+\mu_t$.
-  \item[\texttt{mkmmd\_diag}] A diagonal affine map fitted by MK-MMD.
-  \item[\texttt{mkmmd\_full}] A full affine map fitted by MK-MMD.
+  \item[\texttt{none}] The identity. $x \mapsto x$.
+  \item[\texttt{zscore}] Per-dimension standardisation of each domain to zero
+    mean and unit variance: $x \mapsto (x - \mu)\oslash\sigma$ within each
+    domain. Matches the first and second marginal moments per dimension, with
+    no cross-dimension terms.
+  \item[\texttt{mean\_shift}] $x \mapsto x + (\mu_t - \mu_s)$. Matches the
+    first moment only.
+  \item[\texttt{coral}] Whitening by the source covariance and recolouring by
+    the target's \cite{sun2016deep}:
+    $x \mapsto (x - \mu_s) C_s^{-1/2} C_t^{1/2} + \mu_t$. Matches first and
+    second moments including cross-terms.
+  \item[\texttt{mkmmd\_diag}] A learned diagonal affine map minimising a
+    multi-kernel MMD objective, defined below.
+  \item[\texttt{mkmmd\_full}] The same objective with a full matrix $W$.
 \end{description}
 
-For a linear kernel, $\mathrm{MMD}^2(X_s,X_t)=\lVert\mu_s-\mu_t\rVert^2$.
-\texttt{mean\_shift} is therefore the linear-kernel MMD minimiser. It is not
-labelled MMD in this paper.
+\paragraph{\texttt{mean\_shift} is the linear-kernel MMD minimiser.} This is
+what makes the list an ordered series rather than a set of unrelated baselines.
+For a linear kernel, $\mathrm{MMD}^2(X_s, X_t) = \lVert \mu_s - \mu_t
+\rVert^2$, so the affine map minimising it is exactly a translation by
+$\mu_t - \mu_s$. The earlier version of this work reported precisely this
+operation under the name ``MMD''. We keep it as its own named rung so that its
+value can be measured rather than assumed, and never call it ``MMD''.
 
-CORAL uses
-$\widetilde C=C+\varepsilon\operatorname{tr}(C)I/d$ with
-$\varepsilon\in\{10^{-4},\ldots,10\}$. The candidate grid also includes a
-Ledoit--Wolf covariance estimate \cite{ledoit2004covariance}. For MK-MMD, the
-map $(W,b)$ minimises
+\paragraph{Regularisation of CORAL.} With $d = 768$ and roughly one thousand
+source-train samples the sample covariance has rank at most $n-1$, so whitening
+is not merely ill-conditioned but singular and shrinkage is mandatory. It is
+scale-aware, $\tilde{C} = C + \varepsilon\,\frac{\mathrm{tr}(C)}{d} I$:
+anchoring to the mean eigenvalue matters because a fixed absolute ridge means
+something different for every backbone and layer. $\varepsilon$ is a
+\emph{searched} axis over $\{10^{-4}, \ldots, 10\}$ in decades, selected on
+\texttt{source\_val} and recorded on every row, with a Ledoit--Wolf variant
+\cite{ledoit2004covariance} as a
+parameter-free alternative. Condition number and effective rank are recorded
+after regularisation; a matrix still singular there raises rather than being
+pseudo-inverted.
+
+\paragraph{Multi-kernel MMD.} The two MK-MMD rungs learn an affine map
+$(W, b)$ minimising
 \begin{equation}
-  \mathcal{L}(W,b)=\mathrm{MMD}^2_k(WX_s+b,X_t)
-  +\lambda\lVert W-I\rVert_F^2 ,
+  \mathcal{L}(W, b) \;=\;
+  \mathrm{MMD}^2_k\!\left(W X_s + b,\; X_t\right)
+  \;+\; \lambda \lVert W - I \rVert_F^2 ,
   \label{eq:mkmmd}
 \end{equation}
-where $k$ is the sum of Gaussian kernels at $\{0.25,0.5,1,2,4\}$ times the
-median pairwise distance \cite{gretton2012kernel}. The diagonal rung restricts
-$W$ to the diagonal. We search $\lambda\in\{10^{-3},\ldots,10^2\}$, optimise
-for 200 Adam steps \cite{kingma2015adam}, and initialise from the corresponding
-moment-matching solution. A non-improving optimisation reverts to that
-initialisation and records the fallback.
+where $k$ is a sum of Gaussian kernels at bandwidth multipliers
+$\{0.25, 0.5, 1, 2, 4\}$ of the median pairwise distance
+\cite{gretton2012kernel}, and $\mathrm{MMD}^2$ is the unbiased estimator.
+\texttt{mkmmd\_diag} constrains $W$ to be diagonal; \texttt{mkmmd\_full} does
+not. The identity anchor is essential: a full $W$ is $\approx 590$k parameters
+fitted on about a thousand samples, and without it the map interpolates source
+into target and generalises to nothing. Anchoring at $I$ also means
+$\lambda \rightarrow \infty$ recovers the identity, so the rung degrades toward
+\texttt{none} rather than toward noise. $\lambda$ is searched over
+$\{10^{-3}, \ldots, 10^{2}\}$ in decades.
 
-\subsection{Diagnostics, selection, and inference}
+Optimisation uses Adam \cite{kingma2015adam} for 200 steps at batch size 256,
+warm-started from the
+CORAL solution (full) or a diagonal moment match (diagonal). The learning rate
+is $\eta = \eta_0 / \sqrt{P}$ with $\eta_0 = 0.01$ and $P$ the parameter count:
+Adam normalises per parameter, so a fixed rate gives a step whose Frobenius
+norm grows as $\sqrt{P}$; for a full $W$, norm $\approx 0.77$ per iteration,
+which does not converge.
+
+\paragraph{Fallback, and why it must be reported.} If optimisation does not
+improve on its warm start, the fitted map reverts to the warm start and the run
+records that it did so. This is not a rare guard. Across the main grid it fires
+in \textbf{64.9\%} of \texttt{mkmmd\_diag} runs and \textbf{55.2\%} of
+\texttt{mkmmd\_full} runs. In those cells the fitted map is the warm start:
+the diagonal moment match for \texttt{mkmmd\_diag}, and CORAL for
+\texttt{mkmmd\_full}. Reporting either as a distinct learned map without saying
+so would overstate what was actually fitted. The rates accompany the ladder
+result in Section~\ref{sec:results-ladder} and the generated results document.
+
+\subsection{Measuring distribution discrepancy}
 \label{sec:discrepancy}
 
-We report marginal MK-MMD$^2$ after alignment and normalise it by the mean
-absolute statistic from random half-splits of the aligned source. We compute it
-in two frames. The own-geometry frame estimates bandwidth after each alignment.
-The reference frame applies one ZCA map fitted to unaligned source-train
-features before every measurement. We also compute class-conditional MMD within
-each label, excluding a class when either sample has fewer than 50 utterances.
-The class-conditional statistic uses target labels only in post-hoc analysis.
-It is not supplied to alignment or selection.
+Alignment methods are usually justified by the discrepancy they remove, so the
+discrepancy statistic needs to be specified as carefully as the methods.
 
-Validated selection chooses the highest source-validation macro-F1 within each
-(pair, seed) and scores that configuration once on target-test. Oracle selection
-is the highest target-test score in the evaluated grid and is reported only as
-an upper bound. Within each ladder rung, CORAL $\varepsilon$ and MK-MMD
-$\lambda$ are selected on source validation before target scoring.
+We report $\mathrm{MMD}^2$ between aligned source and target, normalised by a
+same-distribution null: the mean absolute $\mathrm{MMD}^2$ over random
+half-splits of the aligned source. The ratio is scale-free, so it is comparable
+across rungs and representations that leave the features in different units,
+and a value near 1 means ``indistinguishable from two samples of the same
+distribution''. Normalising by the mean \emph{absolute} value rather than the
+mean is deliberate: the unbiased estimator is signed and its null mean is
+approximately zero by construction (measured $-3.5 \times 10^{-4}$ against a
+spread of $9.2 \times 10^{-4}$), so the signed mean is not a usable scale. The
+mean kernel value at the widest bandwidth multiplier is recorded, since a
+saturated kernel makes MMD collapse for reasons unrelated to domain overlap.
 
-Macro-F1 is the primary metric. Chance and majority floors are computed from
-each realised target-test prior. Intervals use a
-paired cluster bootstrap over target-test speakers and seeds with 2000
-replicates \cite{cameron2008cluster}. The pre-specified primary family contains
-five ladder-versus-\texttt{none} contrasts and two layer contrasts in each
-direction. Holm correction is applied across those 14 tests
-\cite{holm1979sequential}.
+\paragraph{Two measurement frames, both reported.} A discrepancy is measured in
+some geometry, and the choice is not innocuous, so we report the same statistic
+in two frames. The \emph{own-geometry} statistic uses a median-heuristic
+bandwidth computed on the features being compared, so it adapts to whatever
+scale each rung leaves them in; that adaptation is what makes rungs comparable
+at all, and it also makes the statistic partly a measure of the frame. The
+\emph{reference-frame} statistic instead applies one fixed ZCA map; derived
+once from the \emph{unaligned} source-train features with shrinkage
+$\varepsilon = 10^{-2}$; identically to every rung before measurement. Being
+linear and fixed, it cannot undo any rung's alignment; the strong shrinkage is
+deliberate, since the source covariance has effective rank near 57 of 768 and
+weaker shrinkage would amplify hundreds of near-null directions.
 
-The frozen main grid contains 4986 runs. A 13-layer sweep contains 2340 runs,
-the CORAL shrinkage probe contains 120 runs, and the shift decomposition
-contains 120 records. No reported run failed.
+Neither frame is privileged by theory. We report both throughout, because
+Section~\ref{sec:results-frames} shows they disagree about the sign of the
+relationship between discrepancy and transfer.
+
+\paragraph{Class-conditional diagnostic.} For each class $k$, the analysis
+computes the same unbiased multi-kernel MMD$^2$ between aligned
+$X_s \mid y=k$ and $X_t \mid y=k$. Its bandwidth is the seeded median
+pairwise distance in that class's pooled source and target samples; the
+normaliser is the mean absolute MMD$^2$ across five random half-splits of the
+aligned source samples for that same class. A class is undefined rather than
+estimated when either side has fewer than 50 examples. The reported conditional
+value is the unweighted mean over defined classes, first within seed and then
+over seeds. Thus its ratio to marginal MMD is a descriptive comparison of two
+normalised diagnostics, not a probability decomposition or an estimate of
+$P(y \mid x)$.
+
+\subsection{Classifiers and the search budget}
+\label{sec:classifiers}
+
+Five families are evaluated: logistic regression, linear SVM, RBF SVM, an MLP,
+and a small Transformer head over the 8-segment sequence. Each is searched with
+\textbf{exactly the same number of trials}; 20 random-search draws; and
+the trial count is recorded on every result row. This equality is the point:
+the earlier version of this work ran the linear models at library defaults
+while the neural models received a training loop, and then compared them.
+
+Random search rather than a grid, because at a fixed budget it covers every
+dimension at the full budget resolution, which makes ``the same number of
+trials'' mean the same thing across families whose search spaces differ in
+dimensionality. A trial that fails to fit is scored $-\infty$ rather than
+retried, so no family can quietly buy itself extra attempts.
+
+Two further constraints. First, \textbf{no standardisation inside any
+classifier}: the obvious move is a scaler in front of every linear model, but
+standardisation \emph{is} the \texttt{zscore} rung, and applying it inside the
+classifier would make \texttt{none} unmeasurable and \texttt{zscore} a no-op,
+silently collapsing two conditions this paper reports as distinct. Second, the
+iteration cap for the iterative solvers is a fixed convergence budget
+($2\times10^4$) rather than a searched hyperparameter, as it was in an earlier
+revision: searching it lets a trial win selection by having stopped early
+rather than by fitting better. Convergence is asserted rather than warned
+about; a fit that reaches the cap is recorded as a failed trial and cannot
+be selected; and across the whole grid \textbf{0 of 99{,}720 trials failed
+to converge}.
+
+Layer aggregation is a searched condition with three settings: \texttt{last}
+(the common default), \texttt{layer:6} (a fixed mid-stack layer), and
+\texttt{weighted} (a softmax over all 13 states learned jointly with the head).
+The last is available only to the two torch families, a closed-form model
+having no parameters with which to learn it.
+
+The Transformer arm is a deliberately \textbf{reduced-seed arm}: two seeds, the
+primary direction only, one inner-grid setting per rung. Its per-cell cost is
+15--40$\times$ the other families', and carrying it at full width would have
+spent more compute on it than on every other axis combined. It is reported with
+wider intervals, is never pooled with the five-seed families, and this is
+restated wherever it appears.
+
+\subsection{Selection protocol}
+\label{sec:selection}
+
+We report two protocols side by side, and the distinction between them is one
+of the paper's results rather than a presentational choice. \textbf{Validated}
+is the configuration with the highest \texttt{source\_val} macro-F1 within a
+given (pair, seed), scored on \texttt{target\_test}; it is what a practitioner
+could actually obtain, using no target labels at any point. \textbf{Oracle} is
+the highest \texttt{target\_test} macro-F1 present in the grid for that
+(pair, seed): an \textbf{upper bound no protocol can reach}, reported to bound
+the cost of selection, never quoted as a result.
+
+The gap between them is the quantity of interest. Reporting only the oracle
+amounts to selecting on target scores. The earlier version of this work did
+this. It makes a method look as good as its best run.
+
+\paragraph{How the ladder handles unequal inner grids.} Each result row already
+contains the best of its classifier family's 20 source-validation trials. For a
+ladder summary, we then hold (pair, seed, backbone, layer aggregation,
+classifier family) fixed and select that rung's best remaining inner setting
+($\varepsilon$ for CORAL or $\lambda$ for MK-MMD) by
+\texttt{source\_val} macro-F1. Target predictions from only these selected
+cells enter the paired cluster bootstrap. The row counts in Table~\ref{tab:ladder}
+are therefore candidate rows before this second selection, not equally weighted
+observations in a rung mean; they differ because the rungs legitimately have
+different inner grids.
+
+\subsection{Metrics, floors and inference}
+\label{sec:metrics}
+
+The primary metric is macro-F1 on \texttt{target\_test}. Accuracy and
+unweighted average recall are also recorded on every row.
+
+\textbf{Every performance number is reported against its floors.} An analytic
+chance floor (the expected macro-F1 of a uniformly random classifier, given the
+realised target-test priors) and a majority-class floor are computed on every
+row from the realised distribution rather than by simulation. Here the chance
+floor is $0.1665$ (RAVDESS $\rightarrow$ CREMA-D) and $0.1656$
+(CREMA-D $\rightarrow$ RAVDESS), the majority floor $0.0425$ and $0.0444$. A
+macro-F1 without its floor alongside is not interpretable, and one number below
+falls \emph{beneath} its chance floor. Because the floor is pair-dependent,
+\textbf{no figure in this paper averages macro-F1 across pairs}.
+Table~\ref{tab:floors} collects the split sizes and both floors.
+
+\input{../tables/floors}
+
+\paragraph{Intervals.} Target-score intervals come from a \textbf{paired
+cluster bootstrap} that resamples \texttt{target\_test} speakers and seeds
+together, 2000 replicates \cite{cameron2008cluster}. Speakers are the resampling unit because
+recognition errors cluster hard by talker, and an utterance-level bootstrap
+would report intervals several times too narrow. Seeds are resampled because
+the seed is the replication unit for everything the design controls; split
+realisation, search draw, initialisation; so an interval holding the seed
+fixed describes one split rather than the method. Both arms of a comparison are
+scored on the \emph{same} resampled speakers within the same resampled seeds,
+which is what makes the difference paired.
+
+The discrepancy columns are properties of a fitted map, not of a prediction.
+They have no per-utterance form and instead receive a
+$t$-interval over seeds.
+
+\paragraph{Multiple comparisons.} A primary comparison family of seven
+contrasts $\times$ two directions was \textbf{pre-specified in code before the
+frozen confirmatory grid was run}: the five ladder rungs against \texttt{none}, and
+two layer-aggregation contrasts. Holm-Bonferroni correction
+\cite{holm1979sequential} is applied across exactly those 14 tests.
+Holm rather than Bonferroni because it is uniformly more powerful at the same
+family-wise error rate, and rather than a false-discovery-rate procedure
+because the family is small and pre-specified, where controlling the
+family-wise rate is the stricter guarantee.
+
+Comparisons outside that family are reported as such, and are never presented
+as though they had been pre-specified. Where such a comparison supports a
+\emph{null} claim; that some difference is negligible; we report a bound
+rather than a test, since failing to reject a null is not evidence for it.
+Where one supports a positive claim, correction is applied within that
+comparison's own set and both the raw and corrected $p$ are given, so that a
+result surviving only before correction is visible as such.
+
+\subsection{Experimental scope}
+\label{sec:scope}
+
+The main grid is a reduced factorial; 2 directions $\times$ 3 backbones
+$\times$ 5 seeds $\times$ 6 rungs $\times$ layer aggregation $\times$ 5
+classifier families, with inner grids over $\varepsilon$ and $\lambda$. This
+totals 4986 runs. A smoke gate and a screening stage pruned
+only the inner grids on \texttt{source\_val} evidence alone. Three probes
+supplement it: a 13-layer sweep (2340 runs), a CORAL shrinkage asymptote probe
+(120 runs) and a shift decomposition (120 records). No run failed. Results here
+carry the frozen configuration tag \texttt{grid-freeze-v3};
+Section~\ref{sec:reproducibility} describes the provenance machinery.
