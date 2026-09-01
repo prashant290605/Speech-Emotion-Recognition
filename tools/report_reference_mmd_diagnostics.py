@@ -61,7 +61,7 @@ def write_markdown(records):
     lines = [
         "# Fixed-reference MMD diagnostics",
         "",
-        "The ZCA basis and RBF bandwidth are each derived from unaligned source-train features once per pair, seed, backbone and layer aggregation. Both are then held fixed across the six rungs. Raw MMD-squared is the primary marginal statistic. The normalised value divides it by a same-distribution source half-split scale and is reported as a finite-sample aid. Conditional values have class-specific null scales, so no conditional-to-marginal ratio is reported.",
+        "The ZCA basis and RBF bandwidth are each derived from unaligned source-train features once per pair, seed, backbone and layer aggregation. Both are then held fixed across the selected control rungs. Raw MMD-squared and its source half-split normalisation are reported together. Z-scoring drives this globally fixed RBF kernel into saturation, producing near-zero values; those cells demonstrate that a fixed bandwidth is not a generally usable closeness scale for a scale-changing map. Conditional values have class-specific null scales, so no conditional-to-marginal ratio is reported.",
         "",
     ]
     for agg in aggs:
@@ -115,10 +115,11 @@ def write_manuscript_table(records):
         escape_cells=False,
         notes=[
             "Filter: HuBERT, \\texttt{layer\\_agg=last}, evaluated alignment rungs, 5 speaker-disjoint seeds. "
-            "Raw MMD$^2$ is the primary diagnostic. The marginal normaliser is the mean absolute "
-            "MMD$^2$ over source half-splits. Conditional MMD$^2$ is an unweighted mean over the six "
-            "classes; its class-specific normalised values are reported in the generated diagnostic report, "
-            "but are not divided by the marginal value."
+            "The marginal normaliser is the mean absolute MMD$^2$ over source half-splits. "
+            "The near-zero z-score cells indicate RBF saturation under the globally fixed bandwidth; "
+            "they are not interpreted as zero distributional discrepancy. Conditional MMD$^2$ is an "
+            "unweighted mean over the six classes; its class-specific normalised values are reported in "
+            "the generated diagnostic report, but are not divided by the marginal value."
         ],
     )
     return write_table(text, "decomposition", REPO_ROOT / "tables")

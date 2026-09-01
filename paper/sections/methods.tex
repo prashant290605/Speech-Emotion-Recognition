@@ -213,12 +213,12 @@ establish what a differently optimised MK-MMD map would achieve.
 Alignment methods are usually justified by the discrepancy they remove, so the
 discrepancy statistic needs to be specified as carefully as the methods.
 
-The primary marginal statistic is the raw unbiased $\mathrm{MMD}^2$ between
-aligned source and target. We also report its effect size, obtained by dividing
-by the mean absolute $\mathrm{MMD}^2$ over five random source half-splits. The
-unbiased estimator has null mean zero, so its signed mean is not a usable
-denominator. The effect size aids interpretation of finite-sample variation; it
-does not replace the raw statistic.
+We report the raw unbiased $\mathrm{MMD}^2$ between aligned source and target
+and its effect size, obtained by dividing by the mean absolute $\mathrm{MMD}^2$
+over five random source half-splits. The unbiased estimator has null mean zero,
+so its signed mean is not a usable denominator. The effect size aids
+interpretation of finite-sample variation; it does not replace the raw
+statistic.
 
 \paragraph{A common reference geometry.} For the ladder diagnostic, one ZCA
 basis is derived from unaligned \texttt{source\_train} features with shrinkage
@@ -227,7 +227,10 @@ same source-train features in that basis. Both quantities are fixed before an
 alignment map is fitted and applied identically to every rung for that pair,
 seed, backbone and layer aggregation. This makes the raw trajectories a
 comparison under one stated kernel and coordinate system. The shrinkage avoids
-amplifying near-null directions in the rank-deficient source covariance.
+amplifying near-null directions in the rank-deficient source covariance. A
+scale-changing map can nonetheless drive a fixed-bandwidth RBF kernel into
+saturation. We report that failure mode rather than treating a near-zero
+statistic as evidence of distributional equality.
 Each MMD evaluation uses a seeded cap of 128 utterances per sample set; the cap
 is identical for the marginal, class-conditional and null computations and is
 recorded in every diagnostic row.

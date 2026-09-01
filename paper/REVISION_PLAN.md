@@ -30,7 +30,13 @@ and includes tool-specific AI disclosures. Validation passed with
 
 ## Phase 2: Diagnostic and frame-dependence formalisation
 
-**Status:** In progress.
+**Status:** Complete on 2026-09-01. The paper now separates raw MMD$^2$ from
+null-scaled effect sizes, removes the conditional-to-marginal ratio, states and
+tests the median-heuristic scaling proposition, and specifies the paired
+speaker-and-seed bootstrap. A 40-record, five-seed control audit in a fixed
+source-defined geometry found RBF saturation after z-scoring. The manuscript
+reports this as a limitation of a globally fixed bandwidth, not as a closeness
+result.
 
 **Purpose:** preserve the frame-dependence result while removing claims that its
 diagnostics cannot support.

@@ -176,12 +176,16 @@ $0.02541$ nats for the reverse, with total variation $0.085$. As
 Section~\ref{sec:corpora} noted, the entire difference sits in one class and is
 an artefact of merging RAVDESS \texttt{calm} into \texttt{neutral}.
 
-\textbf{The marginal trajectory and the task trajectory need not agree.} The
-common reference geometry permits a direct comparison of raw marginal MMD$^2$
-across rungs. The class-conditional values remain descriptive diagnostics. They
-do not establish a change in $P(y \mid x)$, and their separately normalised
-effect sizes are not combined into a ratio. Section~\ref{sec:discussion-testing}
-states what a direct test would require.
+\textbf{A single fixed bandwidth can itself fail.} The z-score cells in
+Table~\ref{tab:decomposition} are near zero because the scale-changing map
+saturates the RBF kernels under a bandwidth fixed in the unaligned source
+geometry. They are not evidence that the two distributions became identical.
+The table therefore documents a limitation of both common comparison choices:
+an adaptive median bandwidth is scale-invariant, while a globally fixed
+bandwidth can saturate. The class-conditional values remain descriptive
+diagnostics. They do not establish a change in $P(y \mid x)$, and their
+separately normalised effect sizes are not combined into a ratio.
+Section~\ref{sec:discussion-testing} states what a direct test would require.
 
 \paragraph{A check on standard label-shift correction.} A decomposition that only
 describes is weak. We applied two corrections; black-box shift estimation and

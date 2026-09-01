@@ -210,22 +210,29 @@ def figure_decomposition():
             raw.append(float(np.mean([r["marginal"]["raw_mmd2"] for r in g])))
             normalised.append(float(np.mean([r["marginal"]["normalised"] for r in g])))
 
-        x = np.arange(len(LADDER))
+        rung_labels = ("none", "zscore", "mean_shift", "coral")
+        x = np.arange(len(rung_labels))
         for axis, values, label in (
             (raw_axis, raw, "raw marginal MMD$^2$"),
             (normalised_axis, normalised, "marginal MMD$^2$ / null"),
         ):
             style = series(1)
-            axis.plot(x, values, label=label, **style)
+            axis.plot(x, np.maximum(values, 1e-8), label=label, **style)
             axis.set_yscale("log")
             axis.set_xticks(x)
-            axis.set_xticklabels(LADDER, rotation=30, ha="right")
+            axis.set_xticklabels(rung_labels, rotation=30, ha="right")
             axis.grid(True, which="both", axis="y")
         raw_axis.set_title(pair_title(source, target))
         if column == 0:
             raw_axis.set_ylabel("raw MMD$^2$ (log)")
             normalised_axis.set_ylabel("MMD$^2$ / null (log)")
         raw_axis.legend(loc="upper right", fontsize=6)
+        if any(value < 1e-7 for value in raw):
+            raw_axis.annotate(
+                "zscore markers at $10^{-8}$: RBF saturation",
+                xy=(0.98, 0.04), xycoords="axes fraction", ha="right",
+                fontsize=5.8, color="0.35",
+            )
     fig.suptitle("Marginal MMD in one source-defined reference geometry",
                  fontsize=9, y=0.99)
     return emit(fig, "decomposition")

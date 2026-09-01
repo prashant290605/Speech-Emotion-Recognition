@@ -2758,3 +2758,51 @@ None. `legacy/` is byte-identical to the upstream clone.
   integration, and a third-corpus confirmation remain in `paper/REVISION_PLAN.md`.
 - IEMOCAP cannot be run until its licensed raw data are available; no IEMOCAP
   result is claimed.
+
+## 2026-09-01 - Reviewer-revision Phase 2: MMD measurement protocol
+
+### Files created
+
+- `tools/recompute_mmd_diagnostics.py`, an append-only fixed-reference MMD
+  diagnostic runner.
+- `tools/report_reference_mmd_diagnostics.py` and
+  `reports/phase9_reference_geometry.md`, which regenerate the manuscript
+  diagnostic table from the new analysis rows.
+- `tests/test_mmd.py`, covering the stated global-scaling property of the
+  median-heuristic RBF MMD.
+- `results/phase9_reference_geometry_controls_v2.jsonl`, the completed
+  five-seed, four-control-rung diagnostic audit.
+
+### Files modified
+
+- `src/ser/mmd.py`, `src/ser/analysis/shift.py`, `tools/make_figures.py`,
+  `tools/check_number_trace.py`, `tables/decomposition.tex`,
+  `figures/decomposition.pdf`, `figures/decomposition.png`, and the Methods,
+  Introduction, Results, Discussion, Conclusion, and frame table manuscript
+  sources.
+
+### Tests and validation
+
+- Focused MMD and analysis tests passed before the final diagnostic run.
+- `python tools/check_paper.py` passed.
+- `python tools/check_number_trace.py` passed, tracing 750 outcome occurrences
+  to generated result reports.
+- The regenerated diagnostic figure was visually reviewed.
+
+### Decisions made
+
+- Raw MMD$^2$ and null-scaled MMD are reported separately; their class-specific
+  conditional normalisers are never divided by the marginal normaliser.
+- The central control audit fixes both a source-train ZCA basis and a
+  source-train median RBF bandwidth, with a deterministic 128-sample cap.
+- Z-scoring produces RBF saturation under that globally fixed bandwidth. This
+  is reported as a diagnostic limitation, not as a zero-discrepancy result.
+- The adaptive median bandwidth is exactly invariant to a global rescaling of
+  both samples. A unit test covers the stated proposition.
+
+### Deferred
+
+- The expensive MK-MMD maps were not reconstructed for the fixed-bandwidth
+  audit. Their paper claims remain limited to the original evaluated affine
+  maps and documented fallback rates.
+- The pre-specified calm-label sensitivity is Phase 3.

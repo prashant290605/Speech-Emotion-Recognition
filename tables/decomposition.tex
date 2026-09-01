@@ -1,25 +1,21 @@
-\begin{table*}[!t]
+\begin{table}[tb]
   \centering
-  \caption{Label-prior, marginal, and class-conditional diagnostics across the alignment ladder. Prior KL is 0.02235 or 0.02541 nats. Alignment reduces the marginal statistic by about two orders of magnitude in the forward direction, while the class-conditional ratio changes from 0.14 to 0.92. The diagnostics are not an additive decomposition and do not estimate $P(y \mid x)$.}
+  \caption{Marginal and class-conditional MMD diagnostics in a common reference geometry. The source-train ZCA basis and source-train median RBF bandwidth are fixed for every rung within a pair and seed.}
   \label{tab:decomposition}
-  \begin{tabular}{lrrrrr}
+  \begin{tabular}{llrrr}
     \toprule
-    pair & rung & label shift (KL) & marginal & conditional & ratio \\
+    pair & rung & marginal MMD$^2$ & marginal / null & mean conditional MMD$^2$ \\
     \midrule
-    RAVDESS $\rightarrow$ CREMA-D & \texttt{none} & 0.02235 & 1496.1 & 215.1 & 0.14 \\
-     & \texttt{zscore} &  & 64.6 & 27.2 & 0.42 \\
-     & \texttt{mean\_shift} &  & 87.6 & 28.7 & 0.33 \\
-     & \texttt{coral} &  & 17.7 & 14.4 & 0.81 \\
-     & \texttt{mkmmd\_diag} &  & 74.7 & 27.3 & 0.37 \\
-     & \texttt{mkmmd\_full} &  & 15.3 & 14.0 & 0.92 \\
-    CREMA-D $\rightarrow$ RAVDESS & \texttt{none} & 0.02541 & 949.2 & 276.2 & 0.29 \\
-     & \texttt{zscore} &  & 69.6 & 47.4 & 0.68 \\
-     & \texttt{mean\_shift} &  & 75.9 & 47.4 & 0.62 \\
-     & \texttt{coral} &  & 44.8 & 21.5 & 0.48 \\
-     & \texttt{mkmmd\_diag} &  & 71.3 & 47.9 & 0.67 \\
-     & \texttt{mkmmd\_full} &  & 40.3 & 21.4 & 0.53 \\
+    CREMAD $\rightarrow$ RAVDESS & \texttt{none} & 1.81440 & 4840.95 & 1.85915 \\
+    CREMAD $\rightarrow$ RAVDESS & \texttt{zscore} & 0.00000 & 3.63 & 0.00015 \\
+    CREMAD $\rightarrow$ RAVDESS & \texttt{mean\\_shift} & 0.81690 & 2192.84 & 0.86069 \\
+    CREMAD $\rightarrow$ RAVDESS & \texttt{coral} & 0.05285 & 14.71 & 0.08583 \\
+    RAVDESS $\rightarrow$ CREMAD & \texttt{none} & 1.90057 & 4867.53 & 1.94566 \\
+    RAVDESS $\rightarrow$ CREMAD & \texttt{zscore} & 0.00000 & 0.04 & 0.00000 \\
+    RAVDESS $\rightarrow$ CREMAD & \texttt{mean\\_shift} & 1.10464 & 2835.39 & 1.15727 \\
+    RAVDESS $\rightarrow$ CREMAD & \texttt{coral} & 0.01999 & 13.27 & 0.04996 \\
     \bottomrule
   \end{tabular}
   \\[2pt]
-  \begin{minipage}{\linewidth}\footnotesize Filter: hubert, \texttt{layer\_agg=last}, logreg, 5 seeds, both discrepancies measured between the same two sets (aligned source-train and aligned target-test). KL is $\mathrm{KL}(P_{\mathrm{target}} \| P_{\mathrm{source}})$ in nats between realised partition priors. The conditional term reads target labels and is computed behind the A10 firewall (\texttt{ser.analysis}); it is never written to the result schema. Per-class MMD uses the same 5-kernel statistic, a seeded median bandwidth and a class-specific half-split null; classes with fewer than 50 examples on either side are excluded before the unweighted mean is formed.\end{minipage}
-\end{table*}
+  \begin{minipage}{\linewidth}\footnotesize Filter: HuBERT, \texttt{layer\_agg=last}, evaluated alignment rungs, 5 speaker-disjoint seeds. The marginal normaliser is the mean absolute MMD$^2$ over source half-splits. The near-zero z-score cells indicate RBF saturation under the globally fixed bandwidth; they are not interpreted as zero distributional discrepancy. Conditional MMD$^2$ is an unweighted mean over the six classes; its class-specific normalised values are reported in the generated diagnostic report, but are not divided by the marginal value.\end{minipage}
+\end{table}

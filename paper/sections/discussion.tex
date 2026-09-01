@@ -14,6 +14,8 @@ The evaluated CORAL and affine MK-MMD maps do not yield a further gain. The
 diagnostics report raw marginal and class-conditional MMD$^2$ in one
 source-defined reference geometry. Their class-specific null effect sizes aid
 finite-sample interpretation but are not divided by the marginal effect size.
+The fixed-bandwidth z-score control saturates the RBF kernel, so it is reported
+as a measurement limitation rather than a closeness result.
 
 \paragraph{Why lower marginal discrepancy does not help further here.}
 The MMD rungs can reduce their fitted marginal objective without improving the
