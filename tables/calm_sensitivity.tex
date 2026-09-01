@@ -1,0 +1,18 @@
+\begin{table*}[!t]
+  \centering
+  \caption{Target macro-F1 in the pre-specified calm-drop sensitivity. RAVDESS \texttt{calm} is dropped rather than merged into \texttt{neutral}. Values are means over five speaker-disjoint seeds with 95\% $t$-intervals.}
+  \label{tab:calm-sensitivity}
+  \small
+  \begin{tabular}{lrr}
+    \toprule
+    rung & RAVDESS $\rightarrow$ CREMA-D & CREMA-D $\rightarrow$ RAVDESS \\
+    \midrule
+    \texttt{none} & 0.2704 [0.2255, 0.3153] & 0.3122 [0.2471, 0.3773] \\
+    \texttt{zscore} & 0.3692 [0.3556, 0.3828] & 0.4243 [0.3593, 0.4893] \\
+    \texttt{mean_shift} & 0.3619 [0.3471, 0.3766] & 0.4454 [0.3861, 0.5046] \\
+    \texttt{coral} & 0.3763 [0.3608, 0.3918] & 0.4511 [0.4172, 0.4849] \\
+    \bottomrule
+  \end{tabular}
+  \\[2pt]
+  \begin{minipage}{\linewidth}\footnotesize Filter: cached HuBERT final-layer features, logistic regression, and CORAL $\varepsilon=10.0$. The chance baselines are 0.1665 and 0.1645. This robustness control is not a replacement full classifier grid.\end{minipage}
+\end{table*}

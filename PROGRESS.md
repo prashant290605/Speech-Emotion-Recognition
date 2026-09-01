@@ -2806,3 +2806,51 @@ None. `legacy/` is byte-identical to the upstream clone.
   audit. Their paper claims remain limited to the original evaluated affine
   maps and documented fallback rates.
 - The pre-specified calm-label sensitivity is Phase 3.
+
+## 2026-09-01 - Reviewer-revision Phase 3: RAVDESS calm-drop performance control
+
+### Files created
+
+- `configs/calm_sensitivity.yaml`, the committed, immutable specification for
+  the calm-drop control.
+- `tools/run_calm_sensitivity.py` and `tools/report_calm_sensitivity.py`, which
+  run and render the control from cached vectors and an append-only ledger.
+- `tests/test_calm_sensitivity.py`, covering label projection, speaker-disjoint
+  splits and unique run identities.
+- `results/calm_dropped_sensitivity.jsonl`, 40 completed rows, plus
+  `reports/calm_dropped_sensitivity.md` and `tables/calm_sensitivity.tex`.
+
+### Files modified
+
+- `paper/sections/methods.tex`, `paper/sections/results.tex`,
+  `tools/check_number_trace.py`, `paper/REVISION_PLAN.md`, and
+  `paper/SUBMISSION_CHECKLIST.md`.
+
+### Tests and validation
+
+- `pytest -q tests/test_calm_sensitivity.py tests/test_mmd.py
+  tests/test_analysis_shift.py --basetemp .pytest-calm-final` passed.
+- `python tools/check_paper.py` passed.
+- `python tools/check_number_trace.py` passed, tracing 783 outcome occurrences
+  to generated reports.
+- A whole-suite `pytest -q --basetemp .pytest-phase3-all` attempt completed 25
+  tests then remained in the existing 200-step affine MK-MMD tests for 25
+  minutes without an assertion failure. It was stopped to prevent the unrelated
+  slow regression test from blocking this bounded revision. The full suite
+  remains a final-release verification item.
+
+### Decisions made
+
+- The result is stated only as a HuBERT-final-layer, logistic-regression,
+  four-rung performance robustness control. It does not replace the full grid
+  or identify conditional shift.
+- The calm merge is not necessary for the observed alignment improvement in
+  this control. This finding does not yet establish that the
+  class-conditional diagnostic is robust; Phase 4 covers that narrower
+  question with separate ledgers.
+
+### Deferred
+
+- The `neutral_excluded_five` control and class-conditional diagnostic reruns
+  are Phase 4.
+- A licensed IEMOCAP confirmation remains externally blocked.

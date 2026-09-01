@@ -48,6 +48,17 @@ entire prior difference therefore sits in one class and is an artefact of the
 Section~\ref{sec:decomposition}, where the measured label shift is small and we
 can say exactly where it comes from.
 
+\paragraph{Calm-label robustness protocol.} We pre-specified one focused
+control that sets \texttt{ravdess\_calm\_to\_neutral=false}. It drops the 192
+RAVDESS \texttt{calm} utterances, retains the remaining six classes, and gives
+the resulting mapping its own label-map hash, split specification, result
+ledger and run identifiers. The control uses cached HuBERT final-layer vectors,
+logistic regression, five speaker-disjoint seeds, and the \texttt{none},
+\texttt{zscore}, \texttt{mean\_shift} and \texttt{coral} rungs
+($\varepsilon=10.0$). Source validation selects each classifier exactly as in
+the main protocol. This is a label-harmonisation robustness control, not a
+replacement for the full classifier grid.
+
 \subsection{Splits and leakage control}
 \label{sec:splits}
 

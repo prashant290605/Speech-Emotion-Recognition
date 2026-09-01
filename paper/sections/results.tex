@@ -176,6 +176,18 @@ $0.02541$ nats for the reverse, with total variation $0.085$. As
 Section~\ref{sec:corpora} noted, the entire difference sits in one class and is
 an artefact of merging RAVDESS \texttt{calm} into \texttt{neutral}.
 
+\paragraph{Calm-label sensitivity.} The realised priors under the main mapping
+therefore cannot support a corpus-level label-shift claim. Table~\ref{tab:calm-sensitivity}
+reports the pre-specified control that drops RAVDESS \texttt{calm}. Every
+evaluated aligned rung exceeds \texttt{none} in both directions. The forward
+improvements range from $+0.0914$ to $+0.1059$ macro-F1, and the reverse
+improvements range from $+0.1121$ to $+0.1388$. Thus, the calm merge is not
+necessary for the observed performance improvement in this frozen
+HuBERT/logistic-regression control. The control does not re-estimate the full
+grid or identify a conditional-shift mechanism.
+
+\input{../tables/calm_sensitivity}
+
 \textbf{A single fixed bandwidth can itself fail.} The z-score cells in
 Table~\ref{tab:decomposition} are near zero because the scale-changing map
 saturates the RBF kernels under a bandwidth fixed in the unaligned source

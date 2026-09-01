@@ -24,10 +24,16 @@ PAPER = ROOT / "paper"
 RESULT_SOURCES = (
     ROOT / "reports" / "RESULTS.md",
     ROOT / "reports" / "phase9_reference_geometry.md",
+    ROOT / "reports" / "calm_dropped_sensitivity.md",
 )
 NUMBER = re.compile(r"(?<![A-Za-z0-9_])[-+]?\d+(?:\.\d+)?(?:e[-+]?\d+)?(?![A-Za-z_])")
 # Fixed analysis parameters which appear in an otherwise outcome-bearing table.
-KNOWN_DESIGN_TOKENS = {("decomposition.tex", "50")}
+KNOWN_DESIGN_TOKENS = {
+    ("decomposition.tex", "50"),
+    ("calm_sensitivity.tex", "5"),
+    ("calm_sensitivity.tex", "10.0"),
+    ("calm_sensitivity.tex", "95"),
+}
 
 
 @dataclass(frozen=True)
