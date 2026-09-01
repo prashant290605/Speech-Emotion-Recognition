@@ -228,6 +228,9 @@ alignment map is fitted and applied identically to every rung for that pair,
 seed, backbone and layer aggregation. This makes the raw trajectories a
 comparison under one stated kernel and coordinate system. The shrinkage avoids
 amplifying near-null directions in the rank-deficient source covariance.
+Each MMD evaluation uses a seeded cap of 128 utterances per sample set; the cap
+is identical for the marginal, class-conditional and null computations and is
+recorded in every diagnostic row.
 
 \paragraph{Adaptive geometry as a sensitivity analysis.} We separately report
 an own-geometry calculation that derives the median bandwidth from each

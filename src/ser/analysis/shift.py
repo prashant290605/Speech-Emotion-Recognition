@@ -94,6 +94,7 @@ def conditional_mmd_by_class(
     seed: int = 0,
     min_support: Optional[int] = None,
     bandwidth: Optional[float] = None,
+    max_samples: int = 512,
 ) -> List[Dict]:
     """``MMD(X_src|y=k, X_tgt|y=k)`` per class, normalised by the same-class null.
 
@@ -138,9 +139,12 @@ def conditional_mmd_by_class(
         A = np.asarray(X_source[src_index], dtype=np.float64)
         B = np.asarray(X_target[tgt_index], dtype=np.float64)
         class_bandwidth = bandwidth if bandwidth is not None else median_bandwidth(A, B, seed=seed)
-        raw = marginal_mmd(A, B, config, bandwidth=class_bandwidth, seed=seed)
+        raw = marginal_mmd(
+            A, B, config, bandwidth=class_bandwidth, max_samples=max_samples, seed=seed
+        )
         null = null_mmd_scale(
-            A, config, bandwidth=class_bandwidth, n_repeats=5, seed=seed
+            A, config, bandwidth=class_bandwidth, n_repeats=5,
+            max_samples=max_samples, seed=seed
         )["scale"]
         record["raw_mmd"] = float(raw)
         record["effect_size"] = float(raw / null) if null > 0 else None

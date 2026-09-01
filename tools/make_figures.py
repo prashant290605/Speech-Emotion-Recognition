@@ -195,7 +195,7 @@ def figure_ladder(data):
 def figure_decomposition():
     """Raw and null-normalised marginal MMD in one reference geometry."""
     records = [json.loads(line) for line in
-               (REPO_ROOT / "results/phase9_reference_geometry_controls.jsonl").read_text().splitlines()
+               (REPO_ROOT / "results/phase9_reference_geometry_controls_v2.jsonl").read_text().splitlines()
                if line.strip()]
     fig, axes = new_figure(DOUBLE_WIDTH, 4.0, nrows=2, ncols=2, sharex="col",
                            gridspec_kw={"wspace": 0.30, "hspace": 0.18})

@@ -38,7 +38,7 @@ from ser.utils.runmeta import capture_runmeta, hash_payload  # noqa: E402
 from ser.utils.seeding import set_all_seeds  # noqa: E402
 
 
-ANALYSIS_VERSION = "fixed-reference-mmd-v1"
+ANALYSIS_VERSION = "fixed-reference-mmd-v2"
 RUNGS = (
     ("none", None, None),
     ("zscore", None, None),
@@ -79,11 +79,14 @@ def completed_ids(path: Path) -> set[str]:
     return ids
 
 
-def mmd_summary(source, target, config, *, bandwidth, seed):
+def mmd_summary(source, target, config, *, bandwidth, max_samples, seed):
     """Raw unbiased MMD-squared and its source-half-split effect size."""
-    raw = marginal_mmd(source, target, config, bandwidth=bandwidth, seed=seed)
+    raw = marginal_mmd(
+        source, target, config, bandwidth=bandwidth, max_samples=max_samples, seed=seed
+    )
     null = null_mmd_scale(
-        source, config, bandwidth=bandwidth, n_repeats=5, seed=seed
+        source, config, bandwidth=bandwidth, n_repeats=5,
+        max_samples=max_samples, seed=seed
     )["scale"]
     return {
         "raw_mmd2": float(raw),
@@ -101,6 +104,12 @@ def main(argv=None) -> int:
         "--methods",
         default="none,zscore,mean_shift,coral,mkmmd_diag,mkmmd_full",
         help="Comma-separated subset of the six implemented alignment rungs.",
+    )
+    parser.add_argument(
+        "--max-samples",
+        type=int,
+        default=128,
+        help="Seeded per-MMD sample cap; recorded in every analysis row.",
     )
     parser.add_argument("--out", default="results/phase9_reference_geometry.jsonl")
     args = parser.parse_args(argv)
@@ -185,7 +194,8 @@ def main(argv=None) -> int:
         ref_train = geometry(aligned_train)
         ref_test = geometry(aligned_test)
         marginal = mmd_summary(
-            ref_train, ref_test, config, bandwidth=reference_bandwidth, seed=seed
+            ref_train, ref_test, config, bandwidth=reference_bandwidth,
+            max_samples=args.max_samples, seed=seed,
         )
         conditional = conditional_mmd_by_class(
             ref_train,
@@ -196,6 +206,7 @@ def main(argv=None) -> int:
             config,
             seed=seed,
             bandwidth=reference_bandwidth,
+            max_samples=args.max_samples,
         )
         row = {
             "analysis_version": ANALYSIS_VERSION,
@@ -220,6 +231,7 @@ def main(argv=None) -> int:
                 "zca_source_train_eps": REFERENCE_GEOMETRY_EPS,
                 "bandwidth_source_train": reference_bandwidth,
                 "bandwidth_rule": "median_pairwise_distance_source_train",
+                "max_samples_per_mmd": args.max_samples,
             },
             "marginal": marginal,
             "conditional": conditional,

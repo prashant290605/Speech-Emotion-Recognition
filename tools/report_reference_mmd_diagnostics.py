@@ -125,7 +125,7 @@ def write_manuscript_table(records):
 
 
 def main() -> int:
-    records = load_records(REPO_ROOT / "results/phase9_reference_geometry_controls.jsonl")
+    records = load_records(REPO_ROOT / "results/phase9_reference_geometry_controls_v2.jsonl")
     report = write_markdown(records)
     table_path = write_manuscript_table(records)
     print(f"wrote {report.relative_to(REPO_ROOT)}")
