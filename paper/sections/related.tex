@@ -16,7 +16,13 @@ learn a representation that is not corpus-specific in the first place
 than what it computes \cite{pastor2023cross}. Domain adaptation proper; the
 family this paper is about; appears in both adversarial \cite{latif2023self}
 and feature-alignment \cite{naeeni2025feature} forms, the latter on the same
-class of self-supervised encoder used here.
+class of self-supervised encoder used here. A recent \emph{Speech
+Communication} study combines class-sensitive feature dictionaries with an
+adversarial discriminator in a semi-supervised adaptation network
+\cite{zhang2025sdan}. That design and its multi-corpus evaluation sit outside
+the present frozen affine-map audit: it uses a learned representation and
+additional target-domain supervision rather than only unlabelled target
+features for post-hoc alignment.
 
 Most of this work is evaluated on some subset of a small pool of corpora, of
 which IEMOCAP \cite{busso2008iemocap}, RAVDESS \cite{livingstone2018ryerson}

@@ -1,14 +1,14 @@
 # Citation Verification Register
 
-**Status: 2026-08-31**
+**Status: 2026-09-01**
 
-The submission manuscript has **29 cited bibliography records and zero
+The submission manuscript has **30 cited bibliography records and zero
 `[CITE: ...]` placeholders**. `python tools/check_paper.py` checks that every
 citation key resolves and that no bibliography entry is uncited.
 
 `reports/refs_report_submission.md` is the machine-generated audit for
 `paper/main.tex` and `paper/refs.bib`. Its latest run reports zero
-probable-fabrication findings and 21 Crossref-confirmed records. The remaining
+probable-fabrication findings and 22 Crossref-confirmed records. The remaining
 eight records need a final publisher-page spot check because their venues are
 not reliably indexed by Crossref:
 

@@ -8,22 +8,22 @@
     \midrule
     calm dropped six & RAVDESS $\rightarrow$ CREMA-D & \texttt{none} & 1.0514 & 1.1947 \\
     calm dropped six & RAVDESS $\rightarrow$ CREMA-D & \texttt{zscore} & 0.0419 & 0.1406 \\
-    calm dropped six & RAVDESS $\rightarrow$ CREMA-D & \texttt{mean_shift} & 0.0601 & 0.1736 \\
+    calm dropped six & RAVDESS $\rightarrow$ CREMA-D & \texttt{mean\_shift} & 0.0601 & 0.1736 \\
     calm dropped six & RAVDESS $\rightarrow$ CREMA-D & \texttt{coral} & 0.0510 & 0.1241 \\
     calm dropped six & CREMA-D $\rightarrow$ RAVDESS & \texttt{none} & 1.0632 & 1.1631 \\
     calm dropped six & CREMA-D $\rightarrow$ RAVDESS & \texttt{zscore} & 0.0692 & 0.1591 \\
-    calm dropped six & CREMA-D $\rightarrow$ RAVDESS & \texttt{mean_shift} & 0.0862 & 0.1888 \\
+    calm dropped six & CREMA-D $\rightarrow$ RAVDESS & \texttt{mean\_shift} & 0.0862 & 0.1888 \\
     calm dropped six & CREMA-D $\rightarrow$ RAVDESS & \texttt{coral} & 0.1017 & 0.1457 \\
     neutral excluded five & RAVDESS $\rightarrow$ CREMA-D & \texttt{none} & 1.0190 & 1.1443 \\
     neutral excluded five & RAVDESS $\rightarrow$ CREMA-D & \texttt{zscore} & 0.0413 & 0.1270 \\
-    neutral excluded five & RAVDESS $\rightarrow$ CREMA-D & \texttt{mean_shift} & 0.0646 & 0.1573 \\
+    neutral excluded five & RAVDESS $\rightarrow$ CREMA-D & \texttt{mean\_shift} & 0.0646 & 0.1573 \\
     neutral excluded five & RAVDESS $\rightarrow$ CREMA-D & \texttt{coral} & 0.0514 & 0.1076 \\
     neutral excluded five & CREMA-D $\rightarrow$ RAVDESS & \texttt{none} & 1.0386 & 1.1563 \\
     neutral excluded five & CREMA-D $\rightarrow$ RAVDESS & \texttt{zscore} & 0.0669 & 0.1593 \\
-    neutral excluded five & CREMA-D $\rightarrow$ RAVDESS & \texttt{mean_shift} & 0.0960 & 0.1899 \\
+    neutral excluded five & CREMA-D $\rightarrow$ RAVDESS & \texttt{mean\_shift} & 0.0960 & 0.1899 \\
     neutral excluded five & CREMA-D $\rightarrow$ RAVDESS & \texttt{coral} & 0.0916 & 0.1494 \\
     \bottomrule
   \end{tabular}
   \\[2pt]
-  \begin{minipage}{\linewidth}\footnotesize Controls: HuBERT final-layer features, logistic regression, and \texttt{none}, \texttt{zscore}, \texttt{mean\_shift}, and \texttt{coral} ($\varepsilon=10.0$). Conditional values are an unweighted mean over the retained classes and read target labels only after the alignment leakage assertion. No conditional-to-marginal ratio is reported.\end{minipage}
+  \begin{minipage}{\linewidth}\footnotesize Derived from the two mapping-specific diagnostic ledgers. Each row averages five seeds. Controls: HuBERT final-layer features, logistic regression, and \texttt{none}, \texttt{zscore}, \texttt{mean\_shift}, and \texttt{coral} ($\varepsilon=10.0$). Conditional values are an unweighted mean over the retained classes and read target labels only after the alignment leakage assertion. No conditional-to-marginal ratio is reported.\end{minipage}
 \end{table*}

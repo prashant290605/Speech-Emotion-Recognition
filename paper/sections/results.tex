@@ -300,9 +300,8 @@ forward seeds, returning target macro-F1 of $0.2803$ and $0.1508$. \textbf{The
 second is below that pair's chance baseline of $0.1665$.} The protocol uses no
 target labels and has no source-side indication of this outcome. An oracle over
 the same grid reaches $0.4555$, but that value is an optimistic upper bound on
-this target set. This is an axis-specific failure, not a general indictment of
-source validation: Section~\ref{sec:repro-retractions} shows that on the
-layer-depth axis it outperforms a random-layer choice.
+this target set. This result is limited to selecting alignment. It does not
+assess source-side selection for layer aggregation.
 
 The reverse direction selects an aligned rung on all five seeds
 (\texttt{mean\_shift} four times, \texttt{zscore} once) and its gap is

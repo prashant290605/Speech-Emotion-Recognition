@@ -7,6 +7,11 @@ against chance baselines near $0.166$. No evaluated rung beyond per-dimension
 standardisation shows a further target-macro-F1 gain. The evaluated CORAL and
 affine MK-MMD maps do not change that result.
 
+Two label controls retain the aligned-versus-unaligned contrast. One drops
+RAVDESS \texttt{calm}. The other also excludes \texttt{neutral} from both
+corpora. These controls test label harmonisation. They do not identify a causal
+conditional-shift mechanism.
+
 The diagnostics show that lower marginal discrepancy does not imply better
 transfer here. We report raw marginal and class-conditional MMD$^2$ in a common
 source-defined reference geometry and do not treat their separately normalised

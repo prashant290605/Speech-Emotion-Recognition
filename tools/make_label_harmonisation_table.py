@@ -58,7 +58,7 @@ def main(argv=None) -> int:
                 rows.append([
                     control,
                     f"{display_corpus(source)} $\\rightarrow$ {display_corpus(target)}",
-                    f"\\texttt{{{rung}}}",
+                    f"\\texttt{{{rung.replace('_', r'\_')}}}",
                     f"{marginal:.4f}",
                     f"{conditional:.4f}",
                 ])
@@ -76,7 +76,8 @@ def main(argv=None) -> int:
         column_spec="lllrr",
         escape_cells=False,
         notes=[
-            "Controls: HuBERT final-layer features, logistic regression, and "
+            "Derived from the two mapping-specific diagnostic ledgers. Each row "
+            "averages five seeds. Controls: HuBERT final-layer features, logistic regression, and "
             "\\texttt{none}, \\texttt{zscore}, \\texttt{mean\\_shift}, and "
             "\\texttt{coral} ($\\varepsilon=10.0$). Conditional values are an "
             "unweighted mean over the retained classes and read target labels only "

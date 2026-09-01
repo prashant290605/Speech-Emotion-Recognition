@@ -2,7 +2,7 @@
 
 **Target:** *Speech Communication* (Elsevier)  
 **Article type:** Original Research Article  
-**Last reviewed:** 2026-09-01
+**Last reviewed:** 2026-09-02
 
 Status values: **MET** means the repository contains the item; **VERIFY** means
 it needs a final PDF or portal check; **PENDING** is an author action; and
@@ -22,11 +22,11 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | Ethics and corpus licence compliance | **PENDING** | Confirm permissions for RAVDESS and CREMA-D, permitted research use, and institutional requirements. |
 | Data and code availability | **PENDING** | Text is present; replace the repository URL with the verified Zenodo DOI before submission. Do not archive third-party raw corpora. |
 | Generative-AI disclosure | **MET** | `backmatter.tex` names OpenAI ChatGPT and OpenAI Codex, states their drafting and software-assistance roles, and records author review and responsibility. Confirm the portal field before final upload. |
-| English-language proofread | **PENDING** | Complete after the compiled-PDF review. |
-| Abstract, keywords, main sections, captions and editable tables | **VERIFY** | The abstract is 179 words, six keywords are present, sections are numbered, and tables are editable. Validate in the compiled PDF. |
+| English-language proofread | **VERIFY** | The compiled 20-page article was reviewed for readability and layout. Authors must complete the final domain proofread before portal submission. |
+| Abstract, keywords, main sections, captions and editable tables | **VERIFY** | The abstract is 179 words, six keywords are present, sections are numbered, and tables are editable. A local PDF review passed; validate once in Overleaf. |
 | Acknowledgements | **MET** | No acknowledgements section is present. Add one only if an author confirms a required acknowledgement. |
-| Bibliography integrity | **VERIFY** | 29 cited records, zero placeholders, zero probable-fabrication findings in `reports/refs_report_submission.md`. Complete the eight publisher-page spot checks in `CITATIONS_NEEDED.md`. |
-| Figures and tables | **VERIFY** | Seven vector PDF figures and nine editable LaTeX tables are packaged. Check legibility and overflow in the PDF. |
+| Bibliography integrity | **VERIFY** | 30 cited records, zero placeholders, zero probable-fabrication findings, and 22 Crossref-confirmed records in `reports/refs_report_submission.md`. Complete the eight publisher-page spot checks in `CITATIONS_NEEDED.md`. |
+| Figures and tables | **VERIFY** | Seven vector PDF figures and nine editable LaTeX tables are packaged. The local PDF review found no clipping or overflow; confirm column-width legibility in Overleaf. |
 | LaTeX source and bibliography style | **MET** | Elsevier CAS double-column v2.4, `cas-common.sty`, and `cas-model2-names.bst` are vendored for the upload package. |
 | Highlights | **MET** | Five separate highlights are in `paper/highlights.txt`; each is at most 85 characters including the bullet. |
 | Suggested reviewers | **PENDING** | Hand-off H; use institutional emails and exclude conflicts/recent collaborators. |
@@ -42,8 +42,8 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | Reference audit | **VERIFY** | `python tools/check_refs.py --tex paper/main.tex --bib paper/refs.bib --out reports/refs_report_submission.md`. |
 | Python test suite | **VERIFY** | Focused reference tests pass. The full suite is blocked here by a Windows pytest temporary-directory/process-permission issue, not a reported assertion failure; rerun in the archived environment. |
 | Hostile-review pass | **MET** | `paper/ANTICIPATED_OBJECTIONS.md`; no new experiment or number was added. |
-| Self-contained Overleaf archive | **MET** | `output/overleaf/cas-dc-release/Speech_Communication_submission_20260901.zip` passed static path, asset, graphics, citation, and bibliography checks. The only nested path is the official CAS email-icon asset. |
-| Clean compile and PDF defect resolution | **MET** | A local Tectonic compile of the final CAS double-column archive produced a 19-page PDF. All pages were visually inspected. Confirm the final journal PDF in Overleaf. |
+| Self-contained Overleaf archive | **MET** | `output/overleaf/delivery-20260902/Speech_Communication_submission_20260902.zip` contains 36 files: 22 TeX files and seven vector-PDF figures. Static path, asset, graphics, citation, and bibliography checks passed. The only nested path is the official CAS email-icon asset. |
+| Clean compile and PDF defect resolution | **MET** | A local Tectonic compile of the final CAS double-column archive produced a 20-page article PDF and a one-page provenance supplement. The title, tables, figures, and references were visually inspected. Confirm the final journal PDF in Overleaf. |
 | Zenodo archive and DOI | **BLOCKED** | Hand-off H. |
 
 ## Author hand-off
@@ -77,3 +77,4 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | 2026-09-01 | Reviewer-revision Phase 2 completed: replaced the conditional-to-marginal ratio with raw and separately normalised diagnostics, specified the speaker-and-seed paired cluster bootstrap, added a tested median-heuristic scaling proposition, and documented RBF saturation under a globally fixed source-defined bandwidth. |
 | 2026-09-01 | Reviewer-revision Phase 3 completed: ran and integrated a pre-specified 40-run RAVDESS-calm-drop control. The generated five-seed table shows the alignment improvement without merging `calm` into `neutral`; it is explicitly scoped to HuBERT final-layer logistic regression and four control rungs. |
 | 2026-09-01 | Reviewer-revision Phase 4 completed: added the separately hashed five-class neutral-exclusion control, completed both mapping-specific MMD diagnostic ledgers, and reported them as descriptive adaptive-geometry results rather than a conditional-shift test. |
+| 2026-09-02 | Reviewer-revision Phase 6 completed: added verified current related work, moved the detailed provenance ledger to a one-page supplement, repaired generated-table escaping, compiled and visually reviewed the 20-page article and one-page supplement, and created the delivery archive. |

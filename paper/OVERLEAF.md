@@ -25,6 +25,7 @@ thumbnails/cas-email.jpeg
 *.tex (sections and tables)
 *.pdf (figures)
 OVERLEAF.md
+supplementary_provenance.tex
 ```
 
 Overleaf should run the required LaTeX/BibTeX passes automatically. The expected

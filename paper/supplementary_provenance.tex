@@ -1,0 +1,47 @@
+\documentclass[a4paper,fleqn]{cas-dc}
+\begin{document}
+\shorttitle{Supplementary provenance ledger}
+\shortauthors{P. Singh and P. Singh}
+
+\section*{Supplementary provenance ledger}
+
+This ledger records claims made during the project that were later withdrawn,
+narrowed or reversed by additional evidence. It preserves the research history
+without using any withdrawn statement as support for the main article.
+
+\begin{itemize}
+  \item \emph{``Z-scoring removes 97.6\% of marginal MMD, more than CORAL.''}
+    \textbf{Retracted}: this was a per-rung bandwidth artefact. Under a fixed
+    bandwidth, CORAL reached $2.0\times$ the null against \texttt{zscore}'s
+    $31.3\times$. This led to the article's measurement-geometry analysis.
+  \item \emph{``The cheapest step does all the work.''} \textbf{Retracted}:
+    a one-seed result over-read a $0.019$ spread. The article instead uses the
+    bounded five-seed ladder comparison.
+  \item \emph{``Target macro-F1 is flat across $226\times$ of discrepancy.''}
+    \textbf{Refuted}. In the measured final-layer condition, alignment adds
+    $+0.084$ forward and $+0.128$ reverse at five seeds.
+  \item \emph{``\texttt{layer:6} has lower discrepancy than \texttt{last} and
+    transfers worse.''} \textbf{Partly refuted}: the discrepancy comparison
+    does not reproduce under the corrected MMD protocol; the transfer result
+    survives only for the unaligned forward condition.
+  \item \emph{``In-domain-optimal depth is 4--5 layers shallower in all three
+    backbones.''} \textbf{Retracted}. The pooled 36-cell gap is $+0.00$ layers
+    $[-0.57, +0.57]$. The effect remains only at rung \texttt{none}, forward,
+    at $+4.2$, $+4.2$ and $+2.4$ layers.
+  \item \emph{``Selecting depth on \texttt{source\_val} systematically picks
+    the wrong depth.''} \textbf{Contradicted}. Against a random layer,
+    \texttt{source\_val} is better by $-0.0366$ $[-0.0448, -0.0285]$.
+    Source validation is therefore informative for depth but not for the
+    alignment decision in the forward direction.
+  \item \emph{``Extending the $\varepsilon$ grid would move the argmax
+    again.''} \textbf{Falsified}. The probe saturates, and the CREMA-D to
+    RAVDESS argmax is interior at $\varepsilon = 100$.
+\end{itemize}
+
+Frame dependence was first promoted on two-seed evidence, then demoted when
+the ladder axis agreed, and confirmed at full seed count on the layer axis.
+The final article reports only the re-specified result: the
+discrepancy--transfer relationship is not invariant to the stated basis and
+bandwidth rule.
+
+\end{document}

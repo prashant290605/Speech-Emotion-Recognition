@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 import pytest
 
@@ -141,3 +142,15 @@ def test_generated_tables_are_balanced_and_labelled():
         assert any(m in text for m in markers), (
             f"{path.name}: note does not state a run filter or data source"
         )
+        assert r"\\_" not in text, f"{path.name}: double-escaped LaTeX underscore"
+        invalid_texttt_underscore = re.search(
+            r"\\texttt\{[^}]*?(?<!\\)_[^}]*\}", text
+        )
+        assert not invalid_texttt_underscore, (
+            f"{path.name}: unescaped underscore inside \\texttt"
+        )
+        for identifier in ("mean_shift", "mkmmd_diag", "mkmmd_full",
+                           "layer_agg", "target_test", "freeze_tag"):
+            assert identifier not in text, (
+                f"{path.name}: unescaped experiment identifier {identifier}"
+            )

@@ -23,14 +23,9 @@
 \cormark[1]
 \fnmark[1]
 \ead{2023mcb1309@iitrpr.ac.in}
-\credit{Conceptualization, Methodology, Software, Formal analysis, Validation,
-  Visualization, Writing - original draft, Writing - review and editing}
 
 \author[1]{Pranav Singh}
 \fnmark[1]
-\ead{2023mcn1308@iitrpr.ac.in}
-\credit{Conceptualization, Methodology, Software, Formal analysis, Validation,
-  Visualization, Writing - original draft, Writing - review and editing}
 
 \affiliation[1]{organization={Indian Institute of Technology Ropar},
   city={Rupnagar},
@@ -49,10 +44,11 @@ discrepancy (MK-MMD) maps across 4986 RAVDESS and CREMA-D runs in both
 directions. The protocol uses speaker-disjoint splits, source-side selection,
 and chance baselines. Alignment adds $+0.12$ to $+0.20$ macro-F1 against
 baselines near $0.166$. No evaluated rung exceeds per-dimension
-standardisation. From unaligned to the \texttt{mkmmd\_full} endpoint, the
-forward marginal diagnostic decreases to $0.010$ of its unaligned value while
-the class-conditional diagnostic decreases to $0.07$. Prior KL spans $0.022$
-to $0.025$ nats. Label-shift corrections reduce macro-F1 in 238 of 240 cases
+standardisation. The label-harmonisation controls retain the basic
+aligned-versus-unaligned contrast after dropping RAVDESS \texttt{calm} and,
+separately, after excluding \texttt{neutral} from both corpora. MMD values
+depend on their basis and bandwidth rules, and the diagnostics do not identify
+conditional shift. Label-shift corrections reduce macro-F1 in 238 of 240 cases
 while recovering an implanted shift. CORAL converges to a scalar-rescaled mean
 shift with increasing shrinkage, and its endpoint is within $0.0061$ macro-F1
 of mean shift. Forward source validation separates unaligned and standardised

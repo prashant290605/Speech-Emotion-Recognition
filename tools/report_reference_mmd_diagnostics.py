@@ -97,7 +97,7 @@ def write_manuscript_table(records):
             conditional_raw = np.mean([conditional_mean(row, "raw_mmd") for row in records_for_rung])
             rows.append([
                 f"{source.upper()} $\\rightarrow$ {target.upper()}",
-                f"\\texttt{{{rung.replace('_', r'\\_')}}}",
+                f"\\texttt{{{rung.replace('_', r'\_')}}}",
                 f"{raw:.5f}",
                 f"{effect:.2f}",
                 f"{conditional_raw:.5f}",
@@ -122,6 +122,8 @@ def write_manuscript_table(records):
             "the generated diagnostic report, but are not divided by the marginal value."
         ],
     )
+    text = text.replace(r"\begin{table}[tb]", r"\begin{table*}[!t]", 1)
+    text = text.rsplit(r"\end{table}", 1)[0] + r"\end{table*}" + "\n"
     return write_table(text, "decomposition", REPO_ROOT / "tables")
 
 

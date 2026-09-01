@@ -123,7 +123,7 @@ def main(argv=None) -> int:
         "    \\midrule",
     ]
     for alignment in order:
-        cells = [f"\\texttt{{{alignment}}}"]
+        cells = [f"\\texttt{{{alignment.replace('_', r'\_')}}}"]
         for direction in directions:
             cells.append(interval_text(summary(groups[(*direction, alignment)], "macro_f1")))
         table_lines.append("    " + " & ".join(cells) + " " + "\\\\")
@@ -131,13 +131,16 @@ def main(argv=None) -> int:
         summary(groups[(*direction, "none")], "chance_macro_f1")["mean"]
         for direction in directions
     ]
+    rung_names = ", ".join(
+        rung["alignment"].replace("_", r"\_") for rung in spec["rungs"]
+    )
     table_lines.extend([
         "    \\bottomrule",
         "  \\end{tabular}",
         "  \\\\[2pt]",
         "  \\begin{minipage}{\\linewidth}\\footnotesize "
         f"Filter: cached {spec['backbone']} {spec['layer_agg']}-layer features, "
-        f"{spec['classifier']}, and {', '.join(rung['alignment'] for rung in spec['rungs'])}. "
+        f"{spec['classifier']}, and {rung_names}. "
         "The chance baselines are " + " and ".join(f"{value:.4f}" for value in chance) + ". "
         "This robustness control is not a replacement full classifier grid."
         "\\end{minipage}",

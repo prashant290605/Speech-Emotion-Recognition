@@ -2912,3 +2912,50 @@ None. `legacy/` is byte-identical to the upstream clone.
 - Current-literature positioning, moving the detailed provenance ledger to the
   supplement, final PDF generation, and Overleaf archive regeneration remain
   Phase 6 work.
+
+## 2026-09-02 - Reviewer-revision Phase 6: positioning, provenance supplement, and release package
+
+### Files created
+
+- `paper/supplementary_provenance.tex`, a one-page provenance ledger retained
+  outside the main article.
+- `output/overleaf/delivery-20260902/Speech_Communication_submission_20260902.zip`,
+  the checked Overleaf upload archive.
+- `output/pdf/Speech_Communication_submission_20260902.pdf` and
+  `output/pdf/Speech_Communication_submission_supplement_20260902.pdf`, the
+  compiled delivery PDFs.
+
+### Files modified
+
+- `paper/main.tex`, `paper/refs.bib`, and the Related Work, Results,
+  Discussion, Reproducibility, Conclusion, and back-matter sections.
+- `paper/OVERLEAF.md`, `paper/SUBMISSION_CHECKLIST.md`,
+  `paper/CITATIONS_NEEDED.md`, and `paper/REVISION_PLAN.md`.
+- Generated alignment and label-control tables; their generators; Overleaf
+  packaging; and LaTeX rendering tests.
+
+### Tests and validation
+
+- Focused regression tests covering label controls, MMD diagnostics, reference
+  checks, and LaTeX generation passed.
+- `python tools/check_paper.py` and `python tools/check_number_trace.py`
+  passed.
+- The 36-file upload archive passed static path, graphics, bibliography, and
+  citation checks.
+- Local Tectonic builds produced a visually reviewed 20-page article and a
+  visually reviewed one-page supplement.
+
+### Decisions made
+
+- The main article contains a compact provenance statement. The full withdrawn-
+  claim ledger is supplied separately so the article remains readable.
+- Prashant Singh is the only corresponding author in the PDF. Pranav Singh's
+  email must be supplied in the submission portal; keeping both email footnotes
+  in the CAS title block caused an avoidable first-page overflow.
+- The CRediT statement is shared and compact. No contributor role was removed.
+
+### Deferred
+
+- Eight bibliography records still need manual publisher-page confirmation.
+- ORCIDs, Zenodo DOI, final author declarations, portal fields, and licensed
+  IEMOCAP confirmation remain author hand-off items.

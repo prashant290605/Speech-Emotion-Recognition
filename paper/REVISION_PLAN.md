@@ -123,6 +123,11 @@ generated results support the same qualified finding.
 
 ## Phase 6: Positioning, supplement, and final release
 
+**Status:** Complete on 2026-09-02. The manuscript includes a verified 2025
+*Speech Communication* comparison, moves the detailed provenance ledger to a
+one-page supplement, and has been compiled and visually reviewed as a 20-page
+CAS double-column article. The checked delivery archive is ready for Overleaf.
+
 **Purpose:** make the revised article current, conventional, and reviewable.
 
 | Review issue | Deliverable | Acceptance criterion |
@@ -140,4 +145,4 @@ generated results support the same qualified finding.
 | 3 | Complete | Calm-drop performance control is generated and integrated. |
 | 4 | Complete | Two label mappings and their diagnostic ledgers are integrated. |
 | 5 | Waiting for licensed IEMOCAP | Raw data are absent; this is an external dependency, not a reason to claim results. |
-| 6 | Pending | Runs after the scientific changes and source verification. |
+| 6 | Complete | Current related work, provenance supplement, final PDF, and Overleaf delivery archive are complete. |
