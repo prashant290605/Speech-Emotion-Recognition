@@ -1,0 +1,21 @@
+# Pre-specified RAVDESS calm-label robustness control. The runner starts from
+# configs/default.yaml and records this complete overlay and each seed in every
+# row's label-map and configuration hashes.
+version: calm-drop-v1
+output: results/calm_dropped_sensitivity.jsonl
+variant:
+  name: calm_dropped_six
+  ravdess_calm_to_neutral: false
+backbone: hubert
+classifier: logreg
+layer_agg: last
+seeds: [0, 1, 2, 3, 4]
+directions:
+  - [ravdess, cremad]
+  - [cremad, ravdess]
+rungs:
+  - alignment: none
+  - alignment: zscore
+  - alignment: mean_shift
+  - alignment: coral
+    eps: 10.0
