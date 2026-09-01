@@ -17,14 +17,13 @@ $0.1656$. But essentially all of it is available from per-dimension
 standardisation. The diagnostics below test one explanation for why further
 marginal discrepancy reduction does not yield a further transfer gain.
 
-\paragraph{The diagnostic.} Measuring label shift, marginal discrepancy and a
-class-conditional discrepancy shows what the ladder is doing. Alignment drives
-the marginal term down to $0.010\times$ its unaligned value while the
-class-conditional term falls only to $0.07\times$. These diagnostics use
-different null normalisers, so their numerical ratio is descriptive rather than
-a decomposition. The observed pattern indicates that the class-conditional
-diagnostic does not decline as quickly as the marginal quantity the ladder
-optimises. The observed prior difference is small: the KL is
+\paragraph{The diagnostic.} We measure label shift, marginal discrepancy and a
+class-conditional discrepancy under a source-defined reference geometry. Raw
+MMD$^2$ is the primary marginal value. The class-conditional diagnostic uses the
+same basis and bandwidth, but its class-specific null scale is reported only as
+a supporting effect size. We therefore do not interpret a ratio between the two
+normalised quantities as a decomposition. The observed prior difference is
+small: the KL is
 $0.02235$ and $0.02541$ nats, and the standard corrections examined here
 \emph{hurt} in 238 of 240 cases while the same estimators recover a planted
 shift. This does not establish that label shift is absent, because those
@@ -58,9 +57,10 @@ oracle gap. It is larger than the observed alignment gain, but it also includes
 target-set maximisation and search-space effects.
 
 Finally, the relationship between discrepancy and transfer is not invariant to
-measurement geometry. Measured in each method's own geometry the
+the measurement protocol. Measured in each method's adaptive own geometry the
 correlation is $\rho = -0.444$ $[-0.505, -0.383]$; measured in a single fixed
-reference frame, on the same features, layers and scores, it is $+0.142$
+reference basis with a recomputed adaptive bandwidth, on the same features,
+layers and scores, it is $+0.142$
 $[+0.062, +0.221]$. The signs are opposite and neither interval covers zero.
 Which one a study obtains is fixed by a measurement choice made before any
 transfer result is seen, and often left implicit. The $\varepsilon$ sweep
@@ -79,10 +79,10 @@ the frozen protocol, provenance, and withdrawn interim claims.
 \paragraph{Contributions.}
 \begin{enumerate}
   \item \textbf{A diagnostic for the alignment plateau.} Marginal discrepancy
-    falls to $0.010\times$ its unaligned value while the class-conditional
-    diagnostic falls to $0.07\times$. Observed prior differences are small, and
-    the standard corrections examined here hurt in 238 of 240 cases while
-    recovering a planted shift.
+    and class-conditional MMD$^2$ are reported in one source-defined reference
+    geometry, with raw MMD$^2$ primary and no cross-normaliser ratio.
+    Observed prior differences are small, and the standard corrections examined
+    here hurt in 238 of 240 cases while recovering a planted shift.
     (Section~\ref{sec:decomposition})
   \item \textbf{The gain is the first rung in this case study.} Alignment is
     worth $+0.12$ to $+0.20$, and no aligned rung is shown to beat
@@ -95,6 +95,6 @@ the frozen protocol, provenance, and withdrawn interim claims.
     needed}, and once returns a score below the chance baseline.
     (Section~\ref{sec:results-selection})
   \item \textbf{The relationship between discrepancy and transfer reverses
-    sign with the measurement frame}, so it is not invariant until the frame is
-    specified. (Section~\ref{sec:results-frames})
+    sign with the measurement protocol}, so it is not invariant to the stated
+    basis and bandwidth rule. (Section~\ref{sec:results-frames})
 \end{enumerate}

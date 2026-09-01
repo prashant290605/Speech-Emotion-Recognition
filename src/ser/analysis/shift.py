@@ -93,15 +93,17 @@ def conditional_mmd_by_class(
     *,
     seed: int = 0,
     min_support: Optional[int] = None,
+    bandwidth: Optional[float] = None,
 ) -> List[Dict]:
     """``MMD(X_src|y=k, X_tgt|y=k)`` per class, normalised by the same-class null.
 
     **This reads target labels.** It is behind the A10 firewall and may only be
     called from analysis code. See :mod:`ser.analysis`.
 
-    Normalisation matches the marginal statistic: MMD^2 divided by the mean
-    absolute MMD^2 over random half-splits of the source side of that class, so
-    the value is scale-free and comparable across classes and rungs.
+    The optional ``bandwidth`` permits every class to be measured in one fixed
+    reference frame. The class-specific null normaliser remains a supporting
+    effect size: it controls finite-sample variation within a class, but it is
+    not on the same scale as a marginal null normaliser.
 
     A class with fewer than ``min_support`` samples on **either** side is
     reported with ``effect_size=None`` rather than a number. Class-conditional
@@ -135,9 +137,11 @@ def conditional_mmd_by_class(
 
         A = np.asarray(X_source[src_index], dtype=np.float64)
         B = np.asarray(X_target[tgt_index], dtype=np.float64)
-        bandwidth = median_bandwidth(A, B, seed=seed)
-        raw = marginal_mmd(A, B, config, bandwidth=bandwidth, seed=seed)
-        null = null_mmd_scale(A, config, bandwidth=bandwidth, n_repeats=5, seed=seed)["scale"]
+        class_bandwidth = bandwidth if bandwidth is not None else median_bandwidth(A, B, seed=seed)
+        raw = marginal_mmd(A, B, config, bandwidth=class_bandwidth, seed=seed)
+        null = null_mmd_scale(
+            A, config, bandwidth=class_bandwidth, n_repeats=5, seed=seed
+        )["scale"]
         record["raw_mmd"] = float(raw)
         record["effect_size"] = float(raw / null) if null > 0 else None
         out.append(record)

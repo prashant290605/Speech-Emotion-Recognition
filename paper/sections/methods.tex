@@ -213,46 +213,52 @@ establish what a differently optimised MK-MMD map would achieve.
 Alignment methods are usually justified by the discrepancy they remove, so the
 discrepancy statistic needs to be specified as carefully as the methods.
 
-We report $\mathrm{MMD}^2$ between aligned source and target, normalised by a
-same-distribution null: the mean absolute $\mathrm{MMD}^2$ over random
-half-splits of the aligned source. The ratio is scale-free, so it is comparable
-across rungs and representations that leave the features in different units,
-and a value near 1 means ``indistinguishable from two samples of the same
-distribution''. Normalising by the mean \emph{absolute} value rather than the
-mean is deliberate: the unbiased estimator is signed and its null mean is
-approximately zero by construction (measured $-3.5 \times 10^{-4}$ against a
-spread of $9.2 \times 10^{-4}$), so the signed mean is not a usable scale. The
-mean kernel value at the widest bandwidth multiplier is recorded, since a
-saturated kernel makes MMD collapse for reasons unrelated to domain overlap.
+The primary marginal statistic is the raw unbiased $\mathrm{MMD}^2$ between
+aligned source and target. We also report its effect size, obtained by dividing
+by the mean absolute $\mathrm{MMD}^2$ over five random source half-splits. The
+unbiased estimator has null mean zero, so its signed mean is not a usable
+denominator. The effect size aids interpretation of finite-sample variation; it
+does not replace the raw statistic.
 
-\paragraph{Two measurement frames, both reported.} A discrepancy is measured in
-some geometry, and the choice is not innocuous, so we report the same statistic
-in two frames. The \emph{own-geometry} statistic uses a median-heuristic
-bandwidth computed on the features being compared, so it adapts to whatever
-scale each rung leaves them in; that adaptation is what makes rungs comparable
-at all, and it also makes the statistic partly a measure of the frame. The
-\emph{reference-frame} statistic instead applies one fixed ZCA map; derived
-once from the \emph{unaligned} source-train features with shrinkage
-$\varepsilon = 10^{-2}$; identically to every rung before measurement. Being
-linear and fixed, it cannot undo any rung's alignment; the strong shrinkage is
-deliberate, since the source covariance has effective rank near 57 of 768 and
-weaker shrinkage would amplify hundreds of near-null directions.
+\paragraph{A common reference geometry.} For the ladder diagnostic, one ZCA
+basis is derived from unaligned \texttt{source\_train} features with shrinkage
+$\varepsilon = 10^{-2}$. One median RBF bandwidth is then derived from those
+same source-train features in that basis. Both quantities are fixed before an
+alignment map is fitted and applied identically to every rung for that pair,
+seed, backbone and layer aggregation. This makes the raw trajectories a
+comparison under one stated kernel and coordinate system. The shrinkage avoids
+amplifying near-null directions in the rank-deficient source covariance.
 
-Neither frame is privileged by theory. We report both throughout, because
-Section~\ref{sec:results-frames} shows they disagree about the sign of the
-relationship between discrepancy and transfer.
+\paragraph{Adaptive geometry as a sensitivity analysis.} We separately report
+an own-geometry calculation that derives the median bandwidth from each
+compared feature pair. The 13-layer frame-sensitivity sweep also holds the ZCA
+basis fixed while recomputing that adaptive bandwidth; we call it a
+\emph{reference-basis} calculation, not a fully fixed reference geometry. The
+two procedures answer different measurement questions, so neither is treated
+as the unique definition of distributional closeness.
+
+\paragraph{Proposition: median-heuristic scale invariance.} Let
+$\hat\sigma(X,Y)$ be the median pairwise Euclidean distance used by the RBF
+kernel. For a nonzero scalar $a$,
+$\hat\sigma(aX,aY)=|a|\hat\sigma(X,Y)$ and therefore
+\begin{equation}
+  k_{|a|\hat\sigma}(ax,ay)=k_{\hat\sigma}(x,y).
+  \label{eq:median-scale-invariance}
+\end{equation}
+Each pairwise distance gains the factor $|a|$, which proves the first identity;
+substitution in the RBF exponent proves the second. Thus an adaptive
+median-heuristic MMD is invariant to a global rescaling applied to both samples.
+This property does not extend to an arbitrary affine map or to a map applied to
+only one sample.
 
 \paragraph{Class-conditional diagnostic.} For each class $k$, the analysis
 computes the same unbiased multi-kernel MMD$^2$ between aligned
-$X_s \mid y=k$ and $X_t \mid y=k$. Its bandwidth is the seeded median
-pairwise distance in that class's pooled source and target samples; the
-normaliser is the mean absolute MMD$^2$ across five random half-splits of the
-aligned source samples for that same class. A class is undefined rather than
-estimated when either side has fewer than 50 examples. The reported conditional
-value is the unweighted mean over defined classes, first within seed and then
-over seeds. Thus its ratio to marginal MMD is a descriptive comparison of two
-normalised diagnostics, not a probability decomposition or an estimate of
-$P(y \mid x)$.
+$X_s \mid y=k$ and $X_t \mid y=k$ in the common reference geometry. A class is
+undefined rather than estimated when either side has fewer than 50 examples.
+The report also gives a class-specific half-split effect size. That normaliser
+is not the marginal normaliser, so we do not form or interpret a
+conditional-to-marginal ratio. The diagnostic is not a probability
+decomposition or an estimate of $P(y \mid x)$.
 
 \subsection{Classifiers and the search budget}
 \label{sec:classifiers}
@@ -347,15 +353,14 @@ Table~\ref{tab:floors} collects the split sizes and both baselines.
 \input{../tables/floors}
 
 \paragraph{Intervals.} Target-score intervals come from a \textbf{paired
-cluster bootstrap} that resamples \texttt{target\_test} speakers and seeds
-together, 2000 replicates \cite{cameron2008cluster}. Speakers are the resampling unit because
-recognition errors cluster hard by talker, and an utterance-level bootstrap
-would report intervals several times too narrow. Seeds are resampled because
-the seed is the replication unit for everything the design controls; split
-realisation, search draw, initialisation; so an interval holding the seed
-fixed describes one split rather than the method. Both arms of a comparison are
-scored on the \emph{same} resampled speakers within the same resampled seeds,
-which is what makes the difference paired.
+cluster bootstrap} with 2000 replicates \cite{cameron2008cluster}. In each
+replicate, we draw the five seed identifiers with replacement. For each drawn
+seed, we draw that seed's target-test speaker identifiers with replacement,
+keeping every utterance from each selected speaker. Both comparison arms use
+the same seed and speaker draws, then their macro-F1 difference is formed. This
+resamples the split, search and initialisation variation carried by seeds and
+the clustered target-test sampling variation carried by speakers. It never
+resamples individual utterances independently.
 
 The discrepancy columns are properties of a fitted map, not of a prediction.
 They have no per-utterance form and instead receive a

@@ -1,11 +1,11 @@
-"""Trace manuscript outcome numbers to reports/RESULTS.md.
+"""Trace manuscript outcome numbers to generated result reports.
 
 Usage:
     python tools/check_number_trace.py
 
 The paper contains two numeric classes. Outcome numbers in the abstract,
 results, discussion, reproducibility section, conclusion, highlights, and
-result tables must be in RESULTS.md (allowing ordinary display rounding).
+result tables must be in a generated report (allowing ordinary display rounding).
 Corpus and fixed-design constants in Methods and the corpus-description table
 are reported separately: they are reproducibility inputs, not outcomes.
 """
@@ -21,7 +21,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PAPER = ROOT / "paper"
-RESULTS = ROOT / "reports" / "RESULTS.md"
+RESULT_SOURCES = (
+    ROOT / "reports" / "RESULTS.md",
+    ROOT / "reports" / "phase9_reference_geometry.md",
+)
 NUMBER = re.compile(r"(?<![A-Za-z0-9_])[-+]?\d+(?:\.\d+)?(?:e[-+]?\d+)?(?![A-Za-z_])")
 # Fixed analysis parameters which appear in an otherwise outcome-bearing table.
 KNOWN_DESIGN_TOKENS = {("decomposition.tex", "50")}
@@ -114,14 +117,16 @@ def source_files() -> tuple[list[Path], list[Path]]:
 
 
 def main() -> int:
-    if not RESULTS.exists():
-        print(f"missing {RESULTS.relative_to(ROOT)}")
+    missing = [path for path in RESULT_SOURCES if not path.exists()]
+    if missing:
+        print("missing " + ", ".join(path.relative_to(ROOT).as_posix() for path in missing))
         return 2
 
     result_values = {
         value
+        for source in RESULT_SOURCES
         for match in NUMBER.finditer(text_without_noncontent(
-            RESULTS.read_text(encoding="utf-8"), strip_latex_comments=False
+            source.read_text(encoding="utf-8"), strip_latex_comments=False
         ))
         if (value := decimal(match.group())) is not None
     }
@@ -140,7 +145,7 @@ def main() -> int:
             else:
                 untraced_outcomes.append(occurrence)
 
-    print(f"RESULTS values parsed: {len(result_values)}")
+    print(f"Generated result values parsed: {len(result_values)}")
     print(f"Outcome occurrences traced: {traced}")
     print(f"Context/design occurrences not in RESULTS: {len(context_only)}")
     for occurrence in context_only:
@@ -150,7 +155,7 @@ def main() -> int:
         for occurrence in untraced_outcomes:
             print(f"  {occurrence.path.relative_to(ROOT)}:{occurrence.line} {occurrence.token}")
         return 1
-    print("\nall outcome numbers trace to reports/RESULTS.md")
+    print("\nall outcome numbers trace to generated result reports")
     return 0
 
 

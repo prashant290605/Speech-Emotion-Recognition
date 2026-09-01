@@ -152,19 +152,21 @@ MK-MMD map cannot improve transfer.
 We use three diagnostics for shift: label-prior KL, marginal discrepancy, and a
 class-conditional discrepancy computed within labels ($P(x \mid y)$). The latter
 is not an additive component of the marginal statistic or a direct estimate of
-$P(y \mid x)$, but it tests whether class-conditional mismatch falls alongside
-the marginal objective. Table~\ref{tab:decomposition} and
-Figure~\ref{fig:decomposition} report all three.
+$P(y \mid x)$. Table~\ref{tab:decomposition} reports raw MMD$^2$ and its
+same-distribution scale in one source-defined reference geometry.
+Figure~\ref{fig:decomposition} shows the corresponding raw and normalised
+marginal trajectories.
 
 \input{../tables/decomposition}
 
 \begin{figure*}[!t]
   \centering
   \includegraphics[width=\textwidth]{decomposition.pdf}
-  \caption{Marginal and class-conditional discrepancy across the ladder (left
-    axis, log scale) with their ratio (right axis). Alignment drives the
-    marginal statistic down faster than the class-conditional diagnostic; the
-    ratio therefore approaches one in the forward direction.}
+  \caption{Marginal MMD$^2$ across the alignment ladder in the common
+    source-defined reference geometry. The top row shows raw MMD$^2$; the
+    bottom row divides it by a same-distribution source half-split scale. The
+    class-conditional values use class-specific null scales and are reported in
+    Table~\ref{tab:decomposition}, not divided by the marginal values.}
   \label{fig:decomposition}
 \end{figure*}
 
@@ -174,21 +176,11 @@ $0.02541$ nats for the reverse, with total variation $0.085$. As
 Section~\ref{sec:corpora} noted, the entire difference sits in one class and is
 an artefact of merging RAVDESS \texttt{calm} into \texttt{neutral}.
 
-\textbf{Alignment reduces the marginal statistic faster than the
-class-conditional diagnostic.} Taking \texttt{none} as the baseline and
-\texttt{mkmmd\_full} as the endpoint, forward, marginal discrepancy falls from
-$1496.1$ to $15.3$; a factor of $0.010$; while class-conditional
-discrepancy falls only from $215.1$ to $14.0$, a factor of $0.07$. The ratio
-column makes the scale difference visible: before alignment the
-class-conditional diagnostic is a seventh of the marginal one ($0.14$); after
-the strongest rung the two are nearly equal ($0.92$). The reverse direction
-shows the same pattern more weakly, $0.29$ rising to $0.53$.
-
-\textbf{The remaining class-conditional mismatch is therefore not removed at the
-same rate as the marginal objective.} This diagnostic is consistent with the
-ladder result: marginal discrepancy continues to fall by two orders of
-magnitude without a corresponding improvement in target macro-F1. It does not,
-by itself, identify a change in $P(y \mid x)$; Section~\ref{sec:discussion-testing}
+\textbf{The marginal trajectory and the task trajectory need not agree.} The
+common reference geometry permits a direct comparison of raw marginal MMD$^2$
+across rungs. The class-conditional values remain descriptive diagnostics. They
+do not establish a change in $P(y \mid x)$, and their separately normalised
+effect sizes are not combined into a ratio. Section~\ref{sec:discussion-testing}
 states what a direct test would require.
 
 \paragraph{A check on standard label-shift correction.} A decomposition that only
@@ -304,34 +296,25 @@ Table~\ref{tab:frames} and Figure~\ref{fig:frames} test that presumption on a
   \centering
   \includegraphics[width=\textwidth]{frame_dependence.pdf}
   \caption{Left: Spearman $\rho$ between a layer's marginal discrepancy and its
-    target macro-F1, in each of the two measurement geometries, for all 36
-    (direction $\times$ backbone $\times$ rung) cells. Right: the case where the
-    map limit is known analytically; as $\varepsilon$ grows the CORAL map
-    provably tends to a scalar-rescaled mean shift, while only the reference
-    frame tracks the corresponding \texttt{mean\_shift} scores.}
+    target macro-F1 under two stated measurement protocols, for all 36
+    (direction $\times$ backbone $\times$ rung) cells. Right: the analytically
+    known CORAL map limit. The contrasting trajectories show measurement
+    sensitivity; they do not identify one protocol as correct.}
   \label{fig:frames}
 \end{figure*}
 
 Pooled over all cells and seeds, $\rho = -0.444$ $[-0.505, -0.383]$ in each
-rung's own geometry and $\rho = +0.142$ $[+0.062, +0.221]$ in the fixed
-reference frame. \textbf{The signs are opposite and neither interval covers
+rung's adaptive own geometry and $\rho = +0.142$ $[+0.062, +0.221]$ in the
+reference-basis calculation. \textbf{The signs are opposite and neither interval covers
 zero.} Eleven of the 36 individual cells disagree by the stricter per-cell test,
 which requires both intervals to exclude zero and fall on opposite sides.
 
-The two statistics are computed from the same features, the same layers and the
-same target scores. Only the geometry in which the discrepancy is measured
-differs.
-
-\textbf{What this establishes is a well-posedness claim, not a preference
-between frames: the sign of the relationship between discrepancy and transfer is
-not identified until the measurement frame is specified.} ``Lower discrepancy goes
-with better transfer'' and its negation are both obtainable from these runs, and
-which one is obtained is settled by a choice; the bandwidth and the basis in
-which the statistic is evaluated; that is made before any transfer result is
-seen. That choice is not part of the alignment method and is not implied by the
-data. A correlation between discrepancy and transfer reported without it is therefore not
-yet a falsifiable claim, and two such reports that appear to disagree may not be
-disagreeing about anything.
+The two statistics use the same features, layers and target scores. They differ
+in their basis and bandwidth rule. \textbf{The correlation is therefore not
+invariant to the stated measurement protocol.} The runs do not identify a
+universally correct protocol. They show why a discrepancy-transfer correlation
+must state its coordinate basis and bandwidth rule before it can be compared
+with another report.
 
 There is a second gap, and it runs the same way. The generalisation bound that
 licenses treating discrepancy reduction as progress is stated over a
@@ -340,42 +323,32 @@ hypothesis class (Section~\ref{sec:related-alignment}). A kernel MMD at a fixed
 bandwidth is not that quantity: it is a property of the two feature samples
 alone and knows nothing about the hypothesis class the learner will search.
 Reducing it is therefore not, in itself, reducing the term that the theory
-bounds. Our result shows that the substitute quantity does not even have a
-well-defined sign until its frame is named. The gap between what the theory
-bounds and what is usually measured is thus wider than the frame problem alone
-would make it.
+bounds. The two measurement protocols give different empirical correlations,
+which is separate from the gap between a kernel statistic and the
+classifier-induced divergence in the bound.
 
 \paragraph{Recommendation.} We state the consequence as a recommendation rather
 than as a characterisation of what other work does or does not report, which we
 are not in a position to survey. \textbf{A reported reduction in discrepancy
 should state the geometry in which the discrepancy was measured: the kernel
 bandwidth and the basis, and how each was fixed.} Where the bandwidth is set by
-a data-dependent rule such as the median heuristic, this matters most, because
-the statistic then adapts to the very rescaling the method applies and the
-comparison across methods is not like-for-like. The remedy is cheap: derive one
-frame from data the alignment has not touched, hold it fixed across all methods
-being compared, and report it. What cannot be done is to compare discrepancies
-across methods that each supply their own geometry.
+a data-dependent rule such as the median heuristic, this matters because the
+statistic adapts to a global rescaling of both samples
+(Equation~\ref{eq:median-scale-invariance}). The remedy is inexpensive: derive
+one basis and bandwidth from source-training data, hold them fixed across the
+methods being compared, and report that protocol. An adaptive calculation can
+remain a sensitivity analysis when it is labelled as such.
 
-\paragraph{Supporting evidence: the one case where the answer is known.} The
-identification claim rests on the reversal alone and needs nothing further. The
-$\varepsilon$ sweep nonetheless supplies a case where the correct behaviour is
-known independently of any measurement, and it is worth reporting because it
-shows the ambiguity is not merely formal.
+\paragraph{Supporting evidence: a map limit with known form.} The
+$\varepsilon$ sweep supplies a case where the map's limiting form is known
+independently of any discrepancy measurement.
 Equation~\eqref{eq:coral-limit} says that as $\varepsilon$ grows, CORAL becomes
-a scalar rescale plus a mean shift. A discrepancy statistic that is behaving
-correctly should therefore report large-$\varepsilon$ CORAL as resembling
-\texttt{mean\_shift}. The reference-frame statistic does; the own-geometry
-statistic does not, because its median-heuristic bandwidth adapts to the very
-rescaling that distinguishes the two. In this one case, then, one of the two
-frames gives an answer that is demonstrably wrong.
-
-We do not conclude from that single case that the reference frame is the right
-frame in general. It is one frame among many and is more sensitive to
-uncorrected mean offsets than the alternative. The conclusion is the weaker and
-more durable one: the frame is a free parameter of the measurement, it changes
-the sign of the headline relationship, and it has to be fixed and reported
-before a claim about discrepancy and transfer means anything.
+a scalar rescale plus a mean shift. The adaptive median-heuristic calculation
+is invariant to a global rescale of both samples, while the reference-basis
+calculation responds to the full transformed geometry. Their contrasting
+trajectories are expected from the different definitions. This example does not
+rank the protocols. It demonstrates why the protocol must be fixed and reported
+before a claim about discrepancy and transfer is compared across methods.
 
 \subsection{Per-class transfer}
 \label{sec:results-perclass}
@@ -391,7 +364,7 @@ validated configuration, computed from the stored per-utterance predictions.
   \caption{Per-class F1 from the configuration selected on source-side
     validation for each seed, in both directions, with 95\% intervals. Dashed
     lines mark each direction's macro average; the dotted line marks the chance
-    floor.}
+    baseline.}
   \label{fig:perclass}
 \end{figure*}
 

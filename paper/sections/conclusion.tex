@@ -8,22 +8,21 @@ standardisation shows a further target-macro-F1 gain. The evaluated CORAL and
 affine MK-MMD maps do not change that result.
 
 The diagnostics show that lower marginal discrepancy does not imply better
-transfer here. After alignment the marginal term is at $0.010\times$ its
-unaligned value while the class-conditional diagnostic is still at $0.07\times$.
-This is not an additive decomposition or a direct estimate of $P(y \mid x)$,
-but it shows that the class-conditional diagnostic does not fall at the same
-rate as the marginal objective. Observed label-prior differences are small in
-this pair, and the standard corrections examined here do not improve transfer.
-The elaborate rungs reduce their objectives, but that reduction does not deliver
-a further target-macro-F1 gain.
+transfer here. We report raw marginal and class-conditional MMD$^2$ in a common
+source-defined reference geometry and do not treat their separately normalised
+effect sizes as a probability decomposition or an estimate of $P(y \mid x)$.
+Observed label-prior differences are small in this pair, and the standard
+corrections examined here do not improve transfer. The evaluated affine rungs
+reduce their objectives, but that reduction does not deliver a further
+target-macro-F1 gain.
 
 Three conclusions follow for this protocol. As shrinkage grows, CORAL approaches
 a scalar-rescaled mean shift. In the forward direction, source-side validation
 can miss the need for alignment and once returns a score below the chance
 baseline. The forward oracle gap exceeds the observed alignment gain, although
 it also includes target-set maximisation. Finally, the relationship between
-discrepancy and transfer reverses sign with the geometry used to measure it.
-That relationship is not invariant until the measurement frame is stated.
+discrepancy and transfer reverses sign across the stated measurement protocols.
+That relationship is not invariant to the basis and bandwidth rule.
 
 The data support a limited recommendation. In this corpus pair, evaluate
 per-dimension standardisation before adding more complex affine alignment maps.

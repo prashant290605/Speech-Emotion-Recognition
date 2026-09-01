@@ -47,16 +47,19 @@ __all__ = [
 ]
 
 
-def median_bandwidth(X: np.ndarray, Y: np.ndarray, *, max_samples: int = 512,
+def median_bandwidth(X: np.ndarray, Y: Optional[np.ndarray] = None, *, max_samples: int = 512,
                      seed: int = 0) -> float:
-    """Median pairwise Euclidean distance over the pooled sample.
+    """Median pairwise Euclidean distance over one sample or a pooled pair.
 
     Subsampled for tractability; seeded so the bandwidth is reproducible. A zero
     median (identical points) falls back to 1.0 rather than producing a
-    degenerate kernel.
+    degenerate kernel. Passing only ``X`` derives a source-only bandwidth, which
+    is useful when a reference geometry must be fixed before target features are
+    measured.
     """
     rng = np.random.default_rng(seed)
-    pooled = np.vstack([X, Y])
+    X = np.asarray(X, dtype=np.float64)
+    pooled = X if Y is None else np.vstack([X, np.asarray(Y, dtype=np.float64)])
     if pooled.shape[0] > max_samples:
         pooled = pooled[rng.choice(pooled.shape[0], max_samples, replace=False)]
 
@@ -129,11 +132,10 @@ def marginal_mmd(
 ) -> float:
     """Marginal MMD² between two feature sets.
 
-    ``bandwidth`` should be **fixed once** from the unaligned source/target pair
-    and reused for every rung. Re-estimating it per rung makes the statistic
-    scale-dependent: an alignment that merely shrinks the features shrinks the
-    median pairwise distance too, the kernel widens to compensate, and the
-    reported MMD falls without any distributions having moved closer.
+    The caller owns the measurement protocol. An own-geometry diagnostic may
+    derive ``bandwidth`` from the compared features; a common-reference
+    diagnostic must pass one bandwidth derived before the compared maps are
+    fitted. These are different estimands and should never be conflated.
     """
     rng = np.random.default_rng(seed)
 
@@ -155,7 +157,7 @@ def marginal_mmd(
 
 @dataclass(frozen=True)
 class ReferenceGeometry:
-    """One ZCA whitening map, derived once and applied to every rung's output.
+    """One ZCA basis, derived once and applied to every rung's output.
 
     Why this exists: the per-rung effect size lets each rung be measured in the
     geometry *it produced*, which is what makes the statistic scale-invariant —
@@ -167,9 +169,9 @@ class ReferenceGeometry:
 
     So: whiten with ``Sigma_source^(-1/2)`` computed **once** on the unaligned
     ``source_train`` covariance, and push every rung's output through that same
-    map before measuring. Being one fixed linear map it cannot undo any rung's
-    alignment, and being the same for all rungs it removes the choice of
-    geometry as a degree of freedom.
+    map before measuring. A caller that needs a fully fixed measurement frame
+    must also retain one bandwidth derived in this basis; the basis alone does
+    not hold the RBF kernel scale fixed.
 
     What it does **not** do: equalise the anisotropy each rung produces. It
     removes the *freedom to be measured in a favourable frame*, not all

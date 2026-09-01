@@ -11,19 +11,14 @@ context, but do not identify a causal mechanism.
 show that per-dimension standardisation captures the observed improvement: no
 more complex rung is shown to improve target macro-F1 in either direction.
 The evaluated CORAL and affine MK-MMD maps do not yield a further gain. The
-diagnostics document the mismatch between their marginal objective and transfer:
-marginal discrepancy falls to $0.010\times$ its unaligned value while the
-class-conditional diagnostic falls only to $0.07\times$. The two diagnostics
-have different null normalisers, so their ratio is descriptive rather than a
-physical decomposition.
+diagnostics report raw marginal and class-conditional MMD$^2$ in one
+source-defined reference geometry. Their class-specific null effect sizes aid
+finite-sample interpretation but are not divided by the marginal effect size.
 
 \paragraph{Why lower marginal discrepancy does not help further here.}
-\texttt{mkmmd\_full} reaches the lowest marginal discrepancy in \emph{both}
-measurement geometries and is never the best rung; in the reverse direction it
-is the worst aligned one. A method can improve its marginal objective without
-improving the task, and these runs show that it can. The class-conditional
-diagnostic provides a plausible account of the mismatch, but it is not a direct
-estimate of $P(y \mid x)$.
+The MMD rungs can reduce their fitted marginal objective without improving the
+task metric. The class-conditional diagnostic provides a descriptive account of
+that mismatch, but it is not a direct estimate of $P(y \mid x)$.
 
 This analysis is limited to these rungs and this corpus pair. Covariate-shift
 correction is justified by the assumption that $P(y \mid x)$ is stable across

@@ -1,10 +1,10 @@
 \begin{table*}[!t]
   \centering
-  \caption{Frame dependence across two transfer directions, three backbones and six alignment rungs. Spearman $\rho$ is computed between a layer's marginal discrepancy and target macro-F1 across the 13 layers. The pooled geometries give opposite signs, so the relationship is not invariant until the geometry is fixed.}
+\caption{Measurement-protocol sensitivity across two transfer directions, three backbones and six alignment rungs. Spearman $\rho$ is computed between a layer's marginal discrepancy and target macro-F1 across the 13 layers. The adaptive own-geometry and reference-basis calculations give opposite pooled signs.}
   \label{tab:frames}
   \begin{tabular}{lrrrr}
     \toprule
-    pair & backbone & $\rho$ (own geometry) & $\rho$ (reference frame) & sign differs \\
+    pair & backbone & $\rho$ (adaptive own) & $\rho$ (reference basis) & sign differs \\
     \midrule
     RAVDESS $\rightarrow$ CREMA-D & \texttt{hubert} & -0.404 [-0.560, -0.248] & 0.385 [0.250, 0.521] & \textbf{yes} \\
      & \texttt{wav2vec2} & -0.372 [-0.557, -0.187] & 0.224 [0.025, 0.422] & \textbf{yes} \\
