@@ -97,6 +97,11 @@ def main(argv=None) -> int:
     parser.add_argument("--backbone", default="hubert")
     parser.add_argument("--aggs", default="last,layer")
     parser.add_argument("--seeds", default="0,1,2,3,4")
+    parser.add_argument(
+        "--methods",
+        default="none,zscore,mean_shift,coral,mkmmd_diag,mkmmd_full",
+        help="Comma-separated subset of the six implemented alignment rungs.",
+    )
     parser.add_argument("--out", default="results/phase9_reference_geometry.jsonl")
     args = parser.parse_args(argv)
 
@@ -109,13 +114,20 @@ def main(argv=None) -> int:
     completed = completed_ids(out)
     seeds = [int(value) for value in args.seeds.split(",")]
     aggs = args.aggs.split(",")
+    requested_methods = tuple(value for value in args.methods.split(",") if value)
+    unknown_methods = sorted(set(requested_methods) - {name for name, _, _ in RUNGS})
+    if unknown_methods:
+        raise ValueError(f"unknown alignment methods: {unknown_methods}")
+    rungs = tuple(rung for rung in RUNGS if rung[0] in requested_methods)
+    if not rungs:
+        raise ValueError("--methods selected no alignment rungs")
 
     planned = [
         (source, target, seed, agg, method, eps, lam)
         for source, target in DIRECTIONS
         for seed in seeds
         for agg in aggs
-        for method, eps, lam in RUNGS
+        for method, eps, lam in rungs
     ]
     todo = [
         item

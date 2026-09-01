@@ -48,10 +48,16 @@ def grouped(records):
     return out
 
 
+def available_ladder(records):
+    present = {record["alignment"] for record in records}
+    return tuple(rung for rung in LADDER if rung in present)
+
+
 def write_markdown(records):
     groups = grouped(records)
     directions = sorted({(row["source"], row["target"]) for row in records})
     aggs = sorted({row["layer_agg"] for row in records})
+    rungs = available_ladder(records)
     lines = [
         "# Fixed-reference MMD diagnostics",
         "",
@@ -63,7 +69,7 @@ def write_markdown(records):
         lines.append("| direction | rung | raw marginal MMD2 | marginal MMD2 / null | mean raw conditional MMD2 | conditional / class null |")
         lines.append("|---|---|---|---|---|---|")
         for source, target in directions:
-            for rung in LADDER:
+            for rung in rungs:
                 rows = groups[(source, target, agg, rung)]
                 raw = [row["marginal"]["raw_mmd2"] for row in rows]
                 normalised = [row["marginal"]["normalised"] for row in rows]
@@ -81,9 +87,10 @@ def write_markdown(records):
 
 def write_manuscript_table(records):
     groups = grouped(records)
+    rungs = available_ladder(records)
     rows = []
     for source, target in sorted({(row["source"], row["target"]) for row in records}):
-        for rung in LADDER:
+        for rung in rungs:
             records_for_rung = groups[(source, target, PAPER_AGG, rung)]
             raw = np.mean([row["marginal"]["raw_mmd2"] for row in records_for_rung])
             effect = np.mean([row["marginal"]["normalised"] for row in records_for_rung])
@@ -107,7 +114,7 @@ def write_manuscript_table(records):
         column_spec="llrrr",
         escape_cells=False,
         notes=[
-            "Filter: HuBERT, \\texttt{layer\\_agg=last}, six rungs, 5 speaker-disjoint seeds. "
+            "Filter: HuBERT, \\texttt{layer\\_agg=last}, evaluated alignment rungs, 5 speaker-disjoint seeds. "
             "Raw MMD$^2$ is the primary diagnostic. The marginal normaliser is the mean absolute "
             "MMD$^2$ over source half-splits. Conditional MMD$^2$ is an unweighted mean over the six "
             "classes; its class-specific normalised values are reported in the generated diagnostic report, "
@@ -118,7 +125,7 @@ def write_manuscript_table(records):
 
 
 def main() -> int:
-    records = load_records(REPO_ROOT / "results/phase9_reference_geometry.jsonl")
+    records = load_records(REPO_ROOT / "results/phase9_reference_geometry_controls.jsonl")
     report = write_markdown(records)
     table_path = write_manuscript_table(records)
     print(f"wrote {report.relative_to(REPO_ROOT)}")

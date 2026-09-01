@@ -193,55 +193,41 @@ def figure_ladder(data):
 
 
 def figure_decomposition():
-    """Marginal falls; conditional does not follow it down."""
+    """Raw and null-normalised marginal MMD in one reference geometry."""
     records = [json.loads(line) for line in
-               (REPO_ROOT / "results/phase9_shift.jsonl").read_text().splitlines()
+               (REPO_ROOT / "results/phase9_reference_geometry_controls.jsonl").read_text().splitlines()
                if line.strip()]
-    fig, axes = new_figure(DOUBLE_WIDTH, 2.9, ncols=2,
-                           gridspec_kw={"wspace": 0.42})
+    fig, axes = new_figure(DOUBLE_WIDTH, 4.0, nrows=2, ncols=2, sharex="col",
+                           gridspec_kw={"wspace": 0.30, "hspace": 0.18})
     agg = "last"
     for column, (source, target) in enumerate(PAIRS):
-        axis = axes[column]
-        marg, cond, ratio = [], [], []
-        for rung in LADDER:
+        raw_axis, normalised_axis = axes[0, column], axes[1, column]
+        raw, normalised = [], []
+        for rung in ("none", "zscore", "mean_shift", "coral"):
             g = [r for r in records
                  if (r["source"], r["target"]) == (source, target)
                  and r["layer_agg"] == agg and r["alignment"] == rung]
-            m = float(np.mean([r["marginal_effect_own"] for r in g]))
-            c = float(np.mean([np.mean([x["effect_size"] for x in r["conditional"]
-                                        if x["effect_size"] is not None]) for r in g]))
-            marg.append(m); cond.append(c); ratio.append(c / m)
+            raw.append(float(np.mean([r["marginal"]["raw_mmd2"] for r in g])))
+            normalised.append(float(np.mean([r["marginal"]["normalised"] for r in g])))
 
         x = np.arange(len(LADDER))
-        for i, (values, name) in enumerate(((marg, "marginal"), (cond, "conditional"))):
-            style = series(i + 1)
-            axis.plot(x, values, label=name, **style)
-        axis.set_yscale("log")
-        axis.set_xticks(x)
-        axis.set_xticklabels(LADDER, rotation=30, ha="right")
-        axis.set_title(pair_title(source, target))
-        axis.set_ylabel("discrepancy ($\\times$ null, log)" if column == 0 else "")
-
-        twin = axis.twinx()
-        rstyle = series(3)
-        twin.plot(x, ratio, color=rstyle["color"], marker=rstyle["marker"],
-                  linestyle=rstyle["linestyle"], alpha=0.9)
-        twin.set_ylim(0, 1.15)
-        twin.set_ylabel("conditional / marginal" if column == len(PAIRS) - 1 else "",
-                        color=rstyle["color"])
-        twin.tick_params(axis="y", labelcolor=rstyle["color"], labelsize=6)
-        twin.grid(False)
-        twin.spines["top"].set_visible(False)
-        for position, value, align in ((0, ratio[0], "left"),
-                                       (len(LADDER) - 1, ratio[-1], "right")):
-            twin.annotate(f"{value:.2f}", xy=(position, value),
-                          xytext=(0, 7), textcoords="offset points",
-                          fontsize=6.5, fontweight="bold", color=rstyle["color"],
-                          ha=align, va="bottom")
+        for axis, values, label in (
+            (raw_axis, raw, "raw marginal MMD$^2$"),
+            (normalised_axis, normalised, "marginal MMD$^2$ / null"),
+        ):
+            style = series(1)
+            axis.plot(x, values, label=label, **style)
+            axis.set_yscale("log")
+            axis.set_xticks(x)
+            axis.set_xticklabels(LADDER, rotation=30, ha="right")
+            axis.grid(True, which="both", axis="y")
+        raw_axis.set_title(pair_title(source, target))
         if column == 0:
-            axis.legend(loc="lower left", fontsize=6)
-    fig.suptitle("Alignment removes the marginal term, not the conditional one",
-                 fontsize=9, y=1.02)
+            raw_axis.set_ylabel("raw MMD$^2$ (log)")
+            normalised_axis.set_ylabel("MMD$^2$ / null (log)")
+        raw_axis.legend(loc="upper right", fontsize=6)
+    fig.suptitle("Marginal MMD in one source-defined reference geometry",
+                 fontsize=9, y=0.99)
     return emit(fig, "decomposition")
 
 
