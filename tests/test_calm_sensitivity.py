@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+import json
 from collections import defaultdict
 from pathlib import Path
 
@@ -20,7 +21,12 @@ from run_calm_sensitivity import (
     variant_label_space,
 )
 from run_label_sensitivity_diagnostics import record_id
-from report_calm_sensitivity import SensitivityPredictionData, paired_differences
+from report_calm_sensitivity import (
+    ROBUSTNESS_CONTRASTS,
+    SensitivityPredictionData,
+    one_sided_family_alpha,
+    paired_differences,
+)
 
 
 def test_calm_drop_excludes_only_ravdess_calm_and_changes_label_hash():
@@ -112,6 +118,14 @@ def test_label_controls_have_paired_prediction_contrasts():
             SensitivityPredictionData(spec, result_path),
             n_boot=100,
         )
+        familywise = paired_differences(
+            groups,
+            tuple(tuple(direction) for direction in spec["directions"]),
+            tuple(rung["alignment"] for rung in spec["rungs"]),
+            SensitivityPredictionData(spec, result_path),
+            n_boot=100,
+            alpha=one_sided_family_alpha(ROBUSTNESS_CONTRASTS),
+        )
         for direction in differences.values():
             for alignment, statistic in direction.items():
                 if alignment == "none":
@@ -119,4 +133,8 @@ def test_label_controls_have_paired_prediction_contrasts():
                 else:
                     assert statistic["n_seeds"] == 5
                     assert statistic["diff"] > 0
+                    assert statistic["lo"] > 0
+        for direction in familywise.values():
+            for alignment, statistic in direction.items():
+                if alignment != "none":
                     assert statistic["lo"] > 0

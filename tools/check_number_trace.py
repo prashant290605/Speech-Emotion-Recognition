@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PAPER = ROOT / "paper"
 RESULT_SOURCES = (
     ROOT / "reports" / "RESULTS.md",
+    ROOT / "reports" / "zscore_global_bound.md",
     ROOT / "reports" / "phase9_reference_geometry.md",
     ROOT / "reports" / "calm_dropped_sensitivity.md",
     ROOT / "reports" / "neutral_excluded_sensitivity.md",

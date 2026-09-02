@@ -39,6 +39,7 @@ from ser.utils.results import RUN_ID_FIELDS, read_rows  # noqa: E402
 
 sys.path.insert(0, str(REPO_ROOT / "tools"))
 from make_figures import Data, LADDER, PAIRS, eps_probe_rows, sweep_rows  # noqa: E402
+from report_global_zscore_bound import one_sided_family_alpha  # noqa: E402
 
 N_BOOT = 2000
 ARROW = {("ravdess", "cremad"): "RAVDESS→CREMA-D",
@@ -161,7 +162,7 @@ def main() -> int:
         out.append(f"### {ARROW[(source, target)]}\n")
         pool = [r for r in data.main
                 if (r["source_corpus"], r["target_corpus"]) == (source, target)]
-        out.append("| rung | runs | target macro-F1 | effect (own) | effect (reference) |")
+        out.append("| rung | runs | target macro-F1 | adaptive-own | reference-basis |")
         out.append("|---|---|---|---|---|")
         for rung in LADDER:
             g = [r for r in pool if r["alignment"] == rung]
@@ -312,18 +313,15 @@ def main() -> int:
                "for each aligned rung against `zscore`, an upper bound on "
                "(rung − `zscore`), maximised over the four. It is the largest "
                "amount by which any other rung could be better.\n")
-    out.append("**The maximum is taken over four contrasts, so a per-contrast "
-               "bound is not a bound on the maximum.** Four per-contrast 95% "
-               "bounds have simultaneous coverage below 95%, which makes the "
-               "reported maximum anti-conservative — and it matters most exactly "
-               "where the bound is thinnest. Both are therefore given: the "
+    out.append("**The paper's conclusion covers eight contrasts, not four:** four "
+               "competitors in each transfer direction. Per-contrast 95% bounds "
+               "do not cover their maximum. Both are therefore given: the "
                "per-contrast one-sided 95% bound (the 95th bootstrap percentile) "
-               "and a **Bonferroni-simultaneous** one at 1 − α/4, the 98.75th "
-               "percentile, which holds jointly over all four. Correcting the "
-               "blending tests in §7e and leaving these uncorrected would be the "
-               "inconsistency, not the correction.\n")
+               "and a **single Bonferroni-simultaneous** one at 1 - alpha/8, the "
+               "99.375th percentile, which covers all eight contrasts at 95% "
+               "familywise coverage.\n")
     out.append("| pair | rung most favoured | difference | bound (per-contrast, "
-               "95%) | bound (simultaneous over 4) | simultaneous as % of step | "
+               "95%) | bound (global over 8) | simultaneous as % of step | "
                "target-test utterances |")
     out.append("|---|---|---|---|---|---|---|")
     for source, target in PAIRS:
@@ -353,16 +351,20 @@ def main() -> int:
                                             n_boot=N_BOOT, seed=17, alpha=alpha)
 
         # A two-sided interval at alpha has upper end at the (1 - alpha/2)
-        # percentile, so alpha=0.10 gives the one-sided 95% bound and
-        # alpha=2*(0.05/4)=0.025 gives the Bonferroni-simultaneous one.
+        # percentile, so alpha=0.10 gives the one-sided 95% bound. The paper's
+        # claim spans both directions, hence alpha=2*(0.05/8)=0.0125 for the
+        # globally simultaneous one-sided 95% upper bound.
         others = [r for r in aligned if r != "zscore"]
         best = None
         for rung in others:
             plain = paired(rung, "zscore", alpha=0.10)      # positive => beats zscore
             if plain["n_seeds"] == 0:
                 continue
-            joint = paired(rung, "zscore", alpha=0.05 / 2)
-            if best is None or plain["hi"] > best[1]["hi"]:
+            joint = paired(
+                rung, "zscore",
+                alpha=one_sided_family_alpha(len(PAIRS) * len(others)),
+            )
+            if best is None or joint["hi"] > best[2]["hi"]:
                 best = (rung, plain, joint)
         rung, stat, joint = best
         _, smallest_step = bounds[(source, target)]
@@ -386,25 +388,24 @@ def main() -> int:
         f"{ARROW[k]} {'0.0000 (at zero)' if abs(v[2]['hi']) <= TOL else format(v[2]['hi'], '+.4f')}"
         for k, v in simultaneous.items())
     if below:
-        out.append(f"Under simultaneous correction the bound is clearly below "
-                   f"zero in {len(below)} of {len(simultaneous)} directions "
-                   f"({', '.join(below)}): there every other aligned rung is "
-                   "worse than `zscore`, jointly at 95%.\n")
+        out.append(f"Under the global eight-contrast correction the bound is "
+                   f"clearly below zero in {len(below)} of {len(simultaneous)} "
+                   f"directions ({', '.join(below)}): there every other aligned "
+                   "rung is worse than `zscore`, with 95% familywise coverage.\n")
     if at:
         out.append(f"In {', '.join(at)} the simultaneous bound lands **on** zero "
                    f"rather than below it (|bound| < {TOL:g}). At {N_BOOT} "
-                   "replicates a 98.75th percentile is not resolved to that "
+                   "replicates a 99.375th percentile is not resolved to that "
                    "precision, so the sign is not claimed. The uncorrected "
                    "per-contrast bound is below zero there and the corrected one "
                    "is not, which is exactly the difference correction is "
                    "supposed to expose.\n")
     out.append("**The claim these bounds support, stated at the strength they "
                "actually carry: no aligned rung is shown to beat `zscore` in "
-               f"either direction, with the advantage bounded simultaneously at "
-               f"{figures}.** A bound at or above zero is an upper limit on a "
-               "possible advantage, not evidence of one: the point estimates it "
-               "sits above are +0.0049 and -0.0109, neither distinguishable from "
-               "zero. Nothing here shows any rung beating `zscore`; what it shows "
+               f"either direction, with the advantage bounded globally across all "
+               f"eight contrasts at {figures}.** A bound at or above zero is an "
+               "upper limit on a possible advantage, not evidence of one. Nothing "
+               "here shows any rung beating `zscore`; what it shows "
                "is that if one does, it does so by at most these amounts.\n")
     out.append("The two-sided bound stays in the table above because removing it "
                "once it turned inconvenient would be the wrong response to it.\n")

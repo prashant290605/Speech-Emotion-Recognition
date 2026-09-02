@@ -71,12 +71,12 @@ def table_headline(data):
         ["pair", "validated", "oracle", "gap", "chance", "majority"],
         caption=("Target macro-F1 of the configuration selected on source "
                  "validation, against the best configuration present in the grid. "
-                 "The oracle column is an upper bound no protocol can reach and "
-                 "is not a result."),
+                 "The oracle is a post-hoc target-selected benchmark unavailable "
+                 "to the deployable source-only selection protocol."),
         label="headline",
         notes=["Filter: \\texttt{freeze\\_tag=grid-freeze-v3}, "
                "\\texttt{blending=none}, 4986 runs. Mean over 5 seeds with a "
-               "95\\% $t$-interval. Both floors are analytic from the realised "
+               "95\\% $t$-interval. Both baselines are analytic from the realised "
                "target-test priors."],
         escape_cells=False,
     ), "headline")
@@ -103,7 +103,7 @@ def table_ladder(data):
             ])
     return emit(table(
         rows,
-        ["pair", "rung", "candidate rows", "target macro-F1", "effect (own)", "effect (ref)"],
+        ["pair", "rung", "candidate rows", "target macro-F1", "adaptive-own", "reference-basis"],
         caption=("The alignment ladder. Within each (pair, seed, backbone, "
                  "layer aggregation, classifier) cell, the source-validation-best "
                  "inner setting is selected before target scoring. Target macro-F1 rises once, off "

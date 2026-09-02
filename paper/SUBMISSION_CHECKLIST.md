@@ -20,7 +20,7 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | CRediT contributions | **VERIFY** | Present in `paper/sections/backmatter.tex`; update after author list is final. |
 | Funding and competing-interest declarations | **VERIFY** | No-funding and no-conflict statements are present; author must confirm they remain true. |
 | Ethics and corpus licence compliance | **PENDING** | Confirm permissions for RAVDESS and CREMA-D, permitted research use, and institutional requirements. |
-| Data and code availability | **PENDING** | Text is present; replace the repository URL with the verified Zenodo DOI before submission. Do not archive third-party raw corpora. |
+| Data and code availability | **VERIFY** | Text includes the verified public GitHub repository URL. Add a Zenodo DOI after the archival release; do not archive third-party raw corpora. |
 | Generative-AI disclosure | **MET** | `backmatter.tex` names OpenAI ChatGPT and OpenAI Codex, states their drafting and software-assistance roles, and records author review and responsibility. Confirm the portal field before final upload. |
 | English-language proofread | **VERIFY** | The compiled 21-page article was reviewed for readability and layout. Authors must complete the final domain proofread before portal submission. |
 | Abstract, keywords, main sections, captions and editable tables | **VERIFY** | The abstract is 179 words, six keywords are present, sections are numbered, and tables are editable. A local PDF review passed; validate once in Overleaf. |
@@ -40,10 +40,10 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | Structural manuscript validation | **MET** | `python tools/check_paper.py` validates inputs, graphics, citations, labels and environments. |
 | Outcome-number trace | **MET** | `python tools/check_number_trace.py` traces manuscript outcomes to `reports/RESULTS.md`. |
 | Reference audit | **VERIFY** | `python tools/check_refs.py --tex paper/main.tex --bib paper/refs.bib --out reports/refs_report_submission.md`. |
-| Python test suite | **VERIFY** | Focused reference tests pass. The full suite is blocked here by a Windows pytest temporary-directory/process-permission issue, not a reported assertion failure; rerun in the archived environment. |
+| Python test suite | **VERIFY** | Focused tests for the corrected bounds, label controls, number tracing, and LaTeX generation pass. The full suite reached an existing CPU-bound test and was stopped after more than 30 minutes without an assertion failure; rerun it on dedicated compute before the Zenodo archive release. |
 | Hostile-review pass | **MET** | `paper/ANTICIPATED_OBJECTIONS.md`; no new experiment or number was added. |
 | Self-contained Overleaf archive | **MET** | `output/overleaf/Speech_Communication_submission_20260902_review_precision.zip` contains 36 files: 22 TeX files and seven vector-PDF figures. Static path, asset, graphics, citation, and bibliography checks passed. The only nested path is the official CAS email-icon asset. |
-| Clean compile and PDF defect resolution | **MET** | A local Tectonic compile of the revised CAS double-column archive produced a 21-page article PDF. The title, revised tables, figures, and references were visually inspected. Confirm the final journal PDF in Overleaf. |
+| Clean compile and PDF defect resolution | **MET** | A local Tectonic compile of the final CAS double-column archive produced a 21-page article PDF. The title, Tables 3, 4, 7 and 8, figures, availability section, and references were visually inspected. Confirm the final journal PDF in Overleaf. |
 | Zenodo archive and DOI | **BLOCKED** | Hand-off H. |
 
 ## Author hand-off
@@ -79,3 +79,4 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | 2026-09-01 | Reviewer-revision Phase 4 completed: added the separately hashed five-class neutral-exclusion control, completed both mapping-specific MMD diagnostic ledgers, and reported them as descriptive adaptive-geometry results rather than a conditional-shift test. |
 | 2026-09-02 | Reviewer-revision Phase 6 completed: added verified current related work, moved the detailed provenance ledger to a one-page supplement, repaired generated-table escaping, compiled and visually reviewed the 20-page article and one-page supplement, and created the delivery archive. |
 | 2026-09-02 | Review-precision corrections completed: repaired the abstract and measurement-protocol wording, added paired label-control intervals from stored predictions, marked uncorrected cell counts descriptive, rendered saturated MMD values in scientific notation, regenerated the affected figures and tables, restored full-width tables, and visually reviewed the revised 21-page PDF. |
+| 2026-09-02 | Global multiplicity correction completed: the z-score claim now uses one eight-contrast family and the two label-harmonisation controls use one twelve-contrast family. Oracle, baseline, availability, and discrepancy-column wording were also clarified. |

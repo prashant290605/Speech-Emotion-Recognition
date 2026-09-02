@@ -32,6 +32,8 @@ from run_calm_sensitivity import (  # noqa: E402
 
 N_BOOT = 2000
 BOOTSTRAP_SEED = 17
+FAMILYWISE_ALPHA = 0.05
+ROBUSTNESS_CONTRASTS = 12
 
 
 def expected_count(spec: dict) -> int:
@@ -44,6 +46,13 @@ def summary(rows, key: str) -> dict:
 
 def interval_text(values: dict) -> str:
     return f"{values['mean']:.4f} [{values['lo']:.4f}, {values['hi']:.4f}]"
+
+
+def one_sided_family_alpha(family_size: int) -> float:
+    """Return a two-sided alpha whose lower endpoint has FWER 1-alpha."""
+    if family_size <= 0:
+        raise ValueError("family_size must be positive")
+    return 2 * FAMILYWISE_ALPHA / family_size
 
 
 def title(name: str) -> str:
@@ -115,7 +124,7 @@ class SensitivityPredictionData:
 def paired_differences(
     groups: dict, directions: tuple[tuple[str, str], ...], order: tuple[str, ...],
     data: SensitivityPredictionData, *, n_boot: int = N_BOOT,
-    bootstrap_seed: int = BOOTSTRAP_SEED,
+    bootstrap_seed: int = BOOTSTRAP_SEED, alpha: float = 0.05,
 ) -> dict[tuple[str, str], dict[str, dict]]:
     """Return aligned-minus-none target macro-F1 intervals for each control."""
     output = {}
@@ -148,6 +157,7 @@ def paired_differences(
                 n_groups,
                 n_boot=n_boot,
                 seed=bootstrap_seed,
+                alpha=alpha,
             )
     return output
 
@@ -156,6 +166,12 @@ def difference_text(values: dict | None) -> str:
     if values is None:
         return "--"
     return f"{values['diff']:+.4f} [{values['lo']:+.4f}, {values['hi']:+.4f}]"
+
+
+def lower_bound_text(values: dict | None) -> str:
+    if values is None:
+        return "--"
+    return f"{values['lo']:+.4f}"
 
 
 def main(argv=None) -> int:
@@ -182,6 +198,10 @@ def main(argv=None) -> int:
         groups[(row["source_corpus"], row["target_corpus"], row["alignment"])].append(row)
     prediction_data = SensitivityPredictionData(spec, path)
     differences = paired_differences(groups, directions, order, prediction_data)
+    familywise = paired_differences(
+        groups, directions, order, prediction_data,
+        alpha=one_sided_family_alpha(ROBUSTNESS_CONTRASTS),
+    )
 
     variant = spec["variant"]
     description = variant["description"]
@@ -193,7 +213,7 @@ def main(argv=None) -> int:
         f"{spec['backbone']} {spec['layer_agg']}-layer features, runs "
         f"{spec['classifier']}, and scores {len(spec['seeds'])} speaker-disjoint "
         "seeds in each transfer direction. It is a robustness control, not a "
-        "replacement full classifier grid.",
+        "replacement for the full classifier grid.",
         "",
         "| direction | alignment | target macro-F1 | source-val macro-F1 | chance baseline | n train | n target test |",
         "|---|---|---|---|---|---|---|",
@@ -215,6 +235,7 @@ def main(argv=None) -> int:
         "## Paired target-score differences from `none`",
         "",
         f"Each interval is a paired cluster bootstrap over target-test speakers and seeds, {N_BOOT} replicates.",
+        f"Each lower bound is one-sided Bonferroni-simultaneous at 95% familywise coverage over all {ROBUSTNESS_CONTRASTS} contrasts in Tables 7 and 8.",
         "",
     ])
     for direction in directions:
@@ -223,7 +244,8 @@ def main(argv=None) -> int:
             if alignment == "none":
                 continue
             deltas.append(
-                f"`{alignment}` minus `none` = {difference_text(differences[direction][alignment])}"
+                f"`{alignment}` minus `none` = {difference_text(differences[direction][alignment])}; "
+                f"global lower bound = {lower_bound_text(familywise[direction][alignment])}"
             )
         lines.append(f"- {display_direction(direction)}: " + "; ".join(deltas) + ".")
 
@@ -238,9 +260,11 @@ def main(argv=None) -> int:
         "\\begin{table*}[!t]",
         "  \\centering",
         "  \\caption{Target macro-F1 in the pre-specified label-harmonisation "
-        f"sensitivity. {caption_description} Values are means over {len(spec['seeds'])} "
-        "speaker-disjoint seeds with 95\\% $t$-intervals. Each $\\Delta$ is aligned "
-        "minus \\texttt{none}, with a paired 95\\% cluster-bootstrap interval.}",
+       f"sensitivity. {caption_description} Values are means over {len(spec['seeds'])} "
+       "speaker-disjoint seeds with 95\\% $t$-intervals. Each $\\Delta$ is aligned "
+        "minus \\texttt{none}, with a paired 95\\% cluster-bootstrap interval and a "
+        "one-sided Bonferroni-simultaneous lower bound at 95\\% familywise coverage "
+        "over all 12 Table~7--8 contrasts.}",
         f"  \\label{{tab:{spec['table_label']}}}",
         "  \\small",
         "  Target macro-F1 [95\\% $t$-interval]\\\\[2pt]",
@@ -259,9 +283,9 @@ def main(argv=None) -> int:
         "  \\end{tabular}",
         "  \\\\[5pt]",
         "  Paired target-macro-F1 change from \\texttt{none} [95\\% cluster-bootstrap interval]\\\\[2pt]",
-        "  \\begin{tabular}{llr}",
+        "  \\begin{tabular}{llrr}",
         "    \\toprule",
-        "    rung & direction & $\\Delta$ target macro-F1 \\\\",
+        "    rung & direction & $\\Delta$ target macro-F1 & global 95\\% lower bound \\\\",
         "    \\midrule",
     ])
     for alignment in order:
@@ -271,9 +295,10 @@ def main(argv=None) -> int:
             direction = (source, target)
             table_lines.append(
                 "    " + " & ".join([
-                    f"\\texttt{{{alignment.replace('_', r'\_')}}}",
-                    f"{display_corpus(source)} $\\rightarrow$ {display_corpus(target)}",
-                    difference_text(differences[direction][alignment]),
+                   f"\\texttt{{{alignment.replace('_', r'\_')}}}",
+                   f"{display_corpus(source)} $\\rightarrow$ {display_corpus(target)}",
+                   difference_text(differences[direction][alignment]),
+                    lower_bound_text(familywise[direction][alignment]),
                 ]) + " " + "\\\\"
             )
     chance = [
@@ -290,9 +315,10 @@ def main(argv=None) -> int:
         "  \\begin{minipage}{\\linewidth}\\footnotesize "
         f"Filter: cached {spec['backbone']} {spec['layer_agg']}-layer features, "
         f"{spec['classifier']}, and {rung_names}. "
-        "The chance baselines are " + " and ".join(f"{value:.4f}" for value in chance) + ". "
-        f"Paired differences resample target-test speakers and seeds ({N_BOOT} replicates). "
-        "This robustness control is not a replacement full classifier grid."
+       "The chance baselines are " + " and ".join(f"{value:.4f}" for value in chance) + ". "
+       f"Paired differences resample target-test speakers and seeds ({N_BOOT} replicates). "
+        "The lower bounds use a single 12-contrast, one-sided Bonferroni family. "
+        "This robustness control is not a replacement for the full classifier grid."
         "\\end{minipage}",
         "\\end{table*}",
     ])

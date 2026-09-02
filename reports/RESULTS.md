@@ -42,7 +42,7 @@ Filter as above. Target intervals: paired cluster bootstrap over target-test spe
 
 ### RAVDESS→CREMA-D
 
-| rung | runs | target macro-F1 | effect (own) | effect (reference) |
+| rung | runs | target macro-F1 | adaptive-own | reference-basis |
 |---|---|---|---|---|
 | `none` | 153 | **0.2289** [0.2133, 0.2444] | 1432.93 | 36905.40 |
 | `zscore` | 153 | **0.3599** [0.3483, 0.3726] | 51.79 | 480.85 |
@@ -54,7 +54,7 @@ Filter as above. Target intervals: paired cluster bootstrap over target-test spe
 
 ### CREMA-D→RAVDESS
 
-| rung | runs | target macro-F1 | effect (own) | effect (reference) |
+| rung | runs | target macro-F1 | adaptive-own | reference-basis |
 |---|---|---|---|---|
 | `none` | 135 | **0.2361** [0.1981, 0.2694] | 1045.24 | 23610.38 |
 | `zscore` | 135 | **0.4321** [0.4070, 0.4547] | 41.00 | 331.64 |
@@ -115,16 +115,16 @@ The denominator is the *smallest* of the five steps, which is the conservative c
 
 Reported below is the one-sided quantity the claim actually needs: for each aligned rung against `zscore`, an upper bound on (rung − `zscore`), maximised over the four. It is the largest amount by which any other rung could be better.
 
-**The maximum is taken over four contrasts, so a per-contrast bound is not a bound on the maximum.** Four per-contrast 95% bounds have simultaneous coverage below 95%, which makes the reported maximum anti-conservative — and it matters most exactly where the bound is thinnest. Both are therefore given: the per-contrast one-sided 95% bound (the 95th bootstrap percentile) and a **Bonferroni-simultaneous** one at 1 − α/4, the 98.75th percentile, which holds jointly over all four. Correcting the blending tests in §7e and leaving these uncorrected would be the inconsistency, not the correction.
+**The paper's conclusion covers eight contrasts, not four:** four competitors in each transfer direction. Per-contrast 95% bounds do not cover their maximum. Both are therefore given: the per-contrast one-sided 95% bound (the 95th bootstrap percentile) and a **single Bonferroni-simultaneous** one at 1 - alpha/8, the 99.375th percentile, which covers all eight contrasts at 95% familywise coverage.
 
-| pair | rung most favoured | difference | bound (per-contrast, 95%) | bound (simultaneous over 4) | simultaneous as % of step | target-test utterances |
+| pair | rung determining bound | difference | bound (per-contrast, 95%) | bound (global over 8) | simultaneous as % of step | target-test utterances |
 |---|---|---|---|---|---|---|
-| RAVDESS→CREMA-D | `coral` | +0.0049 | +0.01229 | **+0.01484** | **12.3%** | 3677--3690 |
-| CREMA-D→RAVDESS | `mkmmd_diag` | -0.0109 | -0.00277 | **-0.00004** | **-0.0%** | 624 |
+| RAVDESS→CREMA-D | `coral` | +0.0049 | +0.01229 | **+0.01627** | **13.5%** | 3677--3690 |
+| CREMA-D→RAVDESS | `coral` | -0.0128 | -0.00406 | **+0.00109** | **0.7%** | 624 |
 
-In CREMA-D→RAVDESS the simultaneous bound lands **on** zero rather than below it (|bound| < 0.0005). At 2000 replicates a 98.75th percentile is not resolved to that precision, so the sign is not claimed. The uncorrected per-contrast bound is below zero there and the corrected one is not, which is exactly the difference correction is supposed to expose.
+The global correction is deliberately stricter than the former directional procedure. It neither establishes a positive advantage nor changes the substantive conclusion: no evaluated rung is shown to beat zscore.
 
-**The claim these bounds support, stated at the strength they actually carry: no aligned rung is shown to beat `zscore` in either direction, with the advantage bounded simultaneously at RAVDESS→CREMA-D +0.0148, CREMA-D→RAVDESS 0.0000 (at zero).** A bound at or above zero is an upper limit on a possible advantage, not evidence of one: the point estimates it sits above are +0.0049 and -0.0109, neither distinguishable from zero. Nothing here shows any rung beating `zscore`; what it shows is that if one does, it does so by at most these amounts.
+**The claim these bounds support, stated at the strength they actually carry: no aligned rung is shown to beat `zscore` in either direction, with the advantage bounded globally across all eight contrasts at RAVDESS→CREMA-D +0.0163, CREMA-D→RAVDESS +0.0011.** A bound above zero is an upper limit on a possible advantage, not evidence of one. Nothing here shows any rung beating `zscore`; what it shows is that if one does, it does so by at most these amounts.
 
 The two-sided bound stays in the table above because removing it once it turned inconvenient would be the wrong response to it.
 

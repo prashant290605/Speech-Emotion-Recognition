@@ -1,6 +1,6 @@
 \begin{table*}[!t]
   \centering
-  \caption{Target macro-F1 in the pre-specified label-harmonisation sensitivity. Drops RAVDESS \texttt{calm} rather than merging it into \texttt{neutral}. Values are means over 5 speaker-disjoint seeds with 95\% $t$-intervals. Each $\Delta$ is aligned minus \texttt{none}, with a paired 95\% cluster-bootstrap interval.}
+  \caption{Target macro-F1 in the pre-specified label-harmonisation sensitivity. Drops RAVDESS \texttt{calm} rather than merging it into \texttt{neutral}. Values are means over 5 speaker-disjoint seeds with 95\% $t$-intervals. Each $\Delta$ is aligned minus \texttt{none}, with a paired 95\% cluster-bootstrap interval and a one-sided Bonferroni-simultaneous lower bound at 95\% familywise coverage over all 12 Table~7--8 contrasts.}
   \label{tab:calm-sensitivity}
   \small
   Target macro-F1 [95\% $t$-interval]\\[2pt]
@@ -16,18 +16,18 @@
   \end{tabular}
   \\[5pt]
   Paired target-macro-F1 change from \texttt{none} [95\% cluster-bootstrap interval]\\[2pt]
-  \begin{tabular}{llr}
+  \begin{tabular}{llrr}
     \toprule
-    rung & direction & $\Delta$ target macro-F1 \\
+    rung & direction & $\Delta$ target macro-F1 & global 95\% lower bound \\
     \midrule
-    \texttt{zscore} & RAVDESS $\rightarrow$ CREMA-D & +0.0988 [+0.0672, +0.1302] \\
-    \texttt{zscore} & CREMA-D $\rightarrow$ RAVDESS & +0.1121 [+0.0441, +0.1801] \\
-    \texttt{mean\_shift} & RAVDESS $\rightarrow$ CREMA-D & +0.0914 [+0.0597, +0.1243] \\
-    \texttt{mean\_shift} & CREMA-D $\rightarrow$ RAVDESS & +0.1331 [+0.0660, +0.1977] \\
-    \texttt{coral} & RAVDESS $\rightarrow$ CREMA-D & +0.1059 [+0.0687, +0.1447] \\
-    \texttt{coral} & CREMA-D $\rightarrow$ RAVDESS & +0.1388 [+0.0736, +0.2063] \\
+    \texttt{zscore} & RAVDESS $\rightarrow$ CREMA-D & +0.0988 [+0.0672, +0.1302] & +0.0582 \\
+    \texttt{zscore} & CREMA-D $\rightarrow$ RAVDESS & +0.1121 [+0.0441, +0.1801] & +0.0219 \\
+    \texttt{mean\_shift} & RAVDESS $\rightarrow$ CREMA-D & +0.0914 [+0.0597, +0.1243] & +0.0484 \\
+    \texttt{mean\_shift} & CREMA-D $\rightarrow$ RAVDESS & +0.1331 [+0.0660, +0.1977] & +0.0433 \\
+    \texttt{coral} & RAVDESS $\rightarrow$ CREMA-D & +0.1059 [+0.0687, +0.1447] & +0.0510 \\
+    \texttt{coral} & CREMA-D $\rightarrow$ RAVDESS & +0.1388 [+0.0736, +0.2063] & +0.0418 \\
     \bottomrule
   \end{tabular}
   \\[2pt]
-  \begin{minipage}{\linewidth}\footnotesize Filter: cached hubert last-layer features, logreg, and none, zscore, mean\_shift, coral. The chance baselines are 0.1665 and 0.1645. Paired differences resample target-test speakers and seeds (2000 replicates). This robustness control is not a replacement full classifier grid.\end{minipage}
+  \begin{minipage}{\linewidth}\footnotesize Filter: cached hubert last-layer features, logreg, and none, zscore, mean\_shift, coral. The chance baselines are 0.1665 and 0.1645. Paired differences resample target-test speakers and seeds (2000 replicates). The lower bounds use a single 12-contrast, one-sided Bonferroni family. This robustness control is not a replacement for the full classifier grid.\end{minipage}
 \end{table*}

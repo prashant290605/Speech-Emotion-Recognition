@@ -1,6 +1,6 @@
 # Calm Dropped Six sensitivity
 
-This pre-specified sensitivity drops RAVDESS \texttt{calm} rather than merging it into \texttt{neutral}. It reuses cached hubert last-layer features, runs logreg, and scores 5 speaker-disjoint seeds in each transfer direction. It is a robustness control, not a replacement full classifier grid.
+This pre-specified sensitivity drops RAVDESS \texttt{calm} rather than merging it into \texttt{neutral}. It reuses cached hubert last-layer features, runs logreg, and scores 5 speaker-disjoint seeds in each transfer direction. It is a robustness control, not a replacement for the full classifier grid.
 
 | direction | alignment | target macro-F1 | source-val macro-F1 | chance baseline | n train | n target test |
 |---|---|---|---|---|---|---|
@@ -16,6 +16,7 @@ This pre-specified sensitivity drops RAVDESS \texttt{calm} rather than merging i
 ## Paired target-score differences from `none`
 
 Each interval is a paired cluster bootstrap over target-test speakers and seeds, 2000 replicates.
+Each lower bound is one-sided Bonferroni-simultaneous at 95% familywise coverage over all 12 contrasts in Tables 7 and 8.
 
-- ravdess->cremad: `zscore` minus `none` = +0.0988 [+0.0672, +0.1302]; `mean_shift` minus `none` = +0.0914 [+0.0597, +0.1243]; `coral` minus `none` = +0.1059 [+0.0687, +0.1447].
-- cremad->ravdess: `zscore` minus `none` = +0.1121 [+0.0441, +0.1801]; `mean_shift` minus `none` = +0.1331 [+0.0660, +0.1977]; `coral` minus `none` = +0.1388 [+0.0736, +0.2063].
+- ravdess->cremad: `zscore` minus `none` = +0.0988 [+0.0672, +0.1302]; global lower bound = +0.0582; `mean_shift` minus `none` = +0.0914 [+0.0597, +0.1243]; global lower bound = +0.0484; `coral` minus `none` = +0.1059 [+0.0687, +0.1447]; global lower bound = +0.0510.
+- cremad->ravdess: `zscore` minus `none` = +0.1121 [+0.0441, +0.1801]; global lower bound = +0.0219; `mean_shift` minus `none` = +0.1331 [+0.0660, +0.1977]; global lower bound = +0.0433; `coral` minus `none` = +0.1388 [+0.0736, +0.2063]; global lower bound = +0.0418.

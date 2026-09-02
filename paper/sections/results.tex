@@ -25,8 +25,9 @@ Validated macro-F1 is $0.3156$ $[0.1880, 0.4432]$ for
 RAVDESS $\rightarrow$ CREMA-D against a chance baseline of $0.1665$, and
 $0.4994$ $[0.4592, 0.5395]$ for CREMA-D $\rightarrow$ RAVDESS against
 $0.1656$. The oracle values are $0.4555$ $[0.4326, 0.4785]$ and
-$0.5680$ $[0.5148, 0.6212]$; \textbf{the oracle is an upper bound that no
-deployable protocol can reach}. The validated-to-oracle difference is the
+$0.5680$ $[0.5148, 0.6212]$; \textbf{the oracle is a post-hoc target-selected
+benchmark unavailable to the deployable source-only selection protocol}. The
+validated-to-oracle difference is the
 \emph{oracle gap}: $0.1399$ $[0.0231, 0.2568]$ and $0.0687$
 $[0.0090, 0.1283]$. It does not identify a causal effect of source-side
 selection because it also includes target-set maximisation, finite-sample
@@ -71,10 +72,10 @@ beat \texttt{zscore}. A significance test cannot establish that: failing to
 reject a null is not evidence for it. We report bounds instead, and the choice
 of bound matters enough to state explicitly.
 
-A two-sided bound; for each of the ten pairwise contrasts among aligned
-rungs, the largest magnitude its 95\% interval admits,
-$\max(|\mathrm{lo}|,|\mathrm{hi}|)$, maximised over the ten; gives $0.0213$
-forward and $0.0559$ reverse. Against the \emph{smallest} step from
+A two-sided bound summarizes the ten pairwise contrasts among aligned rungs.
+For each contrast, we take the largest magnitude its 95\% interval admits,
+$\max(|\mathrm{lo}|,|\mathrm{hi}|)$, then maximize this value over the ten
+contrasts. The result is $0.0213$ forward and $0.0559$ reverse. Against the \emph{smallest} step from
 \texttt{none} to an aligned rung, $+0.1208$ and $+0.1524$, those are $18\%$ and
 $37\%$. The forward figure supports calling the differences negligible; the
 reverse figure does not, and we do not claim it does.
@@ -89,29 +90,25 @@ degradation: its widest contrast is
 \texttt{mkmmd\_full} is the \emph{worst} aligned rung in that direction.
 
 The one-sided bound the claim requires is an upper bound on
-(rung $-$ \texttt{zscore}), maximised over the other four rungs: the largest
-advantage any rung could hold. Because it is a maximum over four contrasts, a
-per-contrast bound is not a bound on it; four per-contrast $95\%$ bounds have
-simultaneous coverage below $95\%$, which makes the maximum anti-conservative
-exactly where it is thinnest. We therefore report both the per-contrast bound
-and a Bonferroni-simultaneous one at $1 - \alpha/4$, which holds jointly over
-all four.
+(rung $-$ \texttt{zscore}), maximised over the other four rungs. The paper
+makes this claim in both directions, so the family has eight contrasts. We
+therefore use a single Bonferroni correction at $1 - \alpha/8$, the $99.375$th
+bootstrap percentile. This gives 95\% familywise coverage for every
+direction-by-rung upper bound.
 
-Forward, the most favoured rung is \texttt{coral} at $+0.0049$; its per-contrast
-bound is $+0.0123$ and its simultaneous bound $+0.0148$, or $12\%$ of the
-smallest step. Reverse, it is \texttt{mkmmd\_diag} at $-0.0109$, per-contrast
-bound $-0.0028$ and simultaneous bound $0.0000$. \textbf{The reverse bound is
-below zero before correction and sits on zero after it}, and at 2000 replicates
-a $98.75$th percentile is not resolved finely enough for us to claim the sign,
-so we do not.
+Forward, \texttt{coral} determines the largest globally corrected upper bound:
+its observed difference from \texttt{zscore} is $+0.0049$, its per-contrast
+upper bound is $+0.0123$, and its global upper bound is $+0.0163$. Reverse,
+\texttt{coral} again determines the bound: its observed difference is
+$-0.0128$, its per-contrast upper bound is $-0.0041$, and its global upper
+bound is $+0.0011$.
 
 \textbf{Stated at the strength the bounds actually carry: no aligned rung is
-shown to beat per-dimension standardisation in either direction, with the
-advantage bounded simultaneously at $+0.0148$ forward and $0.0000$ reverse.}
-A bound at or above zero is an upper limit on a possible advantage, not evidence
-of one: the point estimates beneath it, $+0.0049$ and $-0.0109$, are not
-distinguishable from zero. Nothing here shows a rung beating \texttt{zscore};
-what it shows is that if one does, it does so by at most these amounts.
+shown to beat per-dimension standardisation in either direction, with a
+globally corrected upper bound of $+0.0163$ forward and $+0.0011$ reverse.}
+A positive upper bound is an upper limit on a possible advantage, not evidence
+of one. Nothing here shows a rung beating \texttt{zscore}; it shows only that
+any such advantage is bounded by these amounts.
 
 Two further points a reader should hold onto. These contrasts sit outside the
 pre-specified family. And the reverse direction's intervals are wider
@@ -179,9 +176,11 @@ an artefact of merging RAVDESS \texttt{calm} into \texttt{neutral}.
 
 \paragraph{Calm-label sensitivity.} The realised priors under the main mapping
 therefore cannot support a corpus-level label-shift claim. Table~\ref{tab:calm-sensitivity}
-reports the pre-specified control that drops RAVDESS \texttt{calm}. Every
-evaluated aligned rung has a paired 95\% interval above zero against
-\texttt{none} in both directions. The forward improvements range from
+reports the pre-specified control that drops RAVDESS \texttt{calm}. Its six
+aligned-versus-\texttt{none} contrasts all have positive paired 95\% intervals
+and positive global one-sided lower bounds under the 12-contrast Bonferroni
+family shared by Tables~\ref{tab:calm-sensitivity} and
+\ref{tab:neutral-excluded-sensitivity}. The forward improvements range from
 $+0.0914$ to $+0.1059$ macro-F1, and the reverse improvements range from
 $+0.1121$ to $+0.1388$ (Table~\ref{tab:calm-sensitivity}). Thus, the calm merge
 is not necessary for the observed performance improvement in this frozen
@@ -193,8 +192,9 @@ grid or identify a conditional-shift mechanism.
 \paragraph{Neutral-exclusion sensitivity.} We also exclude \texttt{neutral}
 from both corpora and drop RAVDESS \texttt{calm}, changing the task to five
 classes and its analytic chance baseline to $0.20$. Table~\ref{tab:neutral-excluded-sensitivity}
-shows that every aligned rung again has a paired 95\% interval above zero
-against \texttt{none}. The forward increases range from $+0.0612$ to $+0.0946$,
+shows the remaining six contrasts. They also have positive paired 95\%
+intervals and positive global lower bounds against \texttt{none}. The forward
+increases range from $+0.0612$ to $+0.0946$,
 and the reverse increases range from $+0.1310$ to $+0.1697$
 (Table~\ref{tab:neutral-excluded-sensitivity}). This five-class control cannot be
 numerically pooled with the six-class result, but it rules out the affected

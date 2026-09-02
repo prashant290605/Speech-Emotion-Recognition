@@ -2960,6 +2960,49 @@ None. `legacy/` is byte-identical to the upstream clone.
 - ORCIDs, Zenodo DOI, final author declarations, portal fields, and licensed
   IEMOCAP confirmation remain author hand-off items.
 
+## 2026-09-02 - Final reviewer cleanup: global multiplicity and submission artefacts
+
+### Files created
+
+- `tools/report_global_zscore_bound.py`, which recomputes the corrected
+  source-selected z-score upper bounds from frozen stored predictions.
+- `reports/zscore_global_bound.md`, the traceable eight-contrast bound report.
+- `tests/test_global_zscore_bound.py`, which prevents the bound from silently
+  omitting a direction or an alignment rung.
+
+### Files modified
+
+- The Results and Methods sections, generated Tables 3, 4, 7 and 8, the
+  result ledger, table and sensitivity-report generators, number tracing,
+  submission checklist, and focused regression tests.
+
+### Tests and validation
+
+- Focused tests passed: global z-score bounds, label sensitivity, number
+  tracing, and figure/LaTeX checks.
+- `python tools/check_paper.py` and `python tools/check_number_trace.py`
+  passed.
+- The 36-file Overleaf archive passed static validation and compiled under the
+  vendored official CAS double-column class. The resulting 21-page PDF was
+  visually reviewed, including Tables 3, 4, 7 and 8.
+
+### Decisions made
+
+- The z-score claim uses one global one-sided Bonferroni family over all eight
+  direction-by-rung contrasts. The resulting 95% familywise upper bounds are
+  +0.0163 forward and +0.0011 reverse.
+- The two label-harmonisation controls use one global one-sided Bonferroni
+  family over all 12 aligned-versus-none contrasts. No new model fit or data
+  access was used.
+- Code availability now includes the verified public GitHub repository URL;
+  a Zenodo DOI remains a pre-submission author action.
+
+### Deferred
+
+- Eight bibliography records still need manual publisher-page confirmation.
+- ORCIDs, Zenodo DOI, final author declarations, portal fields, and licensed
+  IEMOCAP confirmation remain author hand-off items.
+
 ## 2026-09-02 - Reviewer-revision Phase 7: review-precision corrections
 
 ### Files modified

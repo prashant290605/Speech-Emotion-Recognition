@@ -1,6 +1,6 @@
 # Neutral Excluded Five sensitivity
 
-This pre-specified sensitivity drops RAVDESS \texttt{calm} and excludes \texttt{neutral} from both corpora. It reuses cached hubert last-layer features, runs logreg, and scores 5 speaker-disjoint seeds in each transfer direction. It is a robustness control, not a replacement full classifier grid.
+This pre-specified sensitivity drops RAVDESS \texttt{calm} and excludes \texttt{neutral} from both corpora. It reuses cached hubert last-layer features, runs logreg, and scores 5 speaker-disjoint seeds in each transfer direction. It is a robustness control, not a replacement for the full classifier grid.
 
 | direction | alignment | target macro-F1 | source-val macro-F1 | chance baseline | n train | n target test |
 |---|---|---|---|---|---|---|
@@ -16,6 +16,7 @@ This pre-specified sensitivity drops RAVDESS \texttt{calm} and excludes \texttt{
 ## Paired target-score differences from `none`
 
 Each interval is a paired cluster bootstrap over target-test speakers and seeds, 2000 replicates.
+Each lower bound is one-sided Bonferroni-simultaneous at 95% familywise coverage over all 12 contrasts in Tables 7 and 8.
 
-- ravdess->cremad: `zscore` minus `none` = +0.0946 [+0.0756, +0.1120]; `mean_shift` minus `none` = +0.0717 [+0.0508, +0.0943]; `coral` minus `none` = +0.0612 [+0.0394, +0.0845].
-- cremad->ravdess: `zscore` minus `none` = +0.1314 [+0.0677, +0.1935]; `mean_shift` minus `none` = +0.1310 [+0.0712, +0.1890]; `coral` minus `none` = +0.1697 [+0.1282, +0.2112].
+- ravdess->cremad: `zscore` minus `none` = +0.0946 [+0.0756, +0.1120]; global lower bound = +0.0692; `mean_shift` minus `none` = +0.0717 [+0.0508, +0.0943]; global lower bound = +0.0438; `coral` minus `none` = +0.0612 [+0.0394, +0.0845]; global lower bound = +0.0326.
+- cremad->ravdess: `zscore` minus `none` = +0.1314 [+0.0677, +0.1935]; global lower bound = +0.0457; `mean_shift` minus `none` = +0.1310 [+0.0712, +0.1890]; global lower bound = +0.0398; `coral` minus `none` = +0.1697 [+0.1282, +0.2112]; global lower bound = +0.1090.
