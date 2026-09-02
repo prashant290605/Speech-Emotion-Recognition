@@ -118,8 +118,8 @@ is the common default and is what the earlier version of this work used;
 caching every layer makes depth a searchable condition instead.
 Section~\ref{sec:results-aggregation} shows that this choice is worth more than
 any choice \emph{among} alignment methods, though less than the decision to
-align at all; so it is the axis practitioners tend to leave at its default
-while tuning the one that does not matter.
+align at all; so it is the axis practitioners may leave at its default while
+tuning an axis whose observed differences are smaller in this study.
 
 Two poolings are stored. \emph{Mean pooling} over time gives one 768-d vector
 per utterance per layer, used by the four non-sequential classifiers.
@@ -330,7 +330,8 @@ is the configuration with the highest \texttt{source\_val} macro-F1 within a
 given (pair, seed), scored on \texttt{target\_test}; it is what a practitioner
 could actually obtain, using no target labels at any point. \textbf{Oracle} is
 the highest \texttt{target\_test} macro-F1 present in the grid for that
-(pair, seed): an \textbf{upper bound no deployable protocol can reach}. The
+(pair, seed): a \textbf{post-hoc target-selected benchmark unavailable to the
+deployable source-only selection protocol}. The
 validated-to-oracle difference is called the \emph{oracle gap}. It does not
 identify a causal effect of source-side selection because it also contains
 finite-target-sample noise, search-space size, and optimism from maximising the

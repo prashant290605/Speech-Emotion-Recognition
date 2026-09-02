@@ -3039,3 +3039,29 @@ None. `legacy/` is byte-identical to the upstream clone.
 - Eight bibliography records still need manual publisher-page confirmation.
 - ORCIDs, Zenodo DOI, final author declarations, portal fields, and licensed
   IEMOCAP confirmation remain author hand-off items.
+
+## 2026-09-03 - Final reviewer wording pass
+
+### Files modified
+
+- `paper/sections/methods.tex` and `paper/sections/conclusion.tex`.
+- `paper/SUBMISSION_CHECKLIST.md` and this progress ledger.
+
+### Tests and validation
+
+- `python tools/check_paper.py` and `python tools/check_number_trace.py`
+  passed after the edits.
+- A fresh official-CAS archive passed static validation and compiled as a
+  visually reviewed 21-page PDF for this pass.
+
+### Decisions made
+
+- No model, result, table, figure, citation, or numerical claim changed.
+- The conclusion now uses the same source-selected inference wording as the
+  abstract and Results section.
+
+### Deferred
+
+- Eight bibliography records still need manual publisher-page confirmation.
+- ORCIDs, Zenodo DOI, final author declarations, portal fields, and licensed
+  IEMOCAP confirmation remain author hand-off items.
