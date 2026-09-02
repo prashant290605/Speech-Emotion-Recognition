@@ -1,8 +1,9 @@
 \begin{table*}[!t]
   \centering
-  \caption{Target macro-F1 in the pre-specified label-harmonisation sensitivity. Drops RAVDESS \texttt{calm} rather than merging it into \texttt{neutral}. Values are means over 5 speaker-disjoint seeds with 95\% $t$-intervals.}
+  \caption{Target macro-F1 in the pre-specified label-harmonisation sensitivity. Drops RAVDESS \texttt{calm} rather than merging it into \texttt{neutral}. Values are means over 5 speaker-disjoint seeds with 95\% $t$-intervals. Each $\Delta$ is aligned minus \texttt{none}, with a paired 95\% cluster-bootstrap interval.}
   \label{tab:calm-sensitivity}
   \small
+  Target macro-F1 [95\% $t$-interval]\\[2pt]
   \begin{tabular}{lrr}
     \toprule
     rung & RAVDESS $\rightarrow$ CREMA-D & CREMA-D $\rightarrow$ RAVDESS \\
@@ -13,6 +14,20 @@
     \texttt{coral} & 0.3763 [0.3608, 0.3918] & 0.4511 [0.4172, 0.4849] \\
     \bottomrule
   \end{tabular}
+  \\[5pt]
+  Paired target-macro-F1 change from \texttt{none} [95\% cluster-bootstrap interval]\\[2pt]
+  \begin{tabular}{llr}
+    \toprule
+    rung & direction & $\Delta$ target macro-F1 \\
+    \midrule
+    \texttt{zscore} & RAVDESS $\rightarrow$ CREMA-D & +0.0988 [+0.0672, +0.1302] \\
+    \texttt{zscore} & CREMA-D $\rightarrow$ RAVDESS & +0.1121 [+0.0441, +0.1801] \\
+    \texttt{mean\_shift} & RAVDESS $\rightarrow$ CREMA-D & +0.0914 [+0.0597, +0.1243] \\
+    \texttt{mean\_shift} & CREMA-D $\rightarrow$ RAVDESS & +0.1331 [+0.0660, +0.1977] \\
+    \texttt{coral} & RAVDESS $\rightarrow$ CREMA-D & +0.1059 [+0.0687, +0.1447] \\
+    \texttt{coral} & CREMA-D $\rightarrow$ RAVDESS & +0.1388 [+0.0736, +0.2063] \\
+    \bottomrule
+  \end{tabular}
   \\[2pt]
-  \begin{minipage}{\linewidth}\footnotesize Filter: cached hubert last-layer features, logreg, and none, zscore, mean\_shift, coral. The chance baselines are 0.1665 and 0.1645. This robustness control is not a replacement full classifier grid.\end{minipage}
+  \begin{minipage}{\linewidth}\footnotesize Filter: cached hubert last-layer features, logreg, and none, zscore, mean\_shift, coral. The chance baselines are 0.1665 and 0.1645. Paired differences resample target-test speakers and seeds (2000 replicates). This robustness control is not a replacement full classifier grid.\end{minipage}
 \end{table*}

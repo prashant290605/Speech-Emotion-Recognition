@@ -2959,3 +2959,40 @@ None. `legacy/` is byte-identical to the upstream clone.
 - Eight bibliography records still need manual publisher-page confirmation.
 - ORCIDs, Zenodo DOI, final author declarations, portal fields, and licensed
   IEMOCAP confirmation remain author hand-off items.
+
+## 2026-09-02 - Reviewer-revision Phase 7: review-precision corrections
+
+### Files modified
+
+- `paper/main.tex`, the Results, Discussion, Related Work, and
+  Reproducibility sections, along with the submission and revision ledgers.
+- `tools/report_calm_sensitivity.py`, which now reconstructs paired
+  target-test speaker confusions from stored predictions and emits paired
+  aligned-minus-none intervals for both label controls.
+- Table and figure generators, the fixed-reference MMD renderer, generated
+  Tables 6 through 9, label-control reports, and the result-ledger terminology.
+
+### Tests and validation
+
+- The label-control and LaTeX-generation tests passed, including paired
+  contrast reconstruction from both completed sensitivity ledgers.
+- The revised CAS upload package compiled locally as a 21-page article.
+- Visual review confirmed that the reorganised Tables 7 and 8 fit within the
+  page, that Table 6 exposes saturation in scientific notation, and that the
+  revised Figure 1 and Figure 5 headings are legible.
+
+### Decisions made
+
+- The paired control contrasts reuse only stored predictions. They resample the
+  matched target-test speakers and seeds and do not rerun any experimental
+  configuration.
+- Tables 7 and 8 separate scores from paired differences to preserve legible
+  journal-width tables.
+- The 11 of 36 cell observation is descriptive and explicitly uncorrected for
+  multiplicity. The pooled protocol-level sign reversal remains the main claim.
+
+### Deferred
+
+- Eight bibliography records still need manual publisher-page confirmation.
+- ORCIDs, Zenodo DOI, final author declarations, portal fields, and licensed
+  IEMOCAP confirmation remain author hand-off items.

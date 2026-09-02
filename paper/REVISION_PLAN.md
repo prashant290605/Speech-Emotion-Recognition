@@ -125,7 +125,7 @@ generated results support the same qualified finding.
 
 **Status:** Complete on 2026-09-02. The manuscript includes a verified 2025
 *Speech Communication* comparison, moves the detailed provenance ledger to a
-one-page supplement, and has been compiled and visually reviewed as a 20-page
+one-page supplement, and was initially compiled and visually reviewed as a 20-page
 CAS double-column article. The checked delivery archive is ready for Overleaf.
 
 **Purpose:** make the revised article current, conventional, and reviewable.
@@ -146,3 +146,20 @@ CAS double-column article. The checked delivery archive is ready for Overleaf.
 | 4 | Complete | Two label mappings and their diagnostic ledgers are integrated. |
 | 5 | Waiting for licensed IEMOCAP | Raw data are absent; this is an external dependency, not a reason to claim results. |
 | 6 | Complete | Current related work, provenance supplement, final PDF, and Overleaf delivery archive are complete. |
+
+## Phase 7: Review-precision corrections
+
+**Status:** Complete on 2026-09-02. These corrections use the existing result
+ledgers and stored per-utterance predictions. No model, alignment map, split,
+or feature cache was rerun.
+
+| Review issue | Deliverable | Acceptance criterion |
+|---|---|---|
+| Alignment claim in abstract is false in point estimate | State that no evaluated rung is shown to outperform per-dimension standardisation. | The abstract matches the one-sided inference in Results. |
+| Reference-frame terminology is inconsistent | Use `adaptive own geometry` and `reference-basis calculation`; state the abstract result as a change across stated measurement protocols. | The abstract, Table 9, Figure 5, Methods, Results, and generated reports use compatible terms. |
+| Label controls show only marginal intervals | Reconstruct paired target-test speaker confusions from stored predictions and report aligned-minus-none 95% paired cluster-bootstrap intervals. | Every Table 7 and Table 8 contrast is generated from matched seeds and target-test speakers. |
+| Individual frame cells lack multiplicity adjustment | Label the 11 of 36 observation descriptive and exclude it from the main claim. | Results and source-of-truth report say this explicitly. |
+| Saturated MMD values look exact | Render sub-$10^{-5}$ MMD values in scientific notation and retain the saturation warning. | Table 6 no longer displays saturated values as `0.00000`. |
+| Figure headlines overstate equality or identification | Replace the Figure 1 and Figure 5 headings with the resolved-gain and protocol-sensitivity statements. | Regenerated figures pass visual PDF review. |
+
+| 7 | Complete | Precision corrections, paired control intervals, regenerated figures and tables, and visual PDF review are complete. |

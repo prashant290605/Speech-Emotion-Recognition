@@ -43,7 +43,7 @@ shift, correlation alignment (CORAL), and affine multi-kernel maximum mean
 discrepancy (MK-MMD) maps across 4986 RAVDESS and CREMA-D runs in both
 directions. The protocol uses speaker-disjoint splits, source-side selection,
 and chance baselines. Alignment adds $+0.12$ to $+0.20$ macro-F1 against
-baselines near $0.166$. No evaluated rung exceeds per-dimension
+baselines near $0.166$. No evaluated rung is shown to outperform per-dimension
 standardisation. The label-harmonisation controls retain the basic
 aligned-versus-unaligned contrast after dropping RAVDESS \texttt{calm} and,
 separately, after excluding \texttt{neutral} from both corpora. MMD values
@@ -54,7 +54,7 @@ shift with increasing shrinkage, and its endpoint is within $0.0061$ macro-F1
 of mean shift. Forward source validation separates unaligned and standardised
 features by $0.0018$, while target macro-F1 differs by $0.13$. Finally, the
 correlation between marginal discrepancy and target macro-F1 changes from
-$-0.444$ in each method's own geometry to $+0.142$ in a fixed reference frame.
+$-0.444$ to $+0.142$ across two stated discrepancy-measurement protocols.
 These results describe two English acted-speech corpora; they do not establish
 a universal alignment recommendation.
 \end{abstract}

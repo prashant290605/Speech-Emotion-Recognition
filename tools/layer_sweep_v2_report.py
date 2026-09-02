@@ -132,7 +132,7 @@ def main() -> int:
     out.append("A cell counts as a disagreement only when **both** intervals "
                "exclude zero and fall on opposite sides. Two opposite-signed point "
                "estimates whose intervals straddle zero are noise.\n")
-    out.append("| direction | backbone | rung | rho (own geometry) | rho (reference frame) | disagree |")
+    out.append("| direction | backbone | rung | rho (adaptive own) | rho (reference basis) | disagree |")
     out.append("|---|---|---|---|---|---|")
 
     disagreements, comparisons = 0, 0
@@ -166,11 +166,12 @@ def main() -> int:
                            f"{interval(own_by_seed)} | {interval(ref_by_seed)} | "
                            f"{'**YES**' if disagree else 'no'} |")
     out.append("")
-    out.append(f"**Sign disagreements: {disagreements} of {comparisons} cells.**\n")
+    out.append(f"**Descriptive sign disagreements: {disagreements} of {comparisons} cells.** "
+               "These cell-level comparisons are not multiplicity-corrected.\n")
     out.append("Pooled over every cell and seed:\n")
     out.append("| frame | mean rho | 95% interval | n |")
     out.append("|---|---|---|---|")
-    for name, values in (("own geometry", own_all), ("reference frame", ref_all)):
+    for name, values in (("adaptive own geometry", own_all), ("reference-basis calculation", ref_all)):
         stat = seed_interval(values)
         out.append(f"| {name} | {stat['mean']:+.3f} | "
                    f"[{stat['lo']:+.3f}, {stat['hi']:+.3f}] | {stat['n']} |")

@@ -188,7 +188,7 @@ def figure_ladder(data):
             ]
             axis.legend(handles, ["target macro-F1", "marginal discrepancy"],
                         loc="upper left", fontsize=6)
-    fig.suptitle("Alignment buys one step, then nothing", fontsize=9, y=1.02)
+    fig.suptitle("Alignment buys the first step; no further gain is resolved", fontsize=9, y=1.02)
     return emit(fig, "ladder")
 
 
@@ -383,8 +383,8 @@ def figure_frame_dependence(data):
     axis = axes[0]
     order = np.argsort([s["mean"] for s in own_all])
     y = np.arange(len(order))
-    for i, (stats, name) in enumerate(((own_all, "own geometry"),
-                                       (ref_all, "reference frame"))):
+    for i, (stats, name) in enumerate(((own_all, "adaptive own geometry"),
+                                       (ref_all, "reference-basis calculation"))):
         style = series(i + 1)
         means = [stats[j]["mean"] for j in order]
         errs = [[means[k] - stats[j]["lo"] for k, j in enumerate(order)],
@@ -396,7 +396,7 @@ def figure_frame_dependence(data):
     axis.set_yticks([])
     axis.set_xlabel("Spearman $\\rho$ (discrepancy vs target macro-F1)")
     axis.set_ylabel("36 cells: direction $\\times$ backbone $\\times$ rung")
-    axis.set_title("The two frames disagree about the sign")
+    axis.set_title("The two protocols produce different signs")
     axis.legend(loc="upper left", fontsize=6)
     pooled_own = np.mean([s["mean"] for s in own_all])
     pooled_ref = np.mean([s["mean"] for s in ref_all])
@@ -430,8 +430,8 @@ def figure_frame_dependence(data):
         ref.append(np.mean([r["marginal_mmd_reference"] for r in g]))
     shift = [r for r in pool if r["alignment"] == "mean_shift"]
     for i, (values, key, name) in enumerate((
-            (own, "marginal_mmd_normalised", "own geometry"),
-            (ref, "marginal_mmd_reference", "reference frame"))):
+            (own, "marginal_mmd_normalised", "adaptive own geometry"),
+            (ref, "marginal_mmd_reference", "reference-basis calculation"))):
         style = series(i + 1)
         axis.plot(eps_values, values, label=name, **style)
         axis.axhline(float(np.mean([r[key] for r in shift])), color=style["color"],
@@ -444,8 +444,8 @@ def figure_frame_dependence(data):
                   xy=(0.98, 0.05), xycoords="axes fraction", ha="right",
                   fontsize=6, color="0.35")
     axis.legend(loc="upper left", fontsize=6)
-    fig.suptitle("The discrepancy-transfer relationship has no sign until the "
-                 "geometry is fixed", fontsize=9, y=1.03)
+    fig.suptitle("The discrepancy-transfer correlation changes sign across "
+                 "measurement protocols", fontsize=9, y=1.03)
     return emit(fig, "frame_dependence")
 
 

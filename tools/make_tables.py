@@ -192,54 +192,13 @@ def table_per_class():
 
 
 def table_decomposition():
-    records = [json.loads(line) for line in
-               (REPO_ROOT / "results/phase9_shift.jsonl").read_text().splitlines()
-               if line.strip()]
-    rows = []
-    for source, target in PAIRS:
-        kl = seed_interval([r["label_shift"]["kl_nats"] for r in records
-                            if (r["source"], r["target"]) == (source, target)
-                            and r["layer_agg"] == "last"
-                            and r["alignment"] == "none"])
-        for rung in LADDER:
-            g = [r for r in records
-                 if (r["source"], r["target"]) == (source, target)
-                 and r["layer_agg"] == "last" and r["alignment"] == rung]
-            marginal = float(np.mean([r["marginal_effect_own"] for r in g]))
-            conditional = float(np.mean(
-                [np.mean([x["effect_size"] for x in r["conditional"]
-                          if x["effect_size"] is not None]) for r in g]))
-            rows.append([
-                PAIR_TEX[(source, target)] if rung == LADDER[0] else "",
-                f"\\texttt{{{rung.replace('_', chr(92) + '_')}}}",
-                number(kl["mean"], 5) if rung == LADDER[0] else "",
-                number(marginal, 1),
-                number(conditional, 1),
-                number(conditional / marginal, 2),
-            ])
-    return emit(table(
-        rows,
-        ["pair", "rung", "label shift (KL)", "marginal", "conditional", "ratio"],
-        caption=("The three-way shift decomposition. Observed label-prior differences are small. "
-                 "Alignment drives the marginal term down by two orders of "
-                 "magnitude while the conditional term falls far less, so the "
-                 "ratio rises toward one. This class-conditional diagnostic is "
-                 "not an additive decomposition or a direct estimate of "
-                 "$P(y\\mid x)$."),
-        label="decomposition",
-        notes=["Filter: hubert, \\texttt{layer\\_agg=last}, logreg, 5 seeds, "
-               "both discrepancies measured between the same two sets "
-               "(aligned source-train and aligned target-test). KL is "
-               "$\\mathrm{KL}(P_{\\mathrm{target}} \\| P_{\\mathrm{source}})$ "
-               "in nats between realised partition priors. The conditional term "
-               "reads target labels and is computed behind the A10 firewall "
-               "(\\texttt{ser.analysis}); it is never written to the result "
-               "schema. Per-class MMD uses the same 5-kernel statistic, a seeded "
-               "median bandwidth and a class-specific half-split null; classes with "
-               "fewer than 50 examples on either side are excluded before the "
-               "unweighted mean is formed."],
-        escape_cells=False,
-    ), "decomposition")
+    """Use the fixed-reference diagnostic table the manuscript now describes."""
+    from report_reference_mmd_diagnostics import load_records, write_manuscript_table
+
+    records = load_records(
+        REPO_ROOT / "results/phase9_reference_geometry_controls_v2.jsonl"
+    )
+    return write_manuscript_table(records)
 
 
 def table_frames():
@@ -299,13 +258,12 @@ def table_frames():
                      r"\textbf{yes}"])
     return emit(table(
         out_rows,
-        ["pair", "backbone", "$\\rho$ (own geometry)", "$\\rho$ (reference frame)",
+        ["pair", "backbone", "$\\rho$ (adaptive own)", "$\\rho$ (reference basis)",
          "sign differs"],
-        caption=("Frame dependence. Spearman $\\rho$ between a layer's marginal "
-                 "discrepancy and its target macro-F1, across the 13 layers. The "
-                 "two geometries give opposite signs, so the relationship between "
-                 "discrepancy and transfer is not invariant until the geometry "
-                 "is fixed."),
+        caption=("Measurement-protocol sensitivity. Spearman $\\rho$ between a "
+                 "layer's marginal discrepancy and its target macro-F1, across "
+                 "the 13 layers. The adaptive own-geometry and reference-basis "
+                 "calculations give opposite pooled signs."),
         label="frames",
         notes=["Filter: 13-layer sweep, 2340 runs, logreg, 6 rungs, 3 backbones, "
                "both directions, 5 seeds. $\\rho$ is computed within each seed "
@@ -344,7 +302,7 @@ def table_eps(data):
                 number(float(np.mean([r["macro_f1"] for r in g]))),
             ])
         shift = [r for r in pool if r["alignment"] == "mean_shift"]
-        rows.append(["", r"\\texttt{mean\_shift}",
+        rows.append(["", r"\texttt{mean\_shift}",
                      r"\textbf{" + number(float(np.mean(
                          [r["selection_source_val_macro_f1"] for r in shift]))) + "}",
                      r"\textbf{" + number(float(np.mean(
@@ -410,7 +368,7 @@ def table_corpora():
 
 
 def table_floors(data):
-    """Split sizes and the floors every metric is read against."""
+    """Split sizes and the analytic baselines every metric is read against."""
     rows = []
     for source, target in PAIRS:
         pool = [r for r in data.main
@@ -432,15 +390,15 @@ def table_floors(data):
         rows,
         ["pair", "source\\_train", "source\\_val", "target\\_adapt",
          "target\\_test", "chance", "majority"],
-        caption=("Split sizes and the floors every macro-F1 in this paper is "
+        caption=("Split sizes and the baselines every macro-F1 in this paper is "
                  "read against. Both directions are matched-$n$: CREMA-D "
                  "source-train is subsampled from 5972 to match RAVDESS, so a "
                  "reported asymmetry is not a source-training-size effect alone."),
         label="floors",
         notes=["Ranges span the five seeds within the speaker-disjoint "
-               "constraint. Floors are analytic from the realised "
+               "constraint. Baselines are analytic from the realised "
                "\\texttt{target\\_test} priors, not simulated. Because the "
-               "chance floor is pair-dependent, no result in this paper averages "
+               "chance baseline is pair-dependent, no result in this paper averages "
                "macro-F1 across pairs."],
         escape_cells=False,
     ), "floors")

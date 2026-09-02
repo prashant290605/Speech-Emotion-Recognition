@@ -7,7 +7,8 @@ because that baseline is pair-dependent, nothing is averaged across pairs. Unles
 stated otherwise, intervals are 95\% paired cluster bootstrap intervals over
 target-test speakers and seeds.
 
-The complete set of numbers, each with its interval, its floor and the run
+The complete set of numbers, each with its interval, its baseline where one
+applies, and the run
 filter that produced it, is released with the code as a single generated
 document; every figure and table here is produced from the result files by
 script.
@@ -179,10 +180,11 @@ an artefact of merging RAVDESS \texttt{calm} into \texttt{neutral}.
 \paragraph{Calm-label sensitivity.} The realised priors under the main mapping
 therefore cannot support a corpus-level label-shift claim. Table~\ref{tab:calm-sensitivity}
 reports the pre-specified control that drops RAVDESS \texttt{calm}. Every
-evaluated aligned rung exceeds \texttt{none} in both directions. The forward
-improvements range from $+0.0914$ to $+0.1059$ macro-F1, and the reverse
-improvements range from $+0.1121$ to $+0.1388$. Thus, the calm merge is not
-necessary for the observed performance improvement in this frozen
+evaluated aligned rung has a paired 95\% interval above zero against
+\texttt{none} in both directions. The forward improvements range from
+$+0.0914$ to $+0.1059$ macro-F1, and the reverse improvements range from
+$+0.1121$ to $+0.1388$ (Table~\ref{tab:calm-sensitivity}). Thus, the calm merge
+is not necessary for the observed performance improvement in this frozen
 HuBERT/logistic-regression control. The control does not re-estimate the full
 grid or identify a conditional-shift mechanism.
 
@@ -191,9 +193,10 @@ grid or identify a conditional-shift mechanism.
 \paragraph{Neutral-exclusion sensitivity.} We also exclude \texttt{neutral}
 from both corpora and drop RAVDESS \texttt{calm}, changing the task to five
 classes and its analytic chance baseline to $0.20$. Table~\ref{tab:neutral-excluded-sensitivity}
-shows that every aligned rung again exceeds \texttt{none} in both directions.
-The forward increases range from $+0.0612$ to $+0.0946$, and the reverse
-increases range from $+0.1310$ to $+0.1697$. This five-class control cannot be
+shows that every aligned rung again has a paired 95\% interval above zero
+against \texttt{none}. The forward increases range from $+0.0612$ to $+0.0946$,
+and the reverse increases range from $+0.1310$ to $+0.1697$
+(Table~\ref{tab:neutral-excluded-sensitivity}). This five-class control cannot be
 numerically pooled with the six-class result, but it rules out the affected
 \texttt{neutral} class as necessary for the basic aligned-versus-unaligned
 performance contrast.
@@ -345,8 +348,9 @@ Table~\ref{tab:frames} and Figure~\ref{fig:frames} test that presumption on a
 Pooled over all cells and seeds, $\rho = -0.444$ $[-0.505, -0.383]$ in each
 rung's adaptive own geometry and $\rho = +0.142$ $[+0.062, +0.221]$ in the
 reference-basis calculation. \textbf{The signs are opposite and neither interval covers
-zero.} Eleven of the 36 individual cells disagree by the stricter per-cell test,
-which requires both intervals to exclude zero and fall on opposite sides.
+zero.} Descriptively, 11 of the 36 individual cells have intervals on opposite
+sides of zero. These cell-level comparisons are not multiplicity-corrected and
+are not used for the main claim.
 
 The two statistics use the same features, layers and target scores. They differ
 in their basis and bandwidth rule. \textbf{The correlation is therefore not

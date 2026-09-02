@@ -27,13 +27,31 @@ def load_records(path: Path):
     return records
 
 
+def fmt_scalar(value: float, places: int) -> str:
+    """Use fixed precision unless scientific notation prevents a false zero."""
+    if 0 < abs(value) < 10 ** (-places):
+        return f"{value:.4e}"
+    return f"{value:.{places}f}"
+
+
 def fmt(values, places=4):
     stats = seed_interval(values)
     if stats["n"] == 0:
         return "--"
     if stats["n"] == 1:
         return f"{stats['mean']:.{places}f} (n=1)"
-    return f"{stats['mean']:.{places}f} [{stats['lo']:.{places}f}, {stats['hi']:.{places}f}]"
+    return (
+        f"{fmt_scalar(stats['mean'], places)} "
+        f"[{fmt_scalar(stats['lo'], places)}, {fmt_scalar(stats['hi'], places)}]"
+    )
+
+
+def fmt_mmd(value: float) -> str:
+    """Keep kernel-saturation values visible rather than rounding them to zero."""
+    if 0 < abs(value) < 1e-5:
+        coefficient, exponent = f"{value:.2e}".split("e")
+        return rf"${coefficient}\times10^{{{int(exponent)}}}$"
+    return f"{value:.5f}"
 
 
 def conditional_mean(record, key):
@@ -98,9 +116,9 @@ def write_manuscript_table(records):
             rows.append([
                 f"{source.upper()} $\\rightarrow$ {target.upper()}",
                 f"\\texttt{{{rung.replace('_', r'\_')}}}",
-                f"{raw:.5f}",
+                fmt_mmd(raw),
                 f"{effect:.2f}",
-                f"{conditional_raw:.5f}",
+                fmt_mmd(conditional_raw),
             ])
     text = table(
         rows,

@@ -30,6 +30,9 @@ RESULT_SOURCES = (
     ROOT / "reports" / "neutral_excluded_diagnostics.md",
 )
 NUMBER = re.compile(r"(?<![A-Za-z0-9_])[-+]?\d+(?:\.\d+)?(?:e[-+]?\d+)?(?![A-Za-z_])")
+LATEX_SCIENTIFIC = re.compile(
+    r"(?P<coefficient>[-+]?\d+(?:\.\d+)?)\\times\s*10\^\{(?P<exponent>[-+]?\d+)\}"
+)
 # Fixed analysis parameters which appear in an otherwise outcome-bearing table.
 KNOWN_DESIGN_TOKENS = {
     ("decomposition.tex", "50"),
@@ -55,6 +58,10 @@ def text_without_noncontent(text: str, *, strip_latex_comments: bool = True) -> 
         text = re.sub(r"(?m)(?<!\\)%.*$", "", text)
     text = re.sub(r"\\cite[tp]?\*?(?:\[[^\]]*\])*\{[^}]*\}", "", text)
     text = re.sub(r"\[CITE:[^\]]*\]", "", text, flags=re.S)
+    text = LATEX_SCIENTIFIC.sub(
+        lambda match: f"{match.group('coefficient')}e{match.group('exponent')}",
+        text,
+    )
     text = re.sub(r"\^\{[^{}]*\}", "", text)
     text = re.sub(r"(?<=\d)--(?=\d)", " ", text)
     text = re.sub(r"(?<=\d)(?:st|nd|rd|th)\b", "", text)
@@ -94,10 +101,12 @@ def is_traced(token: str, result_values: set[Decimal]) -> bool:
         return False
     if value in result_values:
         return True
-    if "e" in token.lower() or "." not in token:
+    mantissa, *exponent = token.lower().split("e", 1)
+    if "." not in mantissa:
         return False
-    places = len(token.lower().split("e", 1)[0].split(".", 1)[1])
-    tolerance = Decimal("0.5") * (Decimal(10) ** -places)
+    places = len(mantissa.split(".", 1)[1])
+    scale = int(exponent[0]) if exponent else 0
+    tolerance = Decimal("0.5") * (Decimal(10) ** (scale - places))
     return any(abs(value - candidate) < tolerance for candidate in result_values)
 
 

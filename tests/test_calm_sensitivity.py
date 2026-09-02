@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import sys
+from collections import defaultdict
 from pathlib import Path
 
 from ser.config import load_config
@@ -18,6 +20,7 @@ from run_calm_sensitivity import (
     variant_label_space,
 )
 from run_label_sensitivity_diagnostics import record_id
+from report_calm_sensitivity import SensitivityPredictionData, paired_differences
 
 
 def test_calm_drop_excludes_only_ravdess_calm_and_changes_label_hash():
@@ -87,3 +90,33 @@ def test_diagnostic_record_ids_include_the_label_mapping_and_alignment_rung():
         neutral_config, neutral_spec, source="ravdess", target="cremad", seed=0, alignment="none"
     )
     assert len({calm_none, calm_coral, neutral_none}) == 3
+
+
+def test_label_controls_have_paired_prediction_contrasts():
+    """The robustness tables must retain paired inference, not only point ordering."""
+    for config_name in ("calm_sensitivity.yaml", "neutral_excluded_sensitivity.yaml"):
+        spec = load_spec(ROOT / "configs" / config_name)
+        result_path = ROOT / spec["output"]
+        rows = [
+            json.loads(line)
+            for line in result_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        groups = defaultdict(list)
+        for row in rows:
+            groups[(row["source_corpus"], row["target_corpus"], row["alignment"])].append(row)
+        differences = paired_differences(
+            groups,
+            tuple(tuple(direction) for direction in spec["directions"]),
+            tuple(rung["alignment"] for rung in spec["rungs"]),
+            SensitivityPredictionData(spec, result_path),
+            n_boot=100,
+        )
+        for direction in differences.values():
+            for alignment, statistic in direction.items():
+                if alignment == "none":
+                    assert statistic is None
+                else:
+                    assert statistic["n_seeds"] == 5
+                    assert statistic["diff"] > 0
+                    assert statistic["lo"] > 0

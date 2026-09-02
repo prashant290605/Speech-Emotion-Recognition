@@ -103,7 +103,7 @@ def test_table_refuses_a_ragged_body():
 def test_table_emits_balanced_booktabs():
     text = table([["a", 1]], ["k", "v"], caption="Cap", label="demo",
                  notes=["a note"])
-    for opening, closing in (("\\begin{table}", "\\end{table}"),
+    for opening, closing in (("\\begin{table*}", "\\end{table*}"),
                              ("\\begin{tabular}", "\\end{tabular}")):
         assert text.count(opening) == text.count(closing) == 1
     for rule in ("\\toprule", "\\midrule", "\\bottomrule"):

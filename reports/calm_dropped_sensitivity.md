@@ -13,7 +13,9 @@ This pre-specified sensitivity drops RAVDESS \texttt{calm} rather than merging i
 | cremad->ravdess | mean_shift | 0.4454 [0.3861, 0.5046] | 0.6348 [0.6186, 0.6509] | 0.1645 | 836 | 528 |
 | cremad->ravdess | coral | 0.4511 [0.4172, 0.4849] | 0.6314 [0.6133, 0.6495] | 0.1645 | 836 | 528 |
 
-## Target-score differences from `none`
+## Paired target-score differences from `none`
 
-- ravdess->cremad: `zscore` minus `none` = +0.0988; `mean_shift` minus `none` = +0.0914; `coral` minus `none` = +0.1059.
-- cremad->ravdess: `zscore` minus `none` = +0.1121; `mean_shift` minus `none` = +0.1331; `coral` minus `none` = +0.1388.
+Each interval is a paired cluster bootstrap over target-test speakers and seeds, 2000 replicates.
+
+- ravdess->cremad: `zscore` minus `none` = +0.0988 [+0.0672, +0.1302]; `mean_shift` minus `none` = +0.0914 [+0.0597, +0.1243]; `coral` minus `none` = +0.1059 [+0.0687, +0.1447].
+- cremad->ravdess: `zscore` minus `none` = +0.1121 [+0.0441, +0.1801]; `mean_shift` minus `none` = +0.1331 [+0.0660, +0.1977]; `coral` minus `none` = +0.1388 [+0.0736, +0.2063].

@@ -73,7 +73,7 @@ def table(
     notes: Optional[Iterable[str]] = None,
     escape_cells: bool = True,
 ) -> str:
-    """A complete ``table`` float using booktabs rules.
+    """A complete two-column ``table*`` float using booktabs rules.
 
     ``notes`` become a small-font block under the rules -- the run filter, the
     seed count, the floor. They are part of the table, not the caption, so they
@@ -90,7 +90,7 @@ def table(
     render = escape if escape_cells else (lambda v: str(v))
 
     lines = [
-        r"\begin{table}[tb]",
+        r"\begin{table*}[!t]",
         r"  \centering",
         f"  \\caption{{{caption}}}",
         f"  \\label{{tab:{label}}}",
@@ -107,7 +107,7 @@ def table(
         lines.append(r"  \\[2pt]")
         lines.append(r"  \begin{minipage}{\linewidth}\footnotesize " + note
                      + r"\end{minipage}")
-    lines.append(r"\end{table}")
+    lines.append(r"\end{table*}")
     return "\n".join(lines) + "\n"
 
 
