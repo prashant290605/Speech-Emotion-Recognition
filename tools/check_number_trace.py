@@ -22,6 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PAPER = ROOT / "paper"
 RESULT_SOURCES = (
+    ROOT / "reports" / "translation_audit.md",
     ROOT / "reports" / "RESULTS.md",
     ROOT / "reports" / "zscore_global_bound.md",
     ROOT / "reports" / "phase9_reference_geometry.md",

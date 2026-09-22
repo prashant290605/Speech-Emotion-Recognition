@@ -106,17 +106,16 @@ def table_ladder(data):
         ["pair", "rung", "candidate rows", "target macro-F1", "adaptive-own", "reference-basis"],
         caption=("The alignment ladder. Within each (pair, seed, backbone, "
                  "layer aggregation, classifier) cell, the source-validation-best "
-                 "inner setting is selected before target scoring. Target macro-F1 rises once, off "
-                 "\\texttt{none}, and then does not track discrepancy: "
-                 "\\texttt{mkmmd\\_full} reaches the lowest discrepancy in both "
-                 "geometries and is never the best rung."),
+                 "inner setting is selected before target scoring. The discrepancy "
+                 "columns instead average all candidate rows. These are different "
+                 "estimands, not a matched map-level correlation."),
         label="ladder",
         notes=["Filter: \\texttt{freeze\\_tag=grid-freeze-v3}, "
                "\\texttt{blending=none}. Target intervals are a paired cluster "
                "bootstrap over target-test speakers and seeds, "
-               f"{N_BOOT} replicates; discrepancy columns are $t$-intervals over "
-               "seeds. Candidate-row counts differ because CORAL and MK-MMD have "
-               "larger inner grids; rows are not averaged before selection. Both geometries are reported because they disagree "
+               f"{N_BOOT} replicates; discrepancy columns are candidate-row means "
+               "without intervals. Candidate counts differ because CORAL and MK-MMD have "
+               "larger inner grids. Both measurement protocols are stated separately "
                "(Table~\\ref{tab:frames})."],
         escape_cells=False,
     ), "ladder")
@@ -217,7 +216,7 @@ def table_frames():
             return float("nan")
         return float(np.corrcoef(rx, ry)[0, 1])
 
-    out_rows, own_all, ref_all, disagree = [], [], [], 0
+    out_rows, own_all, ref_all = [], [], []
     for source, target in PAIRS:
         for backbone in sorted({r["backbone"] for r in rows}):
             own_cell, ref_cell = [], []
@@ -236,40 +235,30 @@ def table_frames():
             own, ref = seed_interval(own_cell), seed_interval(ref_cell)
             own_all += own_cell
             ref_all += ref_cell
-            # Same strict test the report uses: both intervals must exclude
-            # zero AND fall on opposite sides. Comparing point estimates alone
-            # would make this table disagree with reports/layer_sweep_v2.md.
-            flip = (own["lo"] * own["hi"] > 0 and ref["lo"] * ref["hi"] > 0
-                    and own["mean"] * ref["mean"] < 0)
-            disagree += flip
             out_rows.append([
                 PAIR_TEX[(source, target)] if backbone == "hubert" else "",
                 f"\\texttt{{{backbone}}}",
-                interval(own["mean"], own["lo"], own["hi"], 3),
-                interval(ref["mean"], ref["lo"], ref["hi"], 3),
-                r"\textbf{yes}" if flip else "no",
+                number(own["mean"], 3),
+                number(ref["mean"], 3),
             ])
     pooled_own, pooled_ref = seed_interval(own_all), seed_interval(ref_all)
     out_rows.append([r"\textbf{pooled}", "",
-                     r"\textbf{" + interval(pooled_own["mean"], pooled_own["lo"],
-                                            pooled_own["hi"], 3) + "}",
-                     r"\textbf{" + interval(pooled_ref["mean"], pooled_ref["lo"],
-                                            pooled_ref["hi"], 3) + "}",
-                     r"\textbf{yes}"])
+                     r"\textbf{" + number(pooled_own["mean"], 3) + "}",
+                     r"\textbf{" + number(pooled_ref["mean"], 3) + "}"])
     return emit(table(
         out_rows,
-        ["pair", "backbone", "$\\rho$ (adaptive own)", "$\\rho$ (reference basis)",
-         "sign differs"],
+        ["pair", "backbone", "$\\rho$ (adaptive own)", "$\\rho$ (reference basis)"],
         caption=("Measurement-protocol sensitivity. Spearman $\\rho$ between a "
                  "layer's marginal discrepancy and its target macro-F1, across "
                  "the 13 layers. The adaptive own-geometry and reference-basis "
                  "calculations give opposite pooled signs."),
         label="frames",
         notes=["Filter: 13-layer sweep, 2340 runs, logreg, 6 rungs, 3 backbones, "
-               "both directions, 5 seeds. $\\rho$ is computed within each seed "
-               "across the 13 layers, then averaged with a 95\\% $t$-interval "
-               "over seeds. Pooled over all 36 (direction $\\times$ backbone "
-               "$\\times$ rung) cells and 5 seeds."],
+               "both directions, 5 seeds. Each correlation is computed across 13 layers "
+               "within one direction, backbone, rung and seed, then averaged over "
+               "rungs and seeds. The pooled row averages all 36 cells and 5 seeds. "
+               "These are descriptive means: shared seeds and features preclude "
+               "treating cell-and-seed correlations as independent replicates."],
         escape_cells=False,
     ), "frames")
 

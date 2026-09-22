@@ -59,8 +59,10 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 
 ## Research rebuild status (2026-09-22)
 
-The September 3 PDF and archive are superseded drafts. The current analytical
-rebuild is not submission-ready until its new compile and visual inspection.
+The September 3 PDF and archive are superseded drafts. The manuscript now
+centres the exact translation-selection audit, with a separate affine lemma
+and explicit retrospective scope. Its new compile and visual inspection are
+pending; it is not yet a submission-ready release.
 The read-only translation audit and 11 focused tests pass. It adds retrospective
 summaries of existing scores, not training runs. The manuscript must distinguish
 this post-hoc question from the original pre-specified comparison family.

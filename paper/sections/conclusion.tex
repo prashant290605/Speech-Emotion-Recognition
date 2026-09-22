@@ -1,41 +1,22 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-In this controlled RAVDESS and CREMA-D case study, feature-space alignment
-improves target macro-F1 by $+0.12$ to $+0.20$ across the two directions,
-against chance baselines near $0.166$. No evaluated rung beyond per-dimension
-standardisation is shown to provide a further target-macro-F1 gain. The evaluated CORAL and
-affine MK-MMD maps do not change that result.
+Source-only validation can be leakage-free yet uninformative about a specific
+adaptation decision. For stationary-kernel classifiers, translating source
+training and validation preserves the validation problem while shifting the
+target decision function. The frozen RBF-SVM runs exhibit the predicted
+stored-score equality in every matched cell, with target macro-F1 gains of
+$+0.1342$ forward and $+0.1969$ reverse on average. These are descriptive
+results for RAVDESS and CREMA-D, not a universal benefit of mean matching.
 
-Two label controls retain the aligned-versus-unaligned contrast. One drops
-RAVDESS \texttt{calm}. The other also excludes \texttt{neutral} from both
-corpora. These controls test label harmonisation. They do not identify a causal
-conditional-shift mechanism.
+The affine factorisation shows why this exact statement must not be extended
+to the full alignment comparison. Relative transport, common classifier
+coordinates and the discrepancy kernel are separate objects. Changing them
+together yields a pipeline comparison, not an isolated test of how many
+distribution moments need to match.
 
-The diagnostics show that lower marginal discrepancy does not imply better
-transfer here. We report raw marginal and class-conditional MMD$^2$ in a common
-source-defined reference geometry and do not treat their separately normalised
-effect sizes as a probability decomposition or an estimate of $P(y \mid x)$.
-Observed label-prior differences are small in this pair, and the standard
-corrections examined here do not improve transfer. The evaluated affine rungs
-reduce their objectives, but that reduction does not deliver a further
-target-macro-F1 gain.
-
-Three conclusions follow for this protocol. As shrinkage grows, CORAL approaches
-a scalar-rescaled mean shift. In the forward direction, source-side validation
-can miss the need for alignment and once returns a score below the chance
-baseline. The forward oracle gap exceeds the observed alignment gain, although
-it also includes target-set maximisation. Finally, the relationship between
-discrepancy and transfer reverses sign across the stated measurement protocols.
-That relationship is not invariant to the basis and bandwidth rule.
-
-The data support a limited recommendation. In this corpus pair, evaluate
-per-dimension standardisation before adding more complex affine alignment maps.
-Report the chance baseline beside every score and distinguish source-selected
-scores from target-set oracle scores. A third corpus, especially one with a
-different elicitation design, is required before extending this recommendation.
-
-What we cannot offer is an unsupervised target-side signal sensitive to the
-variation that separates successful from unsuccessful configurations. A signal
-that directly tests $P(y \mid x)$ without target labels would be valuable, but
-the present diagnostics do not identify one or establish that it is sufficient.
+The contribution is a criterion audit with explicit mathematical assumptions,
+an executable check against existing runs, and a framework for limiting the
+claims drawn from affine SER comparisons. It is not a new hybrid recogniser
+or an unsupervised solution to target-risk estimation. Establishing such a
+solution would require evidence beyond the present study.

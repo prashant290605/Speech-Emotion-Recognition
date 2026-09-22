@@ -23,6 +23,18 @@ not reliably indexed by Crossref:
 | `ganin2016dann` | Journal of Machine Learning Research, volume 17 |
 | `cawley2010selection` | Journal of Machine Learning Research, volume 11 |
 
+## Research rebuild additions (2026-09-22)
+
+The following records were checked against their primary proceedings landing
+pages during the research pass: `zhao2019invariant`, `you2019selection`,
+`ericsson2023practices`, `kornblith2019similarity`, and `hu2024selection`.
+Their canonical URLs are recorded in `refs.bib`. The Hu record also matched
+Crossref; the four PMLR records remain NOT-IN-CROSSREF in the automatic report,
+which does not override their primary-source verification. The eight earlier
+spot checks above remain separate author tasks. The current automated report
+is `reports/refs_report_research_rebuild.md`: 23 Crossref confirmations,
+12 automatic manual-resolution flags, no probable-fabrication flags.
+
 ## Repairs made during submission preparation
 
 - `pastor2023cross` had the correct DOI, volume, issue, pages and year but an

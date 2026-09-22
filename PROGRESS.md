@@ -1,5 +1,26 @@
 # PROGRESS
 
+## 2026-09-22 - Research rebuild: manuscript phase
+
+- Reworked the title, abstract, highlights, introduction, related work,
+  discussion and conclusion around the source-translation selection question.
+  Added `paper/sections/selection_theory.tex` with proof and affine identities.
+- Corrected the methods, results and reproducibility descriptions, including
+  covariance rank, the MK-MMD offset/penalty distinction, fallback semantics,
+  coordinate confounding, and descriptive correlation aggregation. Updated
+  `tables/ladder.tex`, `tables/frames.tex`, their generator, and number tracing.
+- Added five primary-source-checked bibliography entries and the new
+  `paper/RESEARCH_REVIEW.md`; updated citation and submission registers.
+- Validation: 44 focused tests pass, including the new audit, reference parser,
+  table invariants, number trace and existing global-bound tests. Manuscript
+  structure and outcome tracing pass. Crossref confirms 23 of 35 records;
+  four additional PMLR entries were checked on primary pages, and eight older
+  publisher spot checks remain for authors.
+- Decision: no new classifier or training run. The central analytical audit
+  is explicitly retrospective. Original stored scores and all cached features
+  remain unchanged. The first local compile has 21 pages; final layout checks
+  and delivery packaging are the next phase.
+
 ## 2026-09-22 - Research rebuild: analytical audit
 
 - Created `configs/audit_translation.yaml`, `src/ser/analysis/affine_audit.py`,

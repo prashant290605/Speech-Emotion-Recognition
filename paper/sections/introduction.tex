@@ -1,100 +1,62 @@
 \section{Introduction}
 \label{sec:introduction}
 
-A speech emotion recogniser trained on one corpus can perform poorly on
-another. A standard response is to align the two feature distributions before
-training. Per-dimension standardisation, CORAL, MMD minimisation, and related
-methods form a well-established family. Studies usually support a member of
-this family by showing improved transfer and lower measured discrepancy between
-the domains.
+Cross-corpus speech emotion recognition requires choosing a model without
+labelled examples from the deployment corpus. Source-side validation avoids
+using target test labels, but avoiding leakage does not make the criterion
+informative about every adaptation decision. This paper asks a narrower
+question: can a valid source-validation protocol be unable to distinguish an
+adaptation operation that changes target predictions?
 
-This controlled RAVDESS and CREMA-D case study runs that family end to end on
-one fixed protocol. It asks what the observed improvement consists of. Alignment
-adds between $+0.1208$ and $+0.1359$
-macro-F1 for RAVDESS $\rightarrow$ CREMA-D and between $+0.1524$ and $+0.1961$
-for CREMA-D $\rightarrow$ RAVDESS, against chance baselines of $0.1665$ and
-$0.1656$. But essentially all of it is available from per-dimension
-standardisation. The diagnostics below test one explanation for why further
-marginal discrepancy reduction does not yield a further transfer gain.
+For source translations and stationary-kernel classifiers, the answer is
+exact. Translating source training and validation together preserves their
+kernel matrices. Target vectors are not translated, so their predictions can
+change. The validation criterion is constant along a family of different
+target decision functions. This is not sampling noise that a larger source
+validation set necessarily removes.
 
-\paragraph{The diagnostic.} We measure label shift, marginal discrepancy and a
-class-conditional discrepancy under a source-defined reference geometry. Raw
-MMD$^2$ is the primary marginal value. The class-conditional diagnostic uses the
-same basis and bandwidth, but its class-specific null scale is reported only as
-a supporting effect size. We therefore do not interpret a ratio between the two
-normalised quantities as a decomposition. The observed prior difference is
-small: the KL is
-$0.02235$ and $0.02541$ nats, and the standard corrections examined here
-\emph{hurt} in 238 of 240 cases while the same estimators recover a planted
-shift. This does not establish that label shift is absent, because those
-corrections assume stable class-conditionals.
+The existing RAVDESS and CREMA-D results contain a direct test. In each
+direction, all 30 matched RBF-SVM cells have exactly equal stored validation
+scores and selected hyperparameters for \texttt{none} and
+\texttt{mean\_shift}. Mean shift improves target macro-F1 in every matched
+cell. The mean differences are $+0.1342$ forward and $+0.1969$ reverse.
+These are retrospective summaries of frozen runs, not new training experiments
+or independent replications across cells sharing a seed.
 
-The evaluated affine maps reduce their marginal objectives without a
-corresponding target-macro-F1 gain. \texttt{mkmmd\_full} reaches the lowest
-marginal discrepancy in both measurement geometries. Its documented optimiser
-fallback rate means this is evidence about the evaluated optimisation budget,
-not every possible MK-MMD map. The diagnostic does not establish why the
-discrepancy reduction does not improve transfer.
+The result must not be extended to every alignment operation. Domain-wise
+standardisation changes both domains' coordinates. CORAL and the evaluated
+affine MK-MMD maps transform only the source. We factor such maps into relative
+domain transport and a common coordinate change, then express the classifier
+penalty and discrepancy kernel in the same coordinates. This identifies a
+second limitation: the comparison commonly described as a ladder of matched
+moments also changes the effective learner. The recorded scores compare
+pipelines, not isolated moment-matching mechanisms.
 
-\paragraph{What follows from it.} Three further results fall out, each of which
-qualifies the interpretation of this controlled corpus-pair result.
-
-CORAL, at the regularisation its own source-side validation selects, approaches
-the simpler rung. We derive analytically that as the shrinkage $\varepsilon$
-grows the CORAL map tends to a scalar rescale plus a mean shift, and confirm it:
-at the selected $\varepsilon = 10$ the map is already $86\%$ of the way to a
-pure scalar, and at $\varepsilon = 1000$ its scores land within $0.0061$ of
-\texttt{mean\_shift} in both directions.
-
-In the forward direction, source-side validation can miss whether alignment is
-needed. It separates \texttt{none} from \texttt{zscore} by $0.0018$ where the
-target separates them by $0.13$. On this decision it is nearly blind to the
-target ordering, selecting the unaligned configuration on 2 of 5 seeds. One of
-those seeds returns $0.1508$, \textbf{below the $0.1665$ chance baseline}. The
-protocol touched no target labels at any point. The gap between
-validated and oracle selection, $0.1399$ $[0.0231, 0.2568]$ forward, is the
-oracle gap. It is larger than the observed alignment gain, but it also includes
-target-set maximisation and search-space effects.
-
-Finally, the relationship between discrepancy and transfer is not invariant to
-the measurement protocol. Measured in each method's adaptive own geometry the
-correlation is $\rho = -0.444$ $[-0.505, -0.383]$; measured in a single fixed
-reference basis with a recomputed adaptive bandwidth, on the same features,
-layers and scores, it is $+0.142$
-$[+0.062, +0.221]$. The signs are opposite and neither interval covers zero.
-Which one a study obtains is fixed by a measurement choice made before any
-transfer result is seen, and often left implicit. The $\varepsilon$ sweep
-supplies a case where the limiting map is known independently, and the two
-frames disagree about its proximity to that limit.
-
-\paragraph{What this paper is and is not.} It is not a new alignment method and
-does not report a new best score; the absolute numbers here are modest. It is a
-controlled analysis of one English acted-speech corpus pair. The protocol makes
-the analysis checkable: comparisons were pre-specified before the frozen
-confirmatory grid, splits are speaker-disjoint, each score carries a chance
-baseline, classifier families have equal search budgets, and validated and
-oracle scores are distinguished explicitly. The accompanying materials record
-the frozen protocol, provenance, and withdrawn interim claims.
+Neither the general failure of marginal alignment nor the difficulty of
+unsupervised model selection is new
+\cite{zhao2019invariant,you2019selection,ericsson2023practices,hu2024selection}.
+Our contribution is an explicit invariance test for one selection criterion,
+its manifestation in a controlled SER ledger, and the boundaries that prevent
+that result from being misread as a universal claim about alignment.
 
 \paragraph{Contributions.}
 \begin{enumerate}
-  \item \textbf{A diagnostic for the alignment plateau.} Marginal discrepancy
-    and class-conditional MMD$^2$ are reported in one source-defined reference
-    geometry, with raw MMD$^2$ primary and no cross-normaliser ratio.
-    Observed prior differences are small, and the standard corrections examined
-    here hurt in 238 of 240 cases while recovering a planted shift.
-    (Section~\ref{sec:decomposition})
-  \item \textbf{The gain is the first rung in this case study.} Alignment is
-    worth $+0.12$ to $+0.20$, and no aligned rung is shown to beat
-    per-dimension standardisation in either direction.
-    (Section~\ref{sec:results-ladder})
-  \item \textbf{CORAL approaches a scalar-rescaled mean shift as shrinkage
-    grows.} Derived analytically and confirmed to within $0.0061$.
-    (Section~\ref{sec:results-eps})
-  \item \textbf{Forward source-side validation can miss whether alignment is
-    needed}, and once returns a score below the chance baseline.
-    (Section~\ref{sec:results-selection})
-  \item \textbf{The relationship between discrepancy and transfer reverses
-    sign with the measurement protocol}, so it is not invariant to the stated
-    basis and bandwidth rule. (Section~\ref{sec:results-frames})
+ \item We establish a source-translation invariance for stationary-kernel
+   validation and state its implications and solver assumptions
+   (Section~\ref{sec:translation-theory}).
+ \item We provide an executable, read-only audit of matched frozen runs. It
+   tests exact equality without rounding or target-based cell selection and
+   includes logistic regression as a numerical contrast
+   (Section~\ref{sec:results-translation}).
+ \item We separate relative transport, classifier geometry and measurement
+   geometry. This gives explicit limits on interpreting the broader affine
+   comparison and its discrepancy diagnostics
+   (Sections~\ref{sec:affine-factorisation} and~\ref{sec:results-frames}).
 \end{enumerate}
+
+The paper does not propose a recogniser or claim state-of-the-art performance.
+The analytic statements have explicit assumptions; the empirical evidence is
+limited to two English acted-speech corpora. The mathematical audit was
+developed after the experimental ledger was frozen. The original comparisons
+retain their recorded pre-specification status, but the present research
+question is retrospective.

@@ -7,13 +7,44 @@ because that baseline is pair-dependent, nothing is averaged across pairs. Unles
 stated otherwise, intervals are 95\% paired cluster bootstrap intervals over
 target-test speakers and seeds.
 
-The complete set of numbers, each with its interval, its baseline where one
-applies, and the run
-filter that produced it, is released with the code as a single generated
-document; every figure and table here is produced from the result files by
-script.
+The original outcomes and the retrospective translation summaries have
+separate generated reports with their run filters. Both are included in the
+automated manuscript number-trace check. Table values and figure data are
+generated from the retained result files.
 
-\subsection{Headline: what a practitioner can obtain}
+\subsection{Exact validation equality in the frozen translation pairs}
+\label{sec:results-translation}
+
+Table~\ref{tab:translation-audit} tests the stored consequences of
+Proposition 1. The audit joins \texttt{none} and \texttt{mean\_shift} by
+direction, seed, backbone, layer, classifier, split identifiers and sizes,
+and label-map, feature and search hashes. It requires one successful row per
+arm and rejects duplicates or unmatched rows. No target score participates
+in the join or the inclusion rule. The configuration and input-ledger hashes,
+all matched run identifiers and unrounded values are released with the audit.
+
+\input{../tables/translation_audit}
+
+For the RBF SVM, all 30 pairs in each direction have exactly equal stored
+winning validation scores and selected hyperparameters. Mean shift improves
+target macro-F1 in every pair. The directional mean differences are $+0.1342$
+and $+0.1969$, respectively. The ledger does not store every search candidate's
+validation predictions, so this is a check of the recorded winning scores and
+parameters, not an empirical verification of the entire search surface.
+
+Logistic regression is a numerical contrast. Only 3 forward pairs and no
+reverse pairs have exactly equal stored validation scores. The selected
+hyperparameters agree in 12 forward and 22 reverse pairs. Its target
+differences also favour mean shift in every pair, but exact numerical
+invariance is not claimed. This distinguishes the ideal objective identity
+from finite-solver behaviour.
+
+The analysis is retrospective and uses existing scores only. Cells share
+seeds and speakers, so the table reports descriptive paired means, not a
+test treating each cell as an independent replication. The remaining results
+place this specific finding in the broader frozen pipeline comparison.
+
+\subsection{Source-selected and oracle pipeline performance}
 \label{sec:results-headline}
 
 Table~\ref{tab:headline} gives the configuration selected on source-side
@@ -41,8 +72,12 @@ itself a result.
 \subsection{The alignment ladder}
 \label{sec:results-ladder}
 
-Table~\ref{tab:ladder} gives target macro-F1 by rung with both discrepancy
-columns, and Figure~\ref{fig:ladder} plots them together.
+Table~\ref{tab:ladder} gives source-selected target macro-F1 by rung alongside
+candidate-row discrepancy summaries. These are different averaging protocols:
+the discrepancy columns include every inner setting, whereas target scores
+use the source-selected setting in each cell. Their juxtaposition is
+descriptive and is not a matched map-level correlation. Figure~\ref{fig:ladder}
+shows these two summaries with the same qualification.
 
 \input{../tables/ladder}
 
@@ -51,10 +86,10 @@ columns, and Figure~\ref{fig:ladder} plots them together.
   \includegraphics[width=\textwidth]{ladder.pdf}
   \caption{Target macro-F1 by alignment rung (left axis, with 95\% intervals
     and the chance baseline) against marginal discrepancy in the rung's own
-    geometry (right axis, log scale). Moving off \texttt{none} improves
-    performance, but lower discrepancy does not yield a further improvement
-    consistently across the two directions. The shaded region marks the aligned
-    rungs.}
+    geometry (right axis, log scale). Performance uses source-selected inner
+    settings; discrepancy averages all candidate settings. These summaries
+    must not be interpreted as a matched map-level relation. The shaded region
+    marks the aligned conditions, which are not nested moment-only controls.}
   \label{fig:ladder}
 \end{figure*}
 
@@ -67,82 +102,37 @@ adjusted $p$ at the bootstrap's resolution floor.
 
 \input{../tables/primary}
 
-Among the five aligned rungs the claim worth making is that no rung is shown to
-beat \texttt{zscore}. A significance test cannot establish that: failing to
-reject a null is not evidence for it. We report bounds instead, and the choice
-of bound matters enough to state explicitly.
+The among-alignment comparisons are post hoc. No evaluated condition is
+shown to outperform \texttt{zscore}. To quantify the remaining uncertainty,
+we use upper bounds on the four other aligned conditions minus
+\texttt{zscore}, jointly across both directions. The eight-contrast
+Bonferroni family uses the $99.375$th bootstrap percentile, targeting
+approximate 95\% familywise coverage. Bootstrap coverage is not a
+finite-sample guarantee.
 
-A two-sided bound summarizes the ten pairwise contrasts among aligned rungs.
-For each contrast, we take the largest magnitude its 95\% interval admits,
-$\max(|\mathrm{lo}|,|\mathrm{hi}|)$, then maximize this value over the ten
-contrasts. The result is $0.0213$ forward and $0.0559$ reverse. Against the \emph{smallest} step from
-\texttt{none} to an aligned rung, $+0.1208$ and $+0.1524$, those are $18\%$ and
-$37\%$. The forward figure supports calling the differences negligible; the
-reverse figure does not, and we do not claim it does.
+The largest corrected upper bound is $+0.0163$ forward and $+0.0011$
+reverse, both determined by CORAL. Its point differences are $+0.0049$ and
+$-0.0128$, respectively. Positive upper bounds are not evidence of an
+advantage, nor do these results establish practical equivalence without a
+predefined application-specific margin. The conditions can differ in the
+other direction: reverse \texttt{mkmmd\_full} minus \texttt{zscore} is
+$-0.0437$ $[-0.0559,-0.0320]$.
 
-\textbf{But the two-sided bound is the wrong instrument for the claim.} That all
-of the benefit is available from per-dimension standardisation says nothing
-\emph{beats} \texttt{zscore}; it does not say every rung ties it, and a rung
-that is markedly worse is consistent with the claim rather than evidence against
-it. The reverse direction's wide two-sided bound is produced by exactly such a
-degradation: its widest contrast is
-\texttt{mkmmd\_full} $-$ \texttt{zscore} at $-0.0437$ $[-0.0559, -0.0320]$, and
-\texttt{mkmmd\_full} is the \emph{worst} aligned rung in that direction.
+The discrepancy summaries and selected performance summaries do not have the
+same ordering. For example, \texttt{mkmmd\_full} has the smallest candidate-row
+discrepancy summaries, but is the lowest-scoring aligned condition in the
+reverse direction. Because their averaging rules differ, this observation is
+not a matched estimate of how changing MMD changes target macro-F1. The
+fixed-layer sweep in Section~\ref{sec:results-frames} supplies a separate
+measurement-sensitivity analysis.
 
-The one-sided bound the claim requires is an upper bound on
-(rung $-$ \texttt{zscore}), maximised over the other four rungs. The paper
-makes this claim in both directions, so the family has eight contrasts. We
-therefore use a single Bonferroni correction at $1 - \alpha/8$, the $99.375$th
-bootstrap percentile. This gives 95\% familywise coverage for every
-direction-by-rung upper bound.
-
-Forward, \texttt{coral} determines the largest globally corrected upper bound:
-its observed difference from \texttt{zscore} is $+0.0049$, its per-contrast
-upper bound is $+0.0123$, and its global upper bound is $+0.0163$. Reverse,
-\texttt{coral} again determines the bound: its observed difference is
-$-0.0128$, its per-contrast upper bound is $-0.0041$, and its global upper
-bound is $+0.0011$.
-
-\textbf{Stated at the strength the bounds actually carry: no aligned rung is
-shown to beat per-dimension standardisation in either direction, with a
-globally corrected upper bound of $+0.0163$ forward and $+0.0011$ reverse.}
-A positive upper bound is an upper limit on a possible advantage, not evidence
-of one. Nothing here shows a rung beating \texttt{zscore}; it shows only that
-any such advantage is bounded by these amounts.
-
-Two further points a reader should hold onto. These contrasts sit outside the
-pre-specified family. And the reverse direction's intervals are wider
-throughout; for the two-sided bound, roughly $1.8$ times, half-width $0.0120$
-against $0.0067$; because RAVDESS as target supplies $624$ test utterances
-against CREMA-D's $3677$ to $3690$, about a fifth as many. That accounts for the
-width, though not for the reverse direction's larger point estimates, which
-reflect a real spread among its rungs rather than a noisier measurement of the
-same one.
-
-The ordering does not track discrepancy. \texttt{mkmmd\_full} reaches the lowest
-marginal discrepancy in \emph{both} geometries; $12.04$ and $23.25$ times the
-same-distribution null in the forward direction, against \texttt{zscore}'s
-$51.79$ and $480.85$; and is never the best rung. In the reverse direction it
-is the \emph{worst} aligned rung, at $0.3885$ $[0.3653, 0.4099]$ against
-\texttt{zscore}'s $0.4321$ $[0.4070, 0.4547]$.
-
-\paragraph{What this does and does not show.} Alignment improves target macro-F1
-in this corpus pair. Per-dimension standardisation captures the observed
-improvement: no more complex rung is shown to improve on it. CORAL uses a
-covariance-based affine map. The MK-MMD rungs optimise a characteristic-kernel
-marginal-discrepancy objective through an affine map. Neither evaluated method
-adds a further target-macro-F1 gain while reducing the reported marginal
-diagnostic by one to two orders of magnitude. This is evidence about the
-implemented maps and optimisation budgets, not about all possible
-higher-order alignment procedures.
-
-\paragraph{A caveat that must accompany the MK-MMD rows.} In
-\textbf{64.9\%} of \texttt{mkmmd\_diag} runs and \textbf{55.2\%} of
-\texttt{mkmmd\_full} runs, optimisation failed to improve on its warm start and
-the fitted map reverted to it. In those cells the map is the diagonal moment
-match or CORAL warm start, respectively. The result therefore evaluates this
-optimiser and its budget rather than establishing that a better-optimised
-MK-MMD map cannot improve transfer.
+These scores compare complete pipelines, including their induced classifier
+geometries. They do not establish that covariance matching has no value or
+that matching additional moments causes no benefit. The MK-MMD acceptance
+check also rejects the fitted candidate in $64.9\%$ of diagonal-map runs and
+$55.2\%$ of full-map runs. In those cells the returned map is the diagonal
+moment match or CORAL warm start, respectively. Rejection under that
+unpenalised check is not proof of failure to improve the penalised objective.
 
 \subsection{Diagnostic: marginal and class-conditional discrepancy}
 \label{sec:decomposition}
@@ -170,9 +160,9 @@ marginal trajectories.
 
 \textbf{Observed prior differences are small.} The KL divergence between the realised
 partition priors is $0.02235$ nats for RAVDESS $\rightarrow$ CREMA-D and
-$0.02541$ nats for the reverse, with total variation $0.085$. As
-Section~\ref{sec:corpora} noted, the entire difference sits in one class and is
-an artefact of merging RAVDESS \texttt{calm} into \texttt{neutral}.
+$0.02541$ nats for the reverse, with total variation $0.085$. The calm-to-neutral
+mapping affects these priors (Section~\ref{sec:corpora}); small prior divergence
+does not establish that label shift is absent or explain transfer error.
 
 \paragraph{Calm-label sensitivity.} The realised priors under the main mapping
 therefore cannot support a corpus-level label-shift claim. Table~\ref{tab:calm-sensitivity}
@@ -226,13 +216,13 @@ diagnostics. They do not establish a change in $P(y \mid x)$, and their
 separately normalised effect sizes are not combined into a ratio.
 Section~\ref{sec:discussion-testing} states what a direct test would require.
 
-\paragraph{A check on standard label-shift correction.} A decomposition that only
-describes is weak. We applied two corrections; black-box shift estimation and
+\paragraph{A check on standard label-shift correction.} We applied black-box
+shift estimation and
 the Saerens--Latinne--Decaestecker EM procedure
-\cite{lipton2018bbse,saerens2002adjusting}; and they do not merely fail to
-help. They \textbf{hurt in 238 of 240} (record, estimator)
+\cite{lipton2018bbse,saerens2002adjusting}. They reduce macro-F1 in 238 of 240 (record, estimator)
 pairs, by $0.013$ to $0.24$ macro-F1. Both estimators recover a \emph{planted}
-prior shift to within $0.05$ under test, so this is not a broken implementation.
+prior shift to within $0.05$ under test. This checks a synthetic case; it does
+not establish the correction assumptions for the real corpora.
 The result is limited to these standard corrections in this two-corpus setting:
 their assumptions can fail when class-conditional feature distributions differ.
 
@@ -267,15 +257,15 @@ $\lVert M - cI \rVert / \lVert M \rVert$, falls monotonically from $0.9254$ at
 $\varepsilon = 10^{-4}$ to $0.0049$ at $\varepsilon = 1000$, and the fitted
 scalar converges on the limit predicted by
 Equation~\eqref{eq:coral-limit} (ratio $2.195 \rightarrow 1.000$).
-\textbf{At $\varepsilon = 10$, the value selected on \texttt{source\_val}, the
-map is already 86\% of the way to a pure scalar.} Empirically,
+At $\varepsilon = 10$, selected on \texttt{source\_val} in this probe, the
+relative matrix residual is $0.1436$. Empirically,
 \texttt{source\_val} and target macro-F1 at $\varepsilon = 1000$ land within
 $0.0061$ of \texttt{mean\_shift} in both directions.
 
-Selecting CORAL's regularisation on source-side validation therefore drives it
-continuously toward a scalar-rescaled mean shift. This is a second, independent
-route to the same conclusion as Section~\ref{sec:results-ladder}; and one
-that involves no classifier at all.
+The map limit is classifier-independent. The selected shrinkage and the
+observed score proximity are not: both depend on the fitted head and selection
+protocol. This probe does not prove that source validation generally drives
+CORAL to that endpoint.
 
 \subsection{Source-side validation can miss whether alignment is needed}
 \label{sec:results-selection}
@@ -296,7 +286,8 @@ Figure~\ref{fig:selection} shows it per seed.
 The selection failure is visible in the surface itself. Forward,
 \texttt{source\_val} separates \texttt{none} ($0.7304$) from \texttt{zscore}
 ($0.7322$) by $0.0018$, while the same two rungs differ on target by $0.13$.
-The criterion is effectively blind to this distinction.
+The validation means provide little separation in this comparison. Unlike
+the source-translation result, this is not an exact invariance.
 
 The consequence is that selection falls back to \texttt{none} on two of five
 forward seeds, returning target macro-F1 of $0.2803$ and $0.1508$. \textbf{The
@@ -345,12 +336,13 @@ Table~\ref{tab:frames} and Figure~\ref{fig:frames} test that presumption on a
   \label{fig:frames}
 \end{figure*}
 
-Pooled over all cells and seeds, $\rho = -0.444$ $[-0.505, -0.383]$ in each
-rung's adaptive own geometry and $\rho = +0.142$ $[+0.062, +0.221]$ in the
-reference-basis calculation. \textbf{The signs are opposite and neither interval covers
-zero.} Descriptively, 11 of the 36 individual cells have intervals on opposite
-sides of zero. These cell-level comparisons are not multiplicity-corrected and
-are not used for the main claim.
+The mean of the cell-and-seed correlations is $-0.444$ in each rung's adaptive
+own geometry and $+0.142$ in the reference-basis calculation. These opposite
+signs describe the fixed sweep. Correlations share seeds and feature sets;
+an interval that treats all cell-and-seed values as independent is not an
+inferential justification for the sign change. Descriptively, 11 of the 36
+individual cells have uncorrected intervals on opposite sides of zero. This
+count is not used as an independent significance claim.
 
 The two statistics use the same features, layers and target scores. They differ
 in their basis and bandwidth rule. \textbf{The correlation is therefore not
@@ -377,21 +369,20 @@ should state the geometry in which the discrepancy was measured: the kernel
 bandwidth and the basis, and how each was fixed.} Where the bandwidth is set by
 a data-dependent rule such as the median heuristic, this matters because the
 statistic adapts to a global rescaling of both samples
-(Equation~\ref{eq:median-scale-invariance}). The remedy is inexpensive: derive
-one basis and bandwidth from source-training data, hold them fixed across the
-methods being compared, and report that protocol. An adaptive calculation can
-remain a sensitivity analysis when it is labelled as such.
+(Equation~\ref{eq:median-scale-invariance}). A source-defined fixed kernel is
+one explicit comparison protocol, not a universal remedy. Its saturation
+under z-score is reported here. An adaptive calculation answers a different
+question and should be labelled with its basis and bandwidth rule.
 
 \paragraph{Supporting evidence: a map limit with known form.} The
 $\varepsilon$ sweep supplies a case where the map's limiting form is known
 independently of any discrepancy measurement.
 Equation~\eqref{eq:coral-limit} says that as $\varepsilon$ grows, CORAL becomes
-a scalar rescale plus a mean shift. The adaptive median-heuristic calculation
-is invariant to a global rescale of both samples, while the reference-basis
-calculation responds to the full transformed geometry. Their contrasting
-trajectories are expected from the different definitions. This example does not
-rank the protocols. It demonstrates why the protocol must be fixed and reported
-before a claim about discrepancy and transfer is compared across methods.
+a source-only scalar rescale plus a mean shift. The shared-scale invariance
+in Equation~\ref{eq:median-scale-invariance} does not apply to a transformation
+of the source alone. The contrasting trajectories demonstrate sensitivity to
+the stated metrics; they neither follow from that invariance alone nor rank
+one protocol as universally correct.
 
 \subsection{Per-class transfer}
 \label{sec:results-perclass}
@@ -446,9 +437,8 @@ $0.1665$, and $0.3987$ $[0.3793, 0.4155]$ for the reverse against $0.1656$.
 The reverse direction has the higher target macro-F1 in this comparison at
 equal source-training size. RAVDESS's target test set is also far smaller (624
 utterances against roughly 3680), and the source-validation and target-adaptation
-sizes differ between directions; those quantities remain possible contributors
-to the observed asymmetry and explain why its intervals are wider throughout
-this section.
+sizes differ between directions. Those quantities remain possible contributors
+to both the observed asymmetry and its sampling uncertainty.
 
 \subsection{Blending toward the unaligned features}
 \label{sec:results-blending}

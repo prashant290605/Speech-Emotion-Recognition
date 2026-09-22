@@ -1,123 +1,95 @@
 \section{Discussion}
 \label{sec:discussion}
 
-\subsection{What the results imply for practice}
-\label{sec:discussion-practice}
-
-The diagnostics in Section~\ref{sec:decomposition} place the ladder results in
-context, but do not identify a causal mechanism.
-
-\paragraph{Why standardisation captures the observed gain.} The ladder and its one-sided bounds
-show that per-dimension standardisation captures the observed improvement: no
-more complex rung is shown to improve target macro-F1 in either direction.
-The evaluated CORAL and affine MK-MMD maps do not yield a further gain. The
-diagnostics report raw marginal and class-conditional MMD$^2$ in one
-source-defined reference geometry. Their class-specific null effect sizes aid
-finite-sample interpretation but are not divided by the marginal effect size.
-The fixed-bandwidth z-score control saturates the RBF kernel, so it is reported
-as a measurement limitation rather than a closeness result.
-
-\paragraph{Why lower marginal discrepancy does not help further here.}
-The MMD rungs can reduce their fitted marginal objective without improving the
-task metric. The class-conditional diagnostic provides a descriptive account of
-that mismatch, but it is not a direct estimate of $P(y \mid x)$.
-
-This analysis is limited to these rungs and this corpus pair. Covariate-shift
-correction is justified by the assumption that $P(y \mid x)$ is stable across
-domains. Our diagnostics do not directly test that assumption. Observed
-label-prior differences are small: the prior KL is $0.02235$ and $0.02541$
-nats, and the standard corrections examined here \emph{hurt} in 238 of 240
-cases, by $0.013$ to $0.24$ macro-F1, while the same estimators recover a
-planted shift. This does not establish the absence of label shift, because these
-corrections rely on class-conditional assumptions that the diagnostic does not
-verify.
-
-\paragraph{What a correct selection protocol would have to measure.} The
-forward selection result establishes a specific failure: source-side validation
-does not reliably separate unaligned from standardised features in that
-direction. It does not establish the cause. The class-conditional diagnostic
-motivates a target-side signal sensitive to variation beyond the marginal
-objective, but it is not itself such a signal and it requires target labels.
-We do not have an unsupervised alternative to offer. What any candidate signal
-must do is separate configurations that source-side validation cannot, and
-Section~\ref{sec:results-selection} shows how wide that gap is.
-
-\subsection{Selection is where this actually bites}
+\subsection{A limitation of the criterion, not only its sample size}
 \label{sec:discussion-selection}
 
-Table~\ref{tab:headline} gives the practitioner-facing validated scores and the
-oracle gaps. \textbf{The forward oracle gap is larger than the observed
-alignment gain.} It describes the room between source-side selection and the
-target-set maximum; it does not isolate a causal effect of source-side
-selection.
+The translation result explains a specific failure mode. A source-validation
+criterion can assign identical evidence to different target decision functions.
+In the matched RBF-SVM runs, both the selected validation score and the selected
+hyperparameters are equal across the two arms, yet all target differences
+favour mean shift. A larger validation set cannot break the exact symmetry in
+Proposition 1. A tie-break that always prefers mean shift would succeed on
+these recorded pairs, but that preference is not learned from the source
+validation scores and is not justified for a new corpus pair by this study.
 
-The forward selection surface is specific rather than universal: source-side
-validation is nearly blind to the alignment distinction in that direction and
-selects an unaligned, below-chance configuration once. A practitioner following
-the protocol uses no target labels and has no source-side indication of that
-failure. By contrast, source-side validation is informative on the layer-depth
-axis in a separate analysis; the present result is limited to the alignment
-decision.
+This differs from the broader \texttt{none}--\texttt{zscore} result. Z-score
+changes anisotropic geometry and need not preserve validation predictions.
+The small forward validation difference in Section~\ref{sec:results-selection}
+is empirical, not a consequence of Proposition 1. Source-side validation can
+also be informative about layer depth. There is no contradiction: usefulness
+on one search axis does not imply usefulness on another.
 
-This is also the argument for reporting baselines beside every performance
-number. Without the chance baseline, a below-baseline result reads only as a
-weak score.
+\subsection{What the alignment comparison does not identify}
+\label{sec:discussion-practice}
 
-\subsection{Testing the conditional-shift explanation directly}
+The factorisation prevents a tempting causal interpretation. Standardisation
+changes relative moments and the common feature coordinates used by the head.
+The latter changes an isotropic coefficient penalty into an anisotropic one
+when expressed in original target coordinates. A finite scalar search does
+not generally compensate for this. The existing grid therefore cannot decide
+how much of standardisation's gain is due to moment transport, conditioning,
+or their interaction with optimisation. Its scores remain valid measurements
+of the evaluated pipelines.
+
+The CORAL limit is informative for a different reason. It specifies the map
+as shrinkage increases, independently of its measured MMD. The limit retains
+a source-only scalar factor; it is not exactly the mean-shift map unless that
+factor is unity. The observed score proximity is empirical. It does not prove
+that classifier geometry is irrelevant or that source validation must select
+the same shrinkage on another dataset.
+
+\subsection{A usable audit rather than an untested remedy}
 \label{sec:discussion-testing}
 
-Our class-conditional diagnostic is not a direct test of conditional shift. It
-compares $P(x \mid y)$ across corpora, whereas the covariate-shift assumption
-concerns $P(y \mid x)$. The falsifiable prediction we could test; that
-label-shift correction should not help under near-zero prior KL; passed,
-and passed sharply. That rules out neither a conditional-shift mechanism nor
-other explanations for the plateau, so we state what a direct test would take.
+Before interpreting a feature-alignment comparison, record both domain maps,
+the head's penalty and intercept convention, and the diagnostic kernel. Check
+whether a candidate adaptation leaves the validation predictions invariant.
+For coordinate-equivalent pipelines, either transform the objective and
+kernel consistently or state that the comparison includes their change.
+The accompanying affine-identity tests and ledger matcher make these checks
+executable without training an additional model.
 
-It would need paired data: the same speakers, or the same sentences, recorded
-under both corpora's conditions, so that $P(y \mid x)$ can be estimated
-separately in each domain without the corpus difference and the speaker
-difference being confounded. Failing that, per-utterance perceptual ratings from
-multiple annotators would let the conditional be compared where the label is a
-distribution rather than a point. Neither exists for this pair, so the
-diagnostic here motivates a direct test rather than supplying one.
+This audit detects an uninformative criterion; it does not supply the missing
+target-risk information. Existing unsupervised selectors use additional
+signals or assumptions \cite{you2019selection,hu2024selection}. They were not
+evaluated here, so we cannot rank them or claim that the translation result
+invalidates them. Likewise, neither class-conditional MMD nor a small empirical
+prior KL identifies the cause of transfer error. A direct conditional-shift
+study would need adequate labelled support and control of corpus, speaker and
+elicitation differences; paired recordings are one possible design, not a
+mathematical requirement.
 
 \subsection{Limitations}
 \label{sec:limitations}
 
-\textbf{Two corpora, one language, two directions.} Every result is a statement
-about RAVDESS and CREMA-D in English. We have not shown that the observed
-pattern, marginal discrepancy declining without a further transfer gain,
-appears elsewhere. A corpus pair with a genuinely large prior difference
-would test the label-shift correction result much harder than this one does.
+\paragraph{Empirical scope.} The evidence comes from RAVDESS and CREMA-D,
+both acted English speech. It does not establish the frequency or magnitude
+of validation invariance in spontaneous, multilingual or additional-corpus
+SER. Source-training size is matched, but validation, adaptation and test
+sizes differ by direction. The directional asymmetry cannot be assigned to
+one corpus property. The target scores are not state-of-the-art claims.
 
-\textbf{Both corpora are acted.} Neither contains spontaneous speech. Acted
-emotion is more prototypical and more clearly separated than spontaneous
-emotion, so the absolute scores here are likely optimistic relative to
-spontaneous data. Whether the observed pattern transfers is genuinely open:
-acted and spontaneous corpora may differ in ways not represented by this pair.
+\paragraph{Analytic scope.} The kernel proposition assumes matching candidate
+sets and fitting rules determined by invariant matrices. The linear-objective
+argument assumes an unpenalised intercept and corresponding optima. Finite
+solvers can violate numerical equality, as the logistic-regression audit
+shows. These conditions exclude a blanket claim for neural training or
+domain-wise z-score. The affine lemma requires an invertible target map.
 
-\textbf{Modest absolute performance.} Validated macro-F1 of $0.3156$ and
-$0.4994$ clears chance comfortably but falls well short of in-domain SER. We
-report a controlled analysis, not a system, and nothing here should be read as a
-recommended pipeline.
+\paragraph{Retrospective evidence.} The translation audit was designed after
+the runs existed. It reports all eligible matches and does not tune on target
+scores, but it is not a prospectively registered experiment. The ledger stores
+winning validation scores, not the predictions for every search candidate.
+It therefore verifies the recorded equalities, not every numerical equality
+predicted for an ideal full search surface. Cells share seeds and speakers;
+their count is not a count of independent replications.
 
-\textbf{The reverse direction is less precisely measured.} RAVDESS as target
-supplies $624$ test utterances against CREMA-D's $3677$ to $3690$, so reverse
-intervals are wider throughout; for the among-rung bound, about $1.8$ times.
-Both directions are matched in source-training size only. Their
-source-validation and target-adaptation sizes still differ, so source-training
-size cannot explain the directional asymmetry but other data-quantity effects
-remain possible; the asymmetry in \emph{precision} is directly explained by the
-different target-test sizes.
-
-\textbf{The Transformer arm is reduced-seed.} Two seeds, the primary direction
-only, one inner-grid setting per rung. It is never pooled with the five-seed
-families and its intervals are correspondingly wider.
-
-\textbf{The MK-MMD rungs frequently fall back.} Optimisation reverts to its
-warm start in $64.9\%$ of \texttt{mkmmd\_diag} runs and $55.2\%$ of
-\texttt{mkmmd\_full} runs, so in the majority of cells the fitted map \emph{is}
-the CORAL or diagonal warm start. This qualifies the negative result about the
-evaluated affine MK-MMD maps: this optimiser, at this budget, does not beat
-standardisation. A better-optimised MK-MMD map might do better; these runs do
-not decide that question.
+\paragraph{Other experimental arms.} The Transformer has two seeds in the
+forward direction only and is not pooled with the five-seed families.
+MK-MMD falls back to its warm start in $64.9\%$ of diagonal-map runs and
+$55.2\%$ of full-map runs. Its finite-sample acceptance check uses unpenalised
+MMD, not the penalised training objective. The results evaluate this complete
+procedure, not every possible optimiser or affine MK-MMD solution. The
+measurement-protocol correlations are descriptive sensitivity analyses, not
+independent evidence for a causal mechanism.

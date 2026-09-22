@@ -1,6 +1,7 @@
 %% Speech Communication submission using Elsevier CAS v2.4 (cas-dc).
 \documentclass[a4paper,fleqn]{cas-dc}
-\usepackage[authoryear,longnamesfirst]{natbib}
+\usepackage[authoryear]{natbib}
+\setlength{\emergencystretch}{2em}
 
 \graphicspath{{../figures/}}
 
@@ -9,11 +10,11 @@
 \def\floatpagepagefraction{1}
 \def\textpagefraction{.001}
 
-\shorttitle{A controlled cross-corpus SER case study}
+\shorttitle{Source-validation invariance in cross-corpus SER}
 \shortauthors{P. Singh and P. Singh}
 
-\title[mode=title]{Marginal alignment, measurement geometry, and model selection:
-  a controlled RAVDESS and CREMA-D speech emotion recognition case study}
+\title[mode=title]{What source validation cannot see:
+  an affine adaptation audit for cross-corpus speech emotion recognition}
 
 \author[1]{Prashant Singh}[orcid=0009-0001-8585-6005]
 \cormark[1]
@@ -33,26 +34,25 @@
 \fntext[1]{These authors contributed equally to this work.}
 
 \begin{abstract}
-Feature-space alignment aims to reduce cross-corpus speech emotion recognition
-error. This controlled case study compares per-dimension standardisation, mean
-shift, correlation alignment (CORAL), and affine multi-kernel maximum mean
-discrepancy (MK-MMD) maps across 4986 RAVDESS and CREMA-D runs in both
-directions. The protocol uses speaker-disjoint splits, source-side selection,
-and chance baselines. Alignment adds $+0.12$ to $+0.20$ macro-F1 against
-baselines near $0.166$. No evaluated rung is shown to outperform per-dimension
-standardisation. The label-harmonisation controls retain the basic
-aligned-versus-unaligned contrast after dropping RAVDESS \texttt{calm} and,
-separately, after excluding \texttt{neutral} from both corpora. MMD values
-depend on their basis and bandwidth rules, and the diagnostics do not identify
-conditional shift. Label-shift corrections reduce macro-F1 in 238 of 240 cases
-while recovering an implanted shift. CORAL converges to a scalar-rescaled mean
-shift with increasing shrinkage, and its endpoint is within $0.0061$ macro-F1
-of mean shift. Forward source validation separates unaligned and standardised
-features by $0.0018$, while target macro-F1 differs by $0.13$. Finally, the
-correlation between marginal discrepancy and target macro-F1 changes from
-$-0.444$ to $+0.142$ across two stated discrepancy-measurement protocols.
-These results describe two English acted-speech corpora; they do not establish
-a universal alignment recommendation.
+Source-side validation avoids target-label leakage in cross-corpus speech
+emotion recognition, but can be invariant to an adaptation operation that
+changes target predictions. We establish this property for source translations
+and stationary-kernel classifiers: translating source training and validation
+together preserves their kernel matrices while shifting the target decision
+function. A retrospective audit of frozen RAVDESS and CREMA-D runs finds exact
+equality of the selected validation score and hyperparameters in all 30 matched
+RBF-SVM cells per direction. Mean matching improves target macro-F1 in every
+cell, with mean gains of $0.1342$ and $0.1969$ against chance baselines of
+$0.1665$ and $0.1656$. Logistic regression provides a finite-solver contrast
+and does not generally retain exact numerical equality. We then factor affine
+adaptation into relative domain transport and common classifier coordinates.
+The factorisation shows why domain-wise standardisation also changes effective
+regularisation and kernel geometry, so the broader alignment comparison cannot
+isolate the benefit of matching additional moments. The contribution is an
+executable audit of what a selection criterion and an affine comparison can
+identify, not a new recogniser or an unsupervised target-risk estimator.
+The empirical evidence is limited to two English acted-speech corpora; the
+analytic claims require the stated kernel and fitting assumptions.
 \end{abstract}
 
 \begin{keywords}
@@ -65,6 +65,7 @@ model selection
 
 \input{sections/introduction}
 \input{sections/related}
+\input{sections/selection_theory}
 \input{sections/methods}
 \input{sections/results}
 \input{sections/discussion}
