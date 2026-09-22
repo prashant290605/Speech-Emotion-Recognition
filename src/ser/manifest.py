@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import os
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -29,13 +30,33 @@ from .labels import (
 __all__ = [
     "ManifestRow",
     "MANIFEST_COLUMNS",
+    "PORTABLE_COLUMNS",
+    "PORTABLE_MANIFEST",
+    "CORPUS_PATH_KEYS",
     "CORPUS_EXPECTATIONS",
     "CountMismatch",
     "build_manifest",
     "write_manifest",
     "read_manifest",
+    "to_portable",
+    "write_portable_manifest",
+    "read_portable_manifest",
+    "corpus_roots",
+    "resolve_audio_path",
+    "load_for_analysis",
     "verify_expected_counts",
 ]
+
+# Where a corpus's audio lives, per config. The manifest walker takes roots as
+# an argument; this mapping is what the portable form needs in order to strip a
+# machine-local prefix off and to put it back again.
+CORPUS_PATH_KEYS: Dict[str, str] = {
+    "ravdess": "raw_ravdess",
+    "cremad": "raw_cremad",
+    "iemocap": "raw_iemocap",
+}
+
+PORTABLE_MANIFEST = "data/manifest_portable.csv"
 
 MANIFEST_COLUMNS = (
     "corpus",
@@ -269,3 +290,179 @@ def read_manifest(path: Path) -> List[ManifestRow]:
                 )
             )
     return rows
+
+
+# --------------------------------------------------------------------------
+# The portable manifest
+# --------------------------------------------------------------------------
+# data/manifest.csv records an absolute ``file_path``, which is correct for the
+# machine that built it and useless anywhere else. So it is gitignored, and
+# analysis that needs only speaker ids and labels became transitively
+# unrunnable from a checkout. The portable form separates the two concerns:
+#
+#   SCIENTIFIC MANIFEST     what an utterance is: corpus, speaker, session,
+#                           subset, raw and mapped labels, duration, sample
+#                           rate, and the audio content hash. All portable,
+#                           and tracked.
+#
+#   LOCAL AUDIO RESOLUTION  where the bytes are on this machine: a corpus-
+#                           relative path plus configured roots, joined at the
+#                           moment audio is actually read.
+#
+# Analysis reads the first and must never need the second. Feature extraction
+# needs both, and is the only thing that does.
+PORTABLE_COLUMNS = (
+    "corpus",
+    "relative_path",   # POSIX, relative to that corpus's configured root
+    "utterance_id",
+    "speaker_id",
+    "session_id",
+    "subset",
+    "original_label",
+    "label_six",
+    "label_four",
+    "duration_s",
+    "sample_rate",
+    "sha256",
+)
+
+
+def corpus_roots(config) -> Dict[str, Path]:
+    """Configured audio root per corpus, absolute, for corpora that have one."""
+    roots: Dict[str, Path] = {}
+    for corpus, key in CORPUS_PATH_KEYS.items():
+        value = getattr(config.paths, key, None)
+        if value:
+            roots[corpus] = config.resolve(value)
+    return roots
+
+
+def _relative_to_root(file_path: str, root: Path) -> str:
+    """Corpus-relative POSIX path, or a failure that names the mismatch.
+
+    Deliberately strict. Falling back to the basename when a path does not sit
+    under its configured root would silently discard directory structure that
+    another corpus layout may depend on, and would hide a misconfigured root.
+    """
+    absolute = Path(file_path)
+    try:
+        return absolute.relative_to(root).as_posix()
+    except ValueError:
+        # The same directory reached by a different spelling (case, separators,
+        # a symlink) is ordinary on Windows; compare resolved forms before
+        # giving up.
+        try:
+            return Path(os.path.realpath(absolute)).relative_to(
+                Path(os.path.realpath(root))
+            ).as_posix()
+        except ValueError as exc:
+            raise ValueError(
+                f"{file_path!r} is not under its configured corpus root {root}. "
+                "The portable manifest cannot record a corpus-relative path for "
+                "it; check paths.raw_* against the manifest that was built."
+            ) from exc
+
+
+def to_portable(rows: Sequence[ManifestRow], roots: Dict[str, Path]) -> List[Dict[str, str]]:
+    """Scientific fields plus a corpus-relative path, deterministically ordered.
+
+    Sorted by (corpus, utterance_id) so the artifact and its digest do not
+    depend on the order the filesystem happened to be walked in.
+    """
+    out: List[Dict[str, str]] = []
+    for row in rows:
+        root = roots.get(row.corpus)
+        if root is None:
+            raise ValueError(f"no configured root for corpus {row.corpus!r}")
+        out.append({
+            "corpus": row.corpus,
+            "relative_path": _relative_to_root(row.file_path, root),
+            "utterance_id": row.utterance_id,
+            "speaker_id": row.speaker_id,
+            "session_id": row.session_id,
+            "subset": row.subset,
+            "original_label": row.original_label,
+            "label_six": row.label_six,
+            "label_four": row.label_four,
+            "duration_s": f"{row.duration_s:.6f}",
+            "sample_rate": str(row.sample_rate),
+            "sha256": row.sha256,
+        })
+    out.sort(key=lambda record: (record["corpus"], record["utterance_id"]))
+    return out
+
+
+def write_portable_manifest(records: Iterable[Dict[str, str]], path: Path) -> int:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    count = 0
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(PORTABLE_COLUMNS),
+                                lineterminator="\n")
+        writer.writeheader()
+        for record in records:
+            writer.writerow(record)
+            count += 1
+    return count
+
+
+def read_portable_manifest(path: Path) -> List[ManifestRow]:
+    """Load the portable manifest as :class:`ManifestRow` objects.
+
+    ``file_path`` on the returned rows holds the **corpus-relative** path, not
+    an absolute one. Anything that needs to open the audio must go through
+    :func:`resolve_audio_path`; analysis should not need it at all.
+    """
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(
+            f"portable manifest not found: {path}. Build it with "
+            "`python tools/make_portable_manifest.py`."
+        )
+    rows: List[ManifestRow] = []
+    with open(path, "r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        if tuple(reader.fieldnames or ()) != PORTABLE_COLUMNS:
+            raise ValueError(
+                f"portable manifest columns {reader.fieldnames} != "
+                f"expected {list(PORTABLE_COLUMNS)}"
+            )
+        for record in reader:
+            rows.append(ManifestRow(
+                corpus=record["corpus"],
+                file_path=record["relative_path"],
+                utterance_id=record["utterance_id"],
+                speaker_id=record["speaker_id"],
+                session_id=record["session_id"],
+                subset=record["subset"],
+                original_label=record["original_label"],
+                label_six=record["label_six"],
+                label_four=record["label_four"],
+                duration_s=float(record["duration_s"]),
+                sample_rate=int(record["sample_rate"]),
+                sha256=record["sha256"],
+            ))
+    return rows
+
+
+def resolve_audio_path(row: ManifestRow, roots: Dict[str, Path]) -> Path:
+    """Absolute path to this utterance's audio on this machine."""
+    root = roots.get(row.corpus)
+    if root is None:
+        raise ValueError(f"no configured root for corpus {row.corpus!r}")
+    candidate = Path(row.file_path)
+    return candidate if candidate.is_absolute() else root / candidate
+
+
+def load_for_analysis(config, *, prefer_portable: bool = True) -> List[ManifestRow]:
+    """Manifest rows for analysis, preferring the tracked portable form.
+
+    Analysis needs speaker ids and labels and never audio, so it should read the
+    artifact a reviewer actually has. The machine-local manifest remains the
+    fallback for a working copy that has built one but not yet exported the
+    portable form.
+    """
+    portable = config.resolve(PORTABLE_MANIFEST)
+    if prefer_portable and portable.exists():
+        return read_portable_manifest(portable)
+    return read_manifest(config.resolve(config.paths.manifest))

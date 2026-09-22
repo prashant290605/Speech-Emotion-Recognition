@@ -52,20 +52,19 @@ def spearman(x, y):
 
 
 def load():
-    """Every sweep row, tolerating a worker writing mid-read."""
-    rows, partial = [], 0
-    for path in sorted(glob.glob(str(REPO_ROOT / "results/shards/sweep2_*.jsonl"))):
-        with open(path, encoding="utf-8") as handle:
-            for line in handle:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    rows.append(json.loads(line))
-                except json.JSONDecodeError:
-                    partial += 1
+    """Every sweep row, from the tracked canonical artifact when present.
+
+    The shard-tolerant reader this replaced existed because the report could be
+    run while a worker was still writing. The sweep is finished and packaged,
+    so the canonical artifact is authoritative; the duplicate and partial-line
+    counts are retained in the return signature and are zero by construction
+    once the merge tool has validated the shards.
+    """
+    from ser.artifacts import read_layer_sweep
+
+    rows, _source = read_layer_sweep(REPO_ROOT)
     unique = {r["run_id"]: r for r in rows}
-    return list(unique.values()), len(rows) - len(unique), partial
+    return list(unique.values()), len(rows) - len(unique), 0
 
 
 def interval(values):
@@ -305,10 +304,9 @@ def main() -> int:
     all_sweep, _, _ = load()
     sweep_by_id = {r["run_id"]: r for r in all_sweep}
     shared = sorted(set(grid) & set(sweep_by_id))
-    volatile = {"timestamp", "wall_seconds", "hostname", "git_dirty", "git_sha",
-                "predictions_path", "run_started_utc", "python_version",
-                "library_versions_json"}
-    compared = [k for k in grid[shared[0]] if k not in volatile] if shared else []
+    from ser.utils.results import VOLATILE_FIELDS
+
+    compared = [k for k in grid[shared[0]] if k not in VOLATILE_FIELDS] if shared else []
     mismatches = Counter()
     for run_id in shared:
         a, b = grid[run_id], sweep_by_id[run_id]

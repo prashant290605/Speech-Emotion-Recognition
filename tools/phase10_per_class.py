@@ -29,7 +29,8 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 import numpy as np  # noqa: E402
 
 from ser.config import load_config  # noqa: E402
-from ser.manifest import read_manifest  # noqa: E402
+from ser import speaker_stats  # noqa: E402
+from ser.manifest import load_for_analysis  # noqa: E402
 from ser.phase8 import confusion_by_group, load_predictions  # noqa: E402
 from ser.utils.results import read_rows  # noqa: E402
 
@@ -55,7 +56,11 @@ def per_class_scores(conf: np.ndarray) -> dict:
 
 def main() -> int:
     config = load_config()
-    manifest = read_manifest(config.resolve(config.paths.manifest))
+    manifest = load_for_analysis(config)
+    try:
+        compact = speaker_stats.load(root=REPO_ROOT)
+    except FileNotFoundError:
+        compact = None
     label = {r.utterance_id: r.label_six for r in manifest}
     speaker = {r.utterance_id: r.speaker_id for r in manifest}
 
@@ -88,15 +93,19 @@ def main() -> int:
         chosen, tensors, n_speakers = {}, {}, {}
         for seed in sorted(by_seed):
             best = max(by_seed[seed], key=lambda r: r["selection_source_val_macro_f1"])
-            ids, predicted = load_predictions(RESULTS, best)
-            names = sorted({speaker[u] for u in ids})
-            lookup = {n: i for i, n in enumerate(names)}
-            tensors[seed] = confusion_by_group(
-                [index[label[u]] for u in ids],
-                [index[p] for p in predicted],
-                [lookup[speaker[u]] for u in ids],
-                len(classes), len(names),
-            )
+            if compact is not None and best["run_id"] in compact:
+                names = compact.speakers(best["run_id"])
+                tensors[seed] = compact.tensor(best["run_id"])
+            else:
+                ids, predicted = load_predictions(RESULTS, best)
+                names = sorted({speaker[u] for u in ids})
+                lookup = {n: i for i, n in enumerate(names)}
+                tensors[seed] = confusion_by_group(
+                    [index[label[u]] for u in ids],
+                    [index[p] for p in predicted],
+                    [lookup[speaker[u]] for u in ids],
+                    len(classes), len(names),
+                )
             n_speakers[seed] = len(names)
             chosen[seed] = best
 

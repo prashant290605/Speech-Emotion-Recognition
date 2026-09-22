@@ -1,0 +1,82 @@
+{
+  "artifact": "results/layer_sweep_v2.jsonl",
+  "artifact_sha256": "ab64c55b110064df980a2f3ee190e3cd24763dbedcb4dd043fe05f1f9846ea40",
+  "rows": 2340,
+  "layers": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+  ],
+  "freeze_tags": [
+    "grid-freeze-v3"
+  ],
+  "schema_versions": [
+    9
+  ],
+  "identical_duplicates_collapsed": 0,
+  "sources": [
+    {
+      "shard": "sweep2_hubert.jsonl",
+      "rows": 357,
+      "sha256": "456fad229d0c24638e680634108528ec94c93495e8edd0055dd423ca4eb65b7c"
+    },
+    {
+      "shard": "sweep2_shard0.jsonl",
+      "rows": 148,
+      "sha256": "b6bdfa38138bae554b3f7f07ca87c5112f6d08da9014be4e528e9d3b490fc987"
+    },
+    {
+      "shard": "sweep2_shard1.jsonl",
+      "rows": 151,
+      "sha256": "85de1b72b0afa3bdaf0478816a3a88de49fbda7e622a370df9e0eb3d6ede925a"
+    },
+    {
+      "shard": "sweep2_shard2.jsonl",
+      "rows": 126,
+      "sha256": "e96d1f21fe2cf381122392b9123adf1471e175fe20f90232055ea3431fa11747"
+    },
+    {
+      "shard": "sweep2_shard3.jsonl",
+      "rows": 134,
+      "sha256": "dfd70dd3bc7245443478d952d158a03a0a602185e51e1bcdb32b20be05e6d29a"
+    },
+    {
+      "shard": "sweep2_w0.jsonl",
+      "rows": 16,
+      "sha256": "49d3368efe30c60564b1232f96c8be422dc8f6b67b056f044e73e8a38acae965"
+    },
+    {
+      "shard": "sweep2_w1.jsonl",
+      "rows": 17,
+      "sha256": "2b1586f7a1ad59406bcb4acfb7ba9af90ee68af35bd40fc97317b7cfff7fa988"
+    },
+    {
+      "shard": "sweep2_wav2vec2.jsonl",
+      "rows": 611,
+      "sha256": "b0c8ea5237d11eef45fae2f135da958b83a76283adcc0a899037b857c7ab8109"
+    },
+    {
+      "shard": "sweep2_wavlm.jsonl",
+      "rows": 780,
+      "sha256": "ecf45615c536eb9ec78d3464b198362beb9b5e362c6702460803fa761b94d963"
+    }
+  ],
+  "grid_agreement": {
+    "shared": 180,
+    "fields_compared": 57,
+    "values_compared": 10260,
+    "mismatches": 0
+  },
+  "generator": "tools/merge_layer_sweep.py",
+  "note": "Packaging of existing frozen rows. No run was executed and no value was recomputed. The source shards are retained."
+}

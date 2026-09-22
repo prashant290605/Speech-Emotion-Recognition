@@ -1,0 +1,25 @@
+{
+  "artifact": "results/speaker_confusions.jsonl.gz",
+  "payload_sha256": "e80a3f1f833690868263a883881bff76fa9bc4855d29db68d29cf370f4543e29",
+  "runs": 5364,
+  "classes": [
+    "angry",
+    "disgust",
+    "fear",
+    "happy",
+    "neutral",
+    "sad"
+  ],
+  "compressed_bytes": 2965403,
+  "derived_from": "results/predictions/ (retained, not tracked)",
+  "generator": "tools/make_speaker_confusions.py",
+  "equivalence": {
+    "per_speaker_tensors_identical": 5364,
+    "pooled_confusions_identical": 5364,
+    "max_abs_macro_f1_difference": 0.0,
+    "max_abs_per_class_f1_difference": 0.0,
+    "paired_bootstraps_compared": 4,
+    "max_abs_bootstrap_difference": 0.0
+  },
+  "note": "Sufficient statistic for every published cluster-bootstrap interval. Per-utterance identity is NOT preserved; anything needing it must read results/predictions/."
+}

@@ -140,8 +140,12 @@ def write_manuscript_table(records):
             "the generated diagnostic report, but are not divided by the marginal value."
         ],
     )
-    text = text.replace(r"\begin{table}[tb]", r"\begin{table*}[!t]", 1)
-    text = text.rsplit(r"\end{table}", 1)[0] + r"\end{table*}" + "\n"
+    # ser.latex.table already emits a two-column `table*` float. This function
+    # used to promote a single-column `table` to `table*` by string surgery;
+    # once the shared helper changed, the promotion became a no-op and the
+    # rsplit -- which no longer matched `\end{table*}` -- appended a second
+    # closing tag, producing LaTeX that does not compile. The committed table
+    # predated that change, so nothing noticed until the build was scripted.
     return write_table(text, "decomposition", REPO_ROOT / "tables")
 
 

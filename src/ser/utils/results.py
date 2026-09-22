@@ -38,7 +38,10 @@ __all__ = [
     "FIELDS",
     "FIELD_NAMES",
     "RUN_ID_FIELDS",
+    "VOLATILE_FIELDS",
     "VALID_STATUSES",
+    "rows_agree",
+    "field_disagreements",
     "SchemaError",
     "is_smoke_row",
     "schema_as_markdown",
@@ -495,3 +498,60 @@ def schema_as_markdown() -> str:
 
 def field_names() -> Sequence[str]:
     return FIELD_NAMES
+
+
+# --------------------------------------------------------------------------
+# Comparing two rows that claim to be the same run
+# --------------------------------------------------------------------------
+# Fields that legitimately differ between two executions of the identical
+# computation. Everything else is determined by the run_id coordinates, so a
+# disagreement outside this set is not a merge conflict: it means the
+# coordinates do not determine the result, which is a defect in the schema
+# rather than in the data. This set was previously written out inline in
+# tools/layer_sweep_v2_report.py; it lives here so the merge tool, the report
+# and the tests cannot drift apart on what "identical" means.
+VOLATILE_FIELDS: frozenset[str] = frozenset({
+    "timestamp",          # when it ran
+    "wall_seconds",       # how long it took
+    "hostname",           # where it ran
+    "git_dirty",          # whether the tree had edits at the time
+    "git_sha",            # which commit
+    "predictions_path",   # keyed by run_id, but written per output file
+    "run_started_utc",
+    "python_version",
+    "library_versions_json",
+})
+
+# Floats are compared with a relative tolerance rather than bitwise. Two
+# processes computing the same quantity through the same code path do agree
+# bitwise in practice -- that is one of this project's recorded consistency
+# checks -- but requiring it here would turn a BLAS difference into a merge
+# failure, and the claim being protected is that the rows describe the same
+# computation, not that they were produced by the same machine.
+_FLOAT_RTOL = 1e-12
+
+
+def field_disagreements(left: Dict[str, Any], right: Dict[str, Any]) -> Dict[str, tuple]:
+    """Non-volatile fields on which two rows for one ``run_id`` disagree.
+
+    Fields absent from either row are skipped rather than reported: a shard
+    written under an older schema is a different problem, caught by
+    ``validate_row``, and conflating the two would make this diagnostic
+    useless for the case it exists for.
+    """
+    out: Dict[str, tuple] = {}
+    for key in left:
+        if key in VOLATILE_FIELDS or key not in right:
+            continue
+        a, b = left[key], right[key]
+        if isinstance(a, float) and isinstance(b, float):
+            if a != b and abs(a - b) > _FLOAT_RTOL * max(1.0, abs(a)):
+                out[key] = (a, b)
+        elif a != b:
+            out[key] = (a, b)
+    return out
+
+
+def rows_agree(left: Dict[str, Any], right: Dict[str, Any]) -> bool:
+    """True when two rows describe the same computation."""
+    return not field_disagreements(left, right)

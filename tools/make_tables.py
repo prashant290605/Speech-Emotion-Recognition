@@ -318,10 +318,10 @@ def table_corpora():
     from collections import Counter
 
     from ser.config import load_config
-    from ser.manifest import read_manifest
+    from ser.manifest import load_for_analysis
 
     config = load_config()
-    rows = read_manifest(config.resolve(config.paths.manifest))
+    rows = load_for_analysis(config)
     classes = list(config.labels.spaces["six"])
     out_rows = []
     for corpus in ("ravdess", "cremad"):

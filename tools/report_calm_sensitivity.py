@@ -13,7 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from ser.config import load_config  # noqa: E402
-from ser.manifest import read_manifest  # noqa: E402
+from ser.manifest import load_for_analysis  # noqa: E402
 from ser.phase8 import (  # noqa: E402
     confusion_by_group,
     load_predictions,
@@ -75,7 +75,7 @@ class SensitivityPredictionData:
         self.label_space = variant_label_space(spec)
         config = sensitivity_config(base, spec)
         rows = project_rows(
-            read_manifest(config.resolve(config.paths.manifest)),
+            load_for_analysis(config),
             config,
             self.label_space,
         )

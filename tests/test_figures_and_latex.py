@@ -154,3 +154,42 @@ def test_generated_tables_are_balanced_and_labelled():
             assert identifier not in text, (
                 f"{path.name}: unescaped experiment identifier {identifier}"
             )
+
+
+# -- generated tables must be compilable ------------------------------------
+def test_every_generated_table_has_balanced_environments():
+    """Catch a malformed generated table before the LaTeX compiler does.
+
+    A real defect this guards: ``report_reference_mmd_diagnostics`` used to
+    promote a single-column float to ``table*`` by string surgery. When the
+    shared helper in ``ser.latex`` started emitting ``table*`` directly, the
+    promotion became a no-op and the trailing rsplit stopped matching, so a
+    second closing tag was appended and the manuscript no longer compiled. The
+    committed table predated the change, so nothing noticed until the build
+    became one scripted command.
+    """
+    directory = REPO_ROOT / "tables"
+    if not directory.exists():
+        pytest.skip("tables/ not generated")
+    generated = sorted(directory.glob("*.tex"))
+    assert generated, "no generated tables found"
+    for path in generated:
+        text = path.read_text(encoding="utf-8")
+        for environment in ("table*", "tabular", "minipage"):
+            opens = text.count("\\begin{" + environment + "}")
+            closes = text.count("\\end{" + environment + "}")
+            assert opens == closes, (
+                f"{path.name}: {opens} begin against {closes} end "
+                f"for environment {environment}"
+            )
+        assert text.count("\\begin{table*}") == 1, f"{path.name}: not exactly one float"
+
+
+def test_no_generated_table_closes_its_float_twice():
+    directory = REPO_ROOT / "tables"
+    if not directory.exists():
+        pytest.skip("tables/ not generated")
+    for path in sorted(directory.glob("*.tex")):
+        text = path.read_text(encoding="utf-8")
+        assert text.index("\\begin{table*}") < text.index("\\end{table*}")
+        assert not text.rstrip().endswith("\\end{table*}\n\\end{table*}")

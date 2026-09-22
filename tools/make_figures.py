@@ -38,7 +38,8 @@ from ser.figures import (  # noqa: E402
     series,
     use_style,
 )
-from ser.manifest import read_manifest  # noqa: E402
+from ser import speaker_stats  # noqa: E402
+from ser.manifest import load_for_analysis  # noqa: E402
 from ser.phase8 import (  # noqa: E402
     cluster_bootstrap,
     confusion_by_group,
@@ -46,9 +47,19 @@ from ser.phase8 import (  # noqa: E402
     seed_interval,
 )
 from ser.utils.results import read_rows  # noqa: E402
+from ser.artifacts import (  # noqa: E402
+    PUBLICATION_FREEZE_TAG,
+    filter_by_freeze_tag,
+    read_eps_probe,
+    read_layer_sweep,
+)
 
 RESULTS = REPO_ROOT / "results/runs.jsonl"
-STAGE2_TAG = "grid-freeze-v3"
+# The published build analyses the frozen confirmatory grid. Named in
+# ser.artifacts rather than here, so a later experiment can be analysed by
+# passing its own tag without editing plotting code -- and, more to the point,
+# so there is no code path that unions two freeze tags into one summary.
+STAGE2_TAG = PUBLICATION_FREEZE_TAG
 LADDER = ["none", "zscore", "mean_shift", "coral", "mkmmd_diag", "mkmmd_full"]
 PAIRS = [("ravdess", "cremad"), ("cremad", "ravdess")]
 LABEL = {"ravdess": "RAVDESS", "cremad": "CREMA-D"}
@@ -68,28 +79,46 @@ def pair_title(source, target):
 class Data:
     """Result rows, predictions and per-speaker confusions, loaded once."""
 
-    def __init__(self):
+    def __init__(self, freeze_tag: str | None = None):
+        self.freeze_tag = freeze_tag or STAGE2_TAG
         self.config = load_config()
-        manifest = read_manifest(self.config.resolve(self.config.paths.manifest))
+        manifest = load_for_analysis(self.config)
         self.label = {r.utterance_id: r.label_six for r in manifest}
         self.speaker = {r.utterance_id: r.speaker_id for r in manifest}
         rows = [r for r in read_rows(RESULTS) if r["status"] == "ok"]
-        self.stage2 = [r for r in rows if r["freeze_tag"] == STAGE2_TAG]
+        self.stage2 = filter_by_freeze_tag(rows, self.freeze_tag)
         self.main = [r for r in self.stage2 if r["blending"] == "none"]
         self.classes = list(self.main[0]["class_names"])
         self.index = {n: i for i, n in enumerate(self.classes)}
         self._speakers, self._conf = {}, {}
+        # Prefer the tracked sufficient statistic over the gitignored
+        # per-utterance predictions. Same numbers, and a reviewer has it.
+        try:
+            self.compact = speaker_stats.load(root=REPO_ROOT)
+        except FileNotFoundError:
+            self.compact = None
+
 
     def speakers(self, row):
         key = (row["source_corpus"], row["target_corpus"], row["seed"])
         if key not in self._speakers:
-            ids, _ = load_predictions(RESULTS, row)
-            names = sorted({self.speaker[u] for u in ids})
+            names = self._speaker_names(row)
             self._speakers[key] = {n: i for i, n in enumerate(names)}
         return self._speakers[key]
 
+    def _speaker_names(self, row):
+        """Target-test speakers in the order the bootstrap indexes them."""
+        if self.compact is not None and row["run_id"] in self.compact:
+            return self.compact.speakers(row["run_id"])
+        ids, _ = load_predictions(RESULTS, row)
+        return sorted({self.speaker[u] for u in ids})
+
     def confusion(self, row):
         if row["run_id"] not in self._conf:
+            if self.compact is not None and row["run_id"] in self.compact:
+                self.speakers(row)  # keep the speaker index populated
+                self._conf[row["run_id"]] = self.compact.tensor(row["run_id"])
+                return self._conf[row["run_id"]]
             ids, predicted = load_predictions(RESULTS, row)
             lookup = self.speakers(row)
             self._conf[row["run_id"]] = confusion_by_group(
@@ -117,22 +146,27 @@ class Data:
 
 
 def sweep_rows():
-    rows = {}
-    for path in sorted(glob.glob(str(REPO_ROOT / "results/shards/sweep2_*.jsonl"))):
-        for r in read_rows(path):
-            if r["status"] == "ok":
-                rows[r["run_id"]] = r
-    return list(rows.values())
+    """The 13-layer sweep, from the tracked canonical artifact when present.
+
+    Previously read straight out of the gitignored shard directory, which made
+    the frame-dependence results unreproducible from a checkout.
+    """
+    rows, source = read_layer_sweep(REPO_ROOT)
+    if "fallback" in source:
+        print(f"  note: layer sweep read from {source}")
+    return [r for r in rows if r["status"] == "ok"]
 
 
 def eps_probe_rows():
-    rows = {}
-    for pattern in ("results/eps_*.jsonl", "results/shards/eps_*.jsonl"):
-        for path in sorted(glob.glob(str(REPO_ROOT / pattern))):
-            for r in read_rows(path):
-                if r["status"] == "ok":
-                    rows[r["run_id"]] = r
-    return list(rows.values())
+    """The CORAL shrinkage probe, from the tracked canonical artifact.
+
+    Previously the union of a partially-tracked ledger and the gitignored
+    shards, which left 85 of its 120 rows unreachable from a checkout.
+    """
+    rows, source = read_eps_probe(REPO_ROOT)
+    if "fallback" in source:
+        print(f"  note: epsilon probe read from {source}")
+    return [r for r in rows if r["status"] == "ok"]
 
 
 # ---------------------------------------------------------------------------

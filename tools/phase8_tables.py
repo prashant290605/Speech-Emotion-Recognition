@@ -25,7 +25,8 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 import numpy as np  # noqa: E402
 
 from ser.config import load_config  # noqa: E402
-from ser.manifest import read_manifest  # noqa: E402
+from ser import speaker_stats  # noqa: E402
+from ser.manifest import load_for_analysis  # noqa: E402
 from ser.phase8 import (  # noqa: E402
     cluster_bootstrap,
     confusion_by_group,
@@ -82,7 +83,7 @@ class Data:
 
     def __init__(self):
         self.config = load_config()
-        manifest = read_manifest(self.config.resolve(self.config.paths.manifest))
+        manifest = load_for_analysis(self.config)
         self.label = {r.utterance_id: r.label_six for r in manifest}
         self.speaker = {r.utterance_id: r.speaker_id for r in manifest}
         rows = list(read_rows(RESULTS))
@@ -94,6 +95,10 @@ class Data:
         self.index = {name: i for i, name in enumerate(self.classes)}
         self._speaker_index = {}
         self._conf = {}
+        try:
+            self.compact = speaker_stats.load(root=REPO_ROOT)
+        except FileNotFoundError:
+            self.compact = None
 
     def pair_key(self, row):
         return (row["source_corpus"], row["target_corpus"], row["seed"])
@@ -102,8 +107,11 @@ class Data:
         """Speaker index for this (pair, seed)'s target_test, built once."""
         key = self.pair_key(row)
         if key not in self._speaker_index:
-            ids, _ = load_predictions(RESULTS, row)
-            names = sorted({self.speaker[u] for u in ids})
+            if self.compact is not None and row["run_id"] in self.compact:
+                names = self.compact.speakers(row["run_id"])
+            else:
+                ids, _ = load_predictions(RESULTS, row)
+                names = sorted({self.speaker[u] for u in ids})
             self._speaker_index[key] = {n: i for i, n in enumerate(names)}
         return self._speaker_index[key]
 
@@ -111,6 +119,10 @@ class Data:
         """``(n_speakers, K, K)`` for one run, cached."""
         run_id = row["run_id"]
         if run_id not in self._conf:
+            if self.compact is not None and run_id in self.compact:
+                self.speakers(row)
+                self._conf[run_id] = self.compact.tensor(run_id)
+                return self._conf[run_id]
             ids, predicted = load_predictions(RESULTS, row)
             speakers = self.speakers(row)
             y_true = [self.index[self.label[u]] for u in ids]

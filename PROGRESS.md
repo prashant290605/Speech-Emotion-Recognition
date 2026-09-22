@@ -3178,3 +3178,98 @@ Analysis only. No training run, no result-row edit, no cached feature touched.
 - Local Tectonic compile: 22 pages, 0 undefined references or citations, two
   overfull boxes, both pre-existing.
 - Ledger SHA256 unchanged at `51b8ff64...1b1407`.
+
+
+## 2026-09-22 - Phase 2: reproducibility and release hardening
+
+Packaging and documentation. No experiment was rerun and no published number
+changed: all 13 generated tables and all 14 figures are byte-identical before
+and after the refactor.
+
+### Files modified
+
+- New: `src/ser/artifacts.py`, `src/ser/speaker_stats.py`,
+  `tools/merge_layer_sweep.py`, `tools/make_portable_manifest.py`,
+  `tools/make_speaker_confusions.py`, `tools/build_paper.py`,
+  `tests/test_layer_sweep_artifact.py`, `tests/test_portable_manifest.py`,
+  `tests/test_speaker_confusions.py`, `tests/test_freeze_tag_selection.py`.
+- New tracked artifacts: `results/layer_sweep_v2.jsonl`,
+  `data/manifest_portable.csv`, `results/speaker_confusions.jsonl.gz`, each
+  with a provenance sidecar.
+- Changed: `src/ser/{manifest,utils/results}.py`, `tools/{make_figures,
+  make_tables,make_results_doc,phase8_tables,phase10_per_class,
+  layer_sweep_v2_report,report_calm_sensitivity}.py`, `README.md`,
+  `.gitignore`, `paper/sections/reproducibility.tex`.
+
+### Decisions made
+
+- The 13-layer sweep is packaged into one tracked artifact. 2160 of its 2340
+  rows previously existed only under gitignored `results/shards/`, so the
+  frame-dependence subsection was not reproducible from a checkout. The merge
+  preserves every row byte-exactly, is deterministic, refuses a conflicting
+  duplicate, and records each source shard's digest.
+- The manifest is split into a tracked scientific form
+  (`data/manifest_portable.csv`, corpus-relative paths) and local audio
+  resolution against configured roots. Analysis reads the first and never needs
+  the second.
+- Per-speaker confusion counts replace per-utterance predictions as the
+  analysis input for every cluster bootstrap, after proving exact equivalence
+  across all 5364 runs with stored predictions: identical tensors, identical
+  pooled confusions, zero difference in macro-F1, per-class F1 and a full
+  paired bootstrap under identical seeds. 81 MB in 7730 files becomes 2.9 MB in
+  one. `results/predictions/` is retained as the original source and is still
+  required for anything needing per-utterance identity.
+- `grid-freeze-v3` is no longer a literal in the plotting code. It is
+  `ser.artifacts.PUBLICATION_FREEZE_TAG`, and selection refuses an absent tag
+  rather than returning an empty set; there is no path that unions two tags.
+- `tools/build_paper.py` is the supported build: ledger digest, artifact
+  presence, reports, tables, figures, audit, structural check, number trace,
+  Tectonic compile, log inspection. It does not download a compiler.
+
+### Corrections
+
+- `reports/RESULTS.md` was stale relative to its own generator, and the
+  sweep/grid agreement count in the manuscript was stale with it. The observed
+  count is 180 shared ids over 57 non-volatile fields, 10260 values, zero
+  mismatches; the manuscript said 151 and 8607, which was the count before the
+  per-backbone sweep shards were added. `tools/make_results_doc.py` now derives
+  these numbers instead of asserting them, and
+  `paper/sections/reproducibility.tex` has been corrected. The check itself
+  passes more strongly than claimed, not less.
+- `ser.speaker_stats.write_records` was writing a non-deterministic gzip header
+  (output filename and write time). Fixed to `filename=""`, `mtime=0`; caught
+  by its own determinism test.
+
+### Deferred
+
+- The `.pytest-*` basetemp directories carry ACLs this account cannot read.
+  They are now gitignored; removal needs an elevated shell and is left to the
+  authors.
+- Three superseded untracked result files remain on disk pending a decision.
+
+### Found by the scripted build and the clean-clone simulation
+
+- The CORAL shrinkage probe had the same gap as the layer sweep: 85 of its 120
+  rows lived only in gitignored `results/shards/eps_*.jsonl`. Found because the
+  clean-clone workspace regenerated a different epsilon-asymptote table. Now
+  packaged as `results/eps_asymptote_full.jsonl`.
+- `tools/report_reference_mmd_diagnostics.py` produced a second
+  `\end{table*}`, because its string surgery to promote a single-column float
+  stopped matching once `ser.latex.table` began emitting `table*` directly. The
+  committed table predated that change, so the manuscript compiled from a stale
+  file while its generator emitted LaTeX that did not compile. Fixed; the
+  regenerated table is byte-identical to the committed one, and every generated
+  table is now checked for balanced environments.
+- `tools/eps_asymptote_report.py` began counting the new canonical artifact as
+  a duplicate source of its own rows. Fixed by excluding it from the glob.
+
+### Final state
+
+- 549 collected, 549 passed, 0 failed, 0 skipped, 1m41s.
+- `tools/build_paper.py` completes all nine stages: 22 pages, 0 undefined
+  references, 0 undefined citations, 2 overfull boxes, both pre-existing.
+- Clean-clone simulation, with no raw audio, feature caches, prediction files,
+  shards or local manifest: all 13 tables and 7 figures regenerate, and
+  `reports/RESULTS.md` is numerically identical apart from the recorded commit
+  SHA, which is absent because the workspace has no git history.
+- Frozen ledgers, predictions and feature caches all byte-unchanged.

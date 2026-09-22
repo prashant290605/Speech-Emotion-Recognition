@@ -82,12 +82,18 @@ def load_probe():
     coordinates do not determine the computation, which is an identity bug and
     is raised rather than silently collapsed.
     """
-    volatile = {"timestamp", "wall_seconds", "hostname", "git_dirty", "git_sha",
-                "predictions_path", "run_started_utc", "python_version",
-                "library_versions_json"}
+    from ser.artifacts import EPS_PROBE
+    from ser.utils.results import VOLATILE_FIELDS as volatile
+
+    # The canonical packaged artifact is a *product* of these globs, not another
+    # source of rows. Reading it back in would report every run as a duplicate
+    # of itself.
+    canonical = Path(EPS_PROBE).name
     seen, sources, conflicts = {}, defaultdict(list), []
     for pattern in EPS_RESULT_GLOBS:
         for path in sorted(glob.glob(str(REPO_ROOT / pattern))):
+            if Path(path).name == canonical:
+                continue
             name = str(Path(path).relative_to(REPO_ROOT)).replace("\\", "/")
             for row in read_rows(path, validate=True):
                 run_id = row["run_id"]

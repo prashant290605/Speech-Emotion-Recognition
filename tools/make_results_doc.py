@@ -35,6 +35,7 @@ from ser.phase8 import (  # noqa: E402
     paired_cluster_bootstrap,
     seed_interval,
 )
+from ser.artifacts import PUBLICATION_FREEZE_TAG  # noqa: E402
 from ser.utils.results import RUN_ID_FIELDS, read_rows  # noqa: E402
 
 sys.path.insert(0, str(REPO_ROOT / "tools"))
@@ -44,6 +45,26 @@ from report_global_zscore_bound import one_sided_family_alpha  # noqa: E402
 N_BOOT = 2000
 ARROW = {("ravdess", "cremad"): "RAVDESS→CREMA-D",
          ("cremad", "ravdess"): "CREMA-D→RAVDESS"}
+
+
+def _sweep_grid_agreement(grid_rows, sweep_rows_):
+    """(shared ids, non-volatile fields compared, mismatching values).
+
+    Derived, not asserted. This was a literal in the prose and it went stale:
+    when the per-backbone sweep shards were added the shared count rose from
+    151 to 180, and the sentence did not follow.
+    """
+    from ser.utils.results import VOLATILE_FIELDS, field_disagreements
+
+    sweep_by_id = {r["run_id"]: r for r in sweep_rows_}
+    grid_by_id = {r["run_id"]: r for r in grid_rows if r["run_id"] in sweep_by_id}
+    if not grid_by_id:
+        return 0, 0, 0
+    sample = next(iter(grid_by_id.values()))
+    fields = sum(1 for k in sample if k not in VOLATILE_FIELDS)
+    mismatches = sum(len(field_disagreements(grid_by_id[i], sweep_by_id[i]))
+                     for i in grid_by_id)
+    return len(grid_by_id), fields, mismatches
 
 
 def ci(stat, places=4):
@@ -96,7 +117,7 @@ def main() -> int:
     out.append(f"| `results/runs.jsonl` | {len(all_rows)} | "
                f"{len({r['run_id'] for r in all_rows})} | "
                f"{sum(1 for r in all_rows if r['status'] != 'ok')} | the designed grid |")
-    out.append(f"| 13-layer sweep (`results/shards/sweep2_*.jsonl`) | {len(sweep)} | "
+    out.append(f"| 13-layer sweep (`results/layer_sweep_v2.jsonl`) | {len(sweep)} | "
                f"{len({r['run_id'] for r in sweep})} | 0 | off-grid probe |")
     out.append(f"| eps probe (`results/eps_*.jsonl`, `shards/eps_*.jsonl`) | {len(probe)} | "
                f"{len({r['run_id'] for r in probe})} | 0 | off-grid probe |")
@@ -107,11 +128,17 @@ def main() -> int:
                + ", ".join(f"`{k}` {v}" for k, v in
                            sorted(Counter(str(r["freeze_tag"]) for r in all_rows).items()))
                + ".\n")
+    publication = sum(1 for r in all_rows if r["freeze_tag"] == PUBLICATION_FREEZE_TAG)
+    out.append(f"The retained ledger holds the {publication}-run frozen "
+               f"confirmatory grid (`{PUBLICATION_FREEZE_TAG}`) plus "
+               f"{len(all_rows) - publication} Stage 0, Stage 1 and baseline "
+               "rows.\n")
+    shared_ids, shared_fields, shared_mismatches = _sweep_grid_agreement(all_rows, sweep)
     out.append("The two probes are **not** merged into `results/runs.jsonl`: that "
                "file holds exactly what the Stage 2 enumeration produces, and "
                "Phase 8 verified `recorded but NOT enumerated: 0`. Where the "
                "sweep's `layer:6` cells share coordinates with grid cells, all "
-               "151 shared ids were checked and agree on every non-volatile "
+               f"{shared_ids} shared ids were checked and agree on every non-volatile "
                "field.\n")
     out.append(f"A `run_id` hashes **{len(RUN_ID_FIELDS)}** experimental "
                "coordinates; recomputing all stored ids is reported in §10.\n")
@@ -875,8 +902,10 @@ def main() -> int:
     out.append("|---|---|")
     out.append("| 23 wavlm sweep cells recomputed by a duplicate worker | "
                "**bit-identical** target scores |")
-    out.append("| 151 sweep ids sharing coordinates with grid rows | "
-               "**zero mismatches** across 57 non-volatile fields (8607 values) |")
+    shared_ids, shared_fields, shared_mismatches = _sweep_grid_agreement(all_rows, sweep)
+    out.append(f"| {shared_ids} sweep ids sharing coordinates with grid rows | "
+               f"**{'zero' if not shared_mismatches else shared_mismatches} mismatches** across {shared_fields} non-volatile fields "
+               f"({shared_ids * shared_fields} values) |")
     out.append("| every `run_id` recomputed from its own recorded coordinates | "
                "**5424 / 5424 retained rows match** |")
     out.append("| Stage 1 sweep vs Stage 2 grid at rung `none` | 0.3700 vs 0.3698 |")
