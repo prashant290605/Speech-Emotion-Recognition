@@ -1,5 +1,24 @@
 # PROGRESS
 
+## 2026-09-22 - Research rebuild: analytical audit
+
+- Created `configs/audit_translation.yaml`, `src/ser/analysis/affine_audit.py`,
+  `tools/audit_translation.py`, `tests/test_affine_audit.py`,
+  `reports/translation_audit.md`, `reports/translation_audit.json`, and
+  `tables/translation_audit.tex`.
+- Modified the research rebuild plan and submission checklist.
+- Eleven new tests verify affine factorisation, logits, penalty and distance
+  identities, z-score factorisation, translation invariance, input validation,
+  exact unrounded comparisons, and rejection of incomplete/duplicate joins.
+  With number-trace tests, 13 tests pass.
+- The read-only ledger audit yields 30 RBF-SVM pairs in each direction with
+  identical selected validation scores and classifier parameters. Mean target
+  differences are +0.1342 and +0.1969. Logistic-regression non-equalities are
+  retained. These are retrospective dependent-cell summaries, not new runs.
+- No experiment or cached feature changed. Full trial validation surfaces are
+  not stored, so their equality is a theoretical result, not an empirical audit
+  claim. Final manuscript, PDF and Overleaf verification follow separately.
+
 Running log of the cross-corpus SER reproducibility rebuild. One dated entry per
 phase. Each entry lists files created, files modified, tests added, decisions
 made, and anything deferred.

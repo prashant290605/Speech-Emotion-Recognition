@@ -4,11 +4,11 @@
 
 1. **Completed: critical review and primary-source search.** Record novelty
    boundaries and mathematical errors in `NOVELTY_AUDIT.md`.
-2. **In progress: analytical audit.** Prove the source-translation selection
+2. **Completed: analytical audit (2026-09-22).** Prove the source-translation selection
    invariance under stated assumptions. Implement tested affine factorisation
    and a reproducible, read-only match of existing ledger rows. Report results
    as retrospective analyses, not pre-specified experimental outcomes.
-3. **Pending: manuscript rebuild.** Replace the five-result inventory with one
+3. **In progress: manuscript rebuild.** Replace the five-result inventory with one
    selection question, a mathematical answer, its frozen-run audit, and the
    limits of generalising it to other alignment operations. Preserve supporting
    experiments while removing unsupported causal and novelty claims.

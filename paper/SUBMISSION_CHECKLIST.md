@@ -57,6 +57,18 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 4. Re-check the journal's current submission requirements in the portal before
    final upload.
 
+## Research rebuild status (2026-09-22)
+
+The September 3 PDF and archive are superseded drafts. The current analytical
+rebuild is not submission-ready until its new compile and visual inspection.
+The read-only translation audit and 11 focused tests pass. It adds retrospective
+summaries of existing scores, not training runs. The manuscript must distinguish
+this post-hoc question from the original pre-specified comparison family.
+Five new related-work records were checked against primary proceedings pages;
+this does not close the earlier eight-record manual spot-check list. Author
+ORCIDs are present in the current source and still require author confirmation.
+Zenodo, final declarations and portal submission remain human hand-offs.
+
 ## Update log
 
 | Date | Work completed |

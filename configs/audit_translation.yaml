@@ -1,0 +1,27 @@
+input: results/runs.jsonl
+freeze_tag: grid-freeze-v3
+classifiers: [svm_rbf, logreg]
+match_fields:
+  - source_corpus
+  - target_corpus
+  - seed
+  - backbone
+  - layer_agg
+  - layer_index
+  - feature_branch
+  - classifier
+  - label_map_hash
+  - split_spec_hash
+  - feature_spec_hash
+  - search_spec_hash
+  - split_id
+  - n_classes
+  - class_names
+  - n_train
+  - n_val
+  - n_target_adapt
+  - n_target_test
+  - n_search_trials
+output_json: reports/translation_audit.json
+output_markdown: reports/translation_audit.md
+output_table: tables/translation_audit.tex

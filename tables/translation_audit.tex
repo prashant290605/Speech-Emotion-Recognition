@@ -1,0 +1,15 @@
+\begin{table*}[!t]
+\centering\small
+\caption{Retrospective translation audit on frozen runs. Each row contains matched cells across three backbones, two fixed layer settings and five seeds. Equal validation and equal hyperparameters count exact equality of the stored winning score and selected classifier parameters. $\Delta$ is mean target macro-F1 for mean shift minus none; chance is the uniform-random baseline. Cells share seeds; no independence-based test is reported.}
+\label{tab:translation-audit}
+\begin{tabular}{llrrrrrr}
+\toprule
+Direction & Head & Pairs & Equal val. & Equal params & $\Delta$ & Positive & Chance \\
+\midrule
+CREMA-D $\to$ RAVDESS & Logistic & 30 & 0 & 22 & +0.1881 & 30 & 0.1656 \\
+CREMA-D $\to$ RAVDESS & RBF SVM & 30 & 30 & 30 & +0.1969 & 30 & 0.1656 \\
+RAVDESS $\to$ CREMA-D & Logistic & 30 & 3 & 12 & +0.1442 & 30 & 0.1665 \\
+RAVDESS $\to$ CREMA-D & RBF SVM & 30 & 30 & 30 & +0.1342 & 30 & 0.1665 \\
+\bottomrule
+\end{tabular}
+\end{table*}
