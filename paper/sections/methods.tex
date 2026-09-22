@@ -390,6 +390,40 @@ resamples the split, search and initialisation variation carried by seeds and
 the clustered target-test sampling variation carried by speakers. It never
 resamples individual utterances independently.
 
+\paragraph{Why the source-selected summary uses a different interval.} The
+paired cluster bootstrap requires a fixed arm: a condition that can be
+recomputed on any resampled set of speakers and seeds. The source-selected
+summary in Table~\ref{tab:headline} is not such an arm. Its value for a seed is
+the target macro-F1 of \emph{whichever} configuration source-side validation
+chose on that seed, and the chosen configuration differs across seeds; in the
+forward direction the protocol selects \texttt{none} on two of five seeds and an
+aligned rung on the other three (Section~\ref{sec:results-selection}). Each seed
+therefore contributes one number describing a complete deployment decision, and
+those five numbers are summarised by a mean and a 95\% $t$-interval over seeds.
+
+That interval estimates the between-seed variability of the deployable
+selection outcome, which includes both the split realisation and the change of
+selected configuration it induces. It does \textbf{not} incorporate any further
+within-seed resampling of target-test speakers, so it is not comparable to the
+paired intervals elsewhere in this paper and is not offered as a better
+estimator. It answers a different question: how much the end-to-end protocol
+varies from one split to another. Its width is also limited by having five
+observations. Fixed-arm contrasts, where both conditions can be recomputed on
+identical seed and speaker draws, use the paired cluster bootstrap throughout.
+The same estimator is applied to the oracle column and to their difference, so
+the three columns of that table are on a common basis.
+
+\paragraph{What the oracle column is.} The oracle is the best target macro-F1
+present in the grid for that pair and seed. It is selected using target-test
+scores and is therefore not attainable by any source-only protocol; it is a
+benchmark for the grid as configured, not a result. Its interval carries the
+same maximisation: the maximum of a set of noisy scores is biased upward, so
+the oracle column is an optimistic summary of this target set rather than an
+estimate of achievable performance. The difference between the two columns is
+reported as an \emph{oracle gap} and is descriptive. It is not the causal
+effect of using source-side selection, because it also contains target-set
+maximisation, finite-sample variation and the extent of the search space.
+
 The discrepancy columns are properties of a fitted map, not of a prediction.
 The ladder discrepancy columns are candidate-row means without intervals.
 Other discrepancy summaries state their own aggregation. The frame sweep's

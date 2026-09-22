@@ -16,6 +16,16 @@ Why this matters more than it looks: with ``config_hash`` no longer a ``run_id``
 coordinate (schema v4), an edit mid-grid no longer orphans completed runs — it
 silently produces runs that are *not comparable* to the ones before it, under
 the same ids. The freeze is what closes that gap.
+
+The same argument applies one level down, to the ledger those runs were written
+into. ``configs/FROZEN_LEDGER.sha256`` records the digest of the historical
+frozen ledger, and :func:`assert_ledger_unchanged` refuses to read it once the
+bytes have moved. This is deliberately a detector, not a lock: it does not make
+the file read-only, does not forbid writing a *new* result file, and does not
+claim to prevent damage. It makes damage loud, which is what was missing.
+``results/runs.jsonl`` is the provenance record every table, figure and the
+retrospective audit is generated from, and a truncation or a stray rewrite
+would otherwise be discovered only by reading a diff.
 """
 
 from __future__ import annotations
@@ -31,18 +41,34 @@ from .utils.runmeta import hash_payload
 
 __all__ = [
     "FROZEN_MARKER",
+    "LEDGER_MARKER",
+    "FROZEN_LEDGER",
     "ConfigDrift",
+    "LedgerDrift",
     "read_freeze_tag",
     "frozen_config_hash",
     "assert_config_frozen",
     "freeze_status",
+    "ledger_digest",
+    "expected_ledger_digest",
+    "assert_ledger_unchanged",
 ]
 
 FROZEN_MARKER = "configs/FROZEN"
 
+# The historical frozen ledger and the single place its expected digest lives.
+# One location on purpose: a hash repeated in several files is a hash that will
+# eventually disagree with itself, and then nobody knows which copy is right.
+LEDGER_MARKER = "configs/FROZEN_LEDGER.sha256"
+FROZEN_LEDGER = "results/runs.jsonl"
+
 
 class ConfigDrift(RuntimeError):
     """The working config differs from the frozen one."""
+
+
+class LedgerDrift(RuntimeError):
+    """The historical frozen result ledger is not the file it was."""
 
 
 def read_freeze_tag(root: Optional[Path] = None) -> Optional[str]:
@@ -132,3 +158,77 @@ def assert_config_frozen(config, *, root: Optional[Path] = None, require: bool =
             "comparable to later ones."
         )
     return tag
+
+
+# --------------------------------------------------------------------------
+# Ledger provenance
+# --------------------------------------------------------------------------
+def ledger_digest(path: Optional[Path] = None, *, root: Optional[Path] = None) -> str:
+    """sha256 of the ledger file's bytes, streamed.
+
+    Bytes rather than parsed rows, deliberately. A reformatting that preserved
+    every value would still change the artifact the published hash refers to,
+    and the audit report quotes that hash; agreeing with it has to mean the
+    same file, not an equivalent one.
+    """
+    import hashlib
+
+    target = Path(path) if path is not None else (root or repo_root()) / FROZEN_LEDGER
+    digest = hashlib.sha256()
+    with open(target, "rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def expected_ledger_digest(*, root: Optional[Path] = None) -> Optional[str]:
+    """The recorded digest, or None when no expectation has been written."""
+    path = (root or repo_root()) / LEDGER_MARKER
+    if not path.exists():
+        return None
+    recorded = path.read_text(encoding="utf-8").strip()
+    return recorded or None
+
+
+def assert_ledger_unchanged(
+    path: Optional[Path] = None, *, root: Optional[Path] = None, require: bool = True
+) -> str:
+    """Raise unless the frozen ledger still hashes to its recorded digest.
+
+    Scope is deliberately narrow. This guards **one** historical artifact, the
+    ledger named by :data:`FROZEN_LEDGER`. It says nothing about sensitivity
+    ledgers, shard files, or any result file a future experiment writes; those
+    are expected to grow, and a guard that complained about them would be
+    turned off within a week and then protect nothing.
+
+    Args:
+        require: when True, a missing expectation is itself an error. Analysis
+            entry points that read the frozen ledger use that. A caller working
+            on a repository that has not recorded one may pass False.
+
+    Returns:
+        The digest that was verified.
+    """
+    expected = expected_ledger_digest(root=root)
+    if expected is None:
+        if require:
+            raise LedgerDrift(
+                f"no expected digest recorded in {LEDGER_MARKER}. Write the "
+                f"sha256 of {FROZEN_LEDGER} there before reading it as frozen "
+                "evidence; an unverified ledger is not provenance."
+            )
+        return ""
+
+    actual = ledger_digest(path, root=root)
+    if actual != expected:
+        raise LedgerDrift(
+            f"{FROZEN_LEDGER} does not match its recorded digest.\n"
+            f"  expected {expected}\n"
+            f"  actual   {actual}\n"
+            f"The frozen ledger has changed. Nothing downstream of it -- tables, "
+            "figures, the retrospective audit -- should be regenerated until the "
+            "change is understood. Restore the file from git "
+            "(`git checkout -- results/runs.jsonl`) if this was accidental, or "
+            f"update {LEDGER_MARKER} in a reviewed commit if it was not."
+        )
+    return actual

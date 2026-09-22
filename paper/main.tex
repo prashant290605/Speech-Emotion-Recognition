@@ -42,9 +42,10 @@ together preserves their kernel matrices while shifting the target decision
 function. A retrospective audit of frozen RAVDESS and CREMA-D runs finds exact
 equality of the selected validation score and hyperparameters in all 30 matched
 RBF-SVM cells per direction. Mean matching improves target macro-F1 in every
-cell, with mean gains of $0.1342$ and $0.1969$ against chance baselines of
-$0.1665$ and $0.1656$. Logistic regression provides a finite-solver contrast
-and does not generally retain exact numerical equality. We then factor affine
+matched cell, with mean gains of $0.1342$ and $0.1969$ against chance baselines
+of $0.1665$ and $0.1656$. Logistic regression, a linear SVM and an MLP are
+reported as implementation contrasts outside the proposition's assumptions and
+do not generally retain exact numerical equality. We then factor affine
 adaptation into relative domain transport and common classifier coordinates.
 The factorisation shows why domain-wise standardisation also changes effective
 regularisation and kernel geometry, so the broader alignment comparison cannot

@@ -41,3 +41,11 @@ where = ["src"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-q"
+# `ledger` marks tests that read a committed repository artifact -- the frozen
+# result ledger -- rather than a synthetic fixture. They are part of the default
+# run because that artifact is committed and the claims resting on it are the
+# paper's centrepiece, but the marker lets a clean-room environment without it
+# deselect them with `-m "not ledger"`.
+markers = [
+    "ledger: reads the committed frozen result ledger (results/runs.jsonl)",
+]

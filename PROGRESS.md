@@ -3131,3 +3131,50 @@ None. `legacy/` is byte-identical to the upstream clone.
 - Deferred: eight older publisher-page citation spot checks, author scientific
   sign-off, final declarations, Overleaf confirmation, full legacy-suite release
   check, Zenodo DOI, cover letter and portal submission.
+
+
+## 2026-09-22 - Phase 1: central-claim integrity and reviewer hardening
+
+Analysis only. No training run, no result-row edit, no cached feature touched.
+
+### Files modified
+
+- New: `tests/test_proposition1_source_translation.py`,
+  `tests/test_translation_audit_ledger.py`,
+  `tests/test_frozen_ledger_provenance.py`, `configs/FROZEN_LEDGER.sha256`,
+  `docs/inference_estimands.md`.
+- Changed: `src/ser/freeze.py`, `tools/audit_translation.py`,
+  `configs/audit_translation.yaml`, `pyproject.toml`, `paper/main.tex`,
+  `paper/sections/{methods,results,discussion,reproducibility}.tex`,
+  and the regenerated audit report and table.
+
+### Decisions made
+
+- Proposition 1 is now certified end to end against a real
+  `sklearn.svm.SVC(kernel="rbf")`: preserved training and validation kernels,
+  identical selected solution, identical source-validation predictions and
+  macro-F1, `f_delta(x) = f_0(x - delta)` for each pairwise decision function
+  under both `ovo` and `ovr`, and a deterministically constructed target point
+  whose class changes. Discrete outcomes are asserted exactly; floating-point
+  comparisons use a stated tolerance, and one test asserts the Gram matrices
+  are *not* bit-identical so the exact/finite distinction cannot blur.
+- The translation audit now covers all four classifier families with complete
+  balanced cells, drawn in two panels: the RBF SVM as the exact prediction, and
+  logistic regression, the linear SVM and the MLP as implementation-boundary
+  evidence the manuscript already predicts. The split is configured in
+  `configs/audit_translation.yaml`, not hardcoded. Their target differences are
+  explicitly not presented as a general mean-shift result.
+- `configs/FROZEN_LEDGER.sha256` is the single recorded digest of
+  `results/runs.jsonl`. `ser.freeze.assert_ledger_unchanged` verifies it and
+  the audit refuses to run on a drifted ledger. A detector, not a lock.
+- Methods now documents why the source-selected summary uses a t-interval over
+  seeds while fixed-arm contrasts use the paired cluster bootstrap, and what
+  the oracle column is. No statistic changed.
+
+### Tests and validation
+
+- 494 collected, 494 passed, 0 failed, 0 skipped, 2m54s.
+- `tools/check_paper.py` and `tools/check_number_trace.py` passed.
+- Local Tectonic compile: 22 pages, 0 undefined references or citations, two
+  overfull boxes, both pre-existing.
+- Ledger SHA256 unchanged at `51b8ff64...1b1407`.

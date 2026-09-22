@@ -73,9 +73,11 @@ one corpus property. The target scores are not state-of-the-art claims.
 \paragraph{Analytic scope.} The kernel proposition assumes matching candidate
 sets and fitting rules determined by invariant matrices. The linear-objective
 argument assumes an unpenalised intercept and corresponding optima. Finite
-solvers can violate numerical equality, as the logistic-regression audit
-shows. These conditions exclude a blanket claim for neural training or
-domain-wise z-score. The affine lemma requires an invertible target map.
+solvers can violate numerical equality, as the logistic-regression,
+linear-SVM and MLP rows of the audit show. Those rows delimit the proposition
+rather than testing it. These conditions exclude a blanket claim for neural
+training or domain-wise z-score. The affine lemma requires an invertible
+target map.
 
 \paragraph{Retrospective evidence.} The translation audit was designed after
 the runs existed. It reports all eligible matches and does not tune on target

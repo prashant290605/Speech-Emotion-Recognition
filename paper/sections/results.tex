@@ -23,6 +23,18 @@ arm and rejects duplicates or unmatched rows. No target score participates
 in the join or the inclusion rule. The configuration and input-ledger hashes,
 all matched run identifiers and unrounded values are released with the audit.
 
+It covers every classifier family in the frozen grid with complete, balanced
+matched cells: the RBF SVM, logistic regression, the linear SVM and the MLP.
+Only the RBF SVM satisfies Proposition 1's fitting assumptions, and the table
+is drawn in two panels on that basis. The upper panel is the prediction under
+test. The lower panel reports the three families the assumptions exclude, which
+Section~\ref{sec:translation-theory} identifies in advance: a penalised
+synthetic intercept in the linear SVM, a finite iterative solver in logistic
+regression, and initialisation, weight decay and early stopping in the MLP.
+Those rows are evidence about the boundary of the proposition, not tests of it.
+The reduced-seed transformer arm has no balanced matched cells and is excluded
+by construction.
+
 \input{../tables/translation_audit}
 
 For the RBF SVM, all 30 pairs in each direction have exactly equal stored
@@ -32,12 +44,26 @@ and $+0.1969$, respectively. The ledger does not store every search candidate's
 validation predictions, so this is a check of the recorded winning scores and
 parameters, not an empirical verification of the entire search surface.
 
-Logistic regression is a numerical contrast. Only 3 forward pairs and no
-reverse pairs have exactly equal stored validation scores. The selected
-hyperparameters agree in 12 forward and 22 reverse pairs. Its target
-differences also favour mean shift in every pair, but exact numerical
-invariance is not claimed. This distinguishes the ideal objective identity
-from finite-solver behaviour.
+The three families outside those assumptions behave as the assumptions
+predict. Logistic regression has exactly equal stored validation scores in 3
+forward pairs and none in reverse, with selected hyperparameters agreeing in 12
+forward and 22 reverse pairs. The linear SVM has 6 forward and no reverse exact
+equalities, with 15 and 19 parameter agreements. The MLP, which additionally
+searches the learned \texttt{weighted} layer aggregation and therefore has 45
+pairs per direction, has no exact validation equality in either direction and
+parameter agreement in 12 forward and 24 reverse pairs. None of this
+contradicts Proposition 1, whose statement does not extend to a penalised
+intercept or to iterative neural training. The pattern separates an exact
+identity between objectives from the numerical behaviour of the solvers that
+approximate them, and it is reported rather than omitted so that the scope of
+the proposition rests on the full set of eligible frozen cells.
+
+Target macro-F1 favours mean shift in every matched pair of every family. That
+is a descriptive property of these frozen cells against an unaligned baseline
+in one corpus pair, under a source-side protocol that cannot distinguish the
+two arms for the RBF SVM. It is not evidence that mean matching improves
+cross-corpus speech emotion recognition in general, and no such claim is made
+here or in Section~\ref{sec:discussion-practice}.
 
 The analysis is retrospective and uses existing scores only. Cells share
 seeds and speakers, so the table reports descriptive paired means, not a
@@ -48,7 +74,11 @@ place this specific finding in the broader frozen pipeline comparison.
 \label{sec:results-headline}
 
 Table~\ref{tab:headline} gives the configuration selected on source-side
-validation alone, alongside the best configuration present in the grid.
+validation alone, alongside the best configuration present in the grid. Its
+intervals are the one exception to the convention stated above: because the
+selected configuration differs across seeds, this table reports a $t$-interval
+over the five seeds rather than a paired cluster bootstrap. Section~\ref{sec:metrics}
+states what that interval does and does not include.
 
 \input{../tables/headline}
 
