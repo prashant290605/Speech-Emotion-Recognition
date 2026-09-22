@@ -3105,3 +3105,29 @@ None. `legacy/` is byte-identical to the upstream clone.
 - Eight bibliography records still need manual publisher-page confirmation.
 - ORCIDs, Zenodo DOI, final author declarations, portal fields, and licensed
   IEMOCAP confirmation remain author hand-off items.
+
+
+## 2026-09-22 - Research rebuild: verification and delivery
+
+- Created `paper/BUILD_REPORT.md`; updated the submission checklist, rebuild
+  plan, Overleaf instructions, novelty review and research review.
+- Updated `tools/make_figures.py`, `tools/make_tables.py`, the audit-table
+  generator and their affected assets. Regenerated two existing figures and
+  the corpus/audit tables without training. Corrected stale balance and
+  moment-ordering labels. Kept the paired affine equations together in print.
+- Corrected the older claim that the Transformer was never pooled. Available
+  forward Transformer cells enter the full-grid headline and ladder summaries;
+  they do not enter the new translation audit or matched-direction comparison.
+- Tests: all 44 focused tests pass. Structural, number-trace and self-contained
+  package checks pass. The delivered official-CAS article compiles to 21 pages
+  and the provenance supplement to one page. Rendered pages and revised assets
+  were visually inspected. Compiler warnings and remaining checks are recorded
+  in `paper/BUILD_REPORT.md`, not described as a warning-free build.
+- Delivered `output/pdf/Speech_Communication_research_rebuild_20260922.pdf`,
+  `output/pdf/Speech_Communication_provenance_20260922.pdf`, and
+  `output/overleaf/20260922-final/Speech_Communication_submission_20260922.zip`.
+- The result-ledger SHA256 remains unchanged. No training, result-row edits,
+  or cache changes occurred. No journal or archive submission was made.
+- Deferred: eight older publisher-page citation spot checks, author scientific
+  sign-off, final declarations, Overleaf confirmation, full legacy-suite release
+  check, Zenodo DOI, cover letter and portal submission.

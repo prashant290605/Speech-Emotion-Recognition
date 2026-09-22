@@ -53,6 +53,10 @@ anticipated-objections register.
   claimed causal interpretation of juxtaposed, differently selected summaries.
 - Removed the false balance statement for eight-label RAVDESS.
 - Kept all stored experimental results and cached features unchanged.
+- Corrected the false claim that the reduced-seed Transformer was never pooled:
+  full-grid headline and ladder summaries include its available forward cells.
+  Their candidate sets differ across seeds. The new translation audit and the
+  separately matched-direction comparison do not include this arm.
 
 ## Author sign-off still required
 

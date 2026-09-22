@@ -12,7 +12,7 @@
    selection question, a mathematical answer, its frozen-run audit, and the
    limits of generalising it to other alignment operations. Preserve supporting
    experiments while removing unsupported causal and novelty claims.
-4. **In progress: verification and delivery.** Run manuscript and numeric checks,
+4. **Completed: verification and delivery (2026-09-22).** Run manuscript and numeric checks,
    focused tests, compile the official Elsevier template, visually inspect the
    PDF, and rebuild the self-contained Overleaf ZIP. Update submission status.
 

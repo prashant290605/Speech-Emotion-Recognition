@@ -323,9 +323,11 @@ scikit-learn classifiers in this implementation.
 The Transformer arm is a deliberately \textbf{reduced-seed arm}: two seeds, the
 primary direction only, one inner-grid setting per rung. Its per-cell cost is
 15--40$\times$ the other families', and carrying it at full width would have
-spent more compute on it than on every other axis combined. It is reported with
-wider intervals, is never pooled with the five-seed families, and this is
-restated wherever it appears.
+spent more compute on it than on every other axis combined. The full-grid
+headline and ladder summaries include its available cells, so the forward
+candidate set is not identical across seeds. The matched-direction comparison
+in Section~\ref{sec:results-direction} excludes it. The translation audit
+uses only the RBF-SVM and logistic-regression families and is unaffected.
 
 \subsection{Selection protocol}
 \label{sec:selection}

@@ -342,16 +342,16 @@ def table_corpora():
         out_rows,
         ["corpus", "spk", "utts", "hours", "mean dur (s)", "$n$ (6-class)"]
         + [f"\\texttt{{{c[:4]}}}" for c in classes],
-        caption=("Corpora after mapping to the six-class intersection. The last "
-                 "six columns are class priors. The only substantial prior "
-                 "difference is \\texttt{neutral}, an artefact of merging "
-                 "RAVDESS \\texttt{calm}."),
+        caption=("Corpora and the mapped six-class intersection. Speakers, "
+                 "utterances and durations describe the raw speech subsets; "
+                 "the last six columns are mapped class priors. "
+                 "Merging RAVDESS \\texttt{calm} changes the neutral prior."),
         label="corpora",
         notes=["Derived from \\texttt{data/manifest.csv}. RAVDESS "
                "\\texttt{surprised} (192 utterances) is excluded as having no "
                "CREMA-D counterpart; RAVDESS \\texttt{calm} is merged into "
-               "\\texttt{neutral}. RAVDESS is balanced across its own eight "
-               "classes but NOT at this intersection."],
+               "\\texttt{neutral}. Neither the original eight-label subset "
+               "nor this six-class intersection is exactly balanced."],
         escape_cells=False,
     ), "corpora")
 

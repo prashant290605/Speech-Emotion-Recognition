@@ -137,7 +137,7 @@ def eps_probe_rows():
 
 # ---------------------------------------------------------------------------
 def figure_ladder(data):
-    """Step, then plateau: target macro-F1 by rung with discrepancy alongside."""
+    """Selected performance beside candidate-level discrepancy summaries."""
     fig, axes = new_figure(DOUBLE_WIDTH, 2.9, ncols=2, sharey=True)
     for column, (source, target) in enumerate(PAIRS):
         axis = axes[column]
@@ -170,16 +170,15 @@ def figure_ladder(data):
         twin.grid(False)
         twin.spines["top"].set_visible(False)
 
-        # Shade the plateau so the "one step, then flat" reading is visible
-        # without reading the numbers off the axis.
+        # Highlight aligned conditions without implying a nested moment ladder.
         axis.axvspan(0.5, len(LADDER) - 0.5, color="0.85", alpha=0.35, zorder=0)
-        axis.annotate("plateau", xy=(3.5, 0.955), xycoords=("data", "axes fraction"),
+        axis.annotate("aligned conditions", xy=(3.5, 0.955), xycoords=("data", "axes fraction"),
                       ha="center", fontsize=6, color="0.35")
 
         axis.set_xticks(x)
         axis.set_xticklabels(LADDER, rotation=30, ha="right")
         axis.set_title(pair_title(source, target))
-        axis.set_xlabel("alignment rung (moments matched $\\rightarrow$)")
+        axis.set_xlabel("alignment condition")
         if column == 0:
             axis.set_ylabel("target macro-F1")
             handles = [
@@ -188,7 +187,7 @@ def figure_ladder(data):
             ]
             axis.legend(handles, ["target macro-F1", "marginal discrepancy"],
                         loc="upper left", fontsize=6)
-    fig.suptitle("Alignment buys the first step; no further gain is resolved", fontsize=9, y=1.02)
+    fig.suptitle("Selected performance and candidate-level discrepancy", fontsize=9, y=1.02)
     return emit(fig, "ladder")
 
 
@@ -285,7 +284,7 @@ def figure_validated_vs_oracle(data):
                       xy=(0.98, 0.86), xycoords="axes fraction", ha="right",
                       fontsize=6.5, color="#D55E00" if fallbacks else "0.35",
                       fontweight="bold" if fallbacks else "normal")
-    fig.suptitle("Selection on source validation cannot see the alignment step",
+    fig.suptitle("Source-selected and target-oracle scores by seed",
                  fontsize=9, y=1.02)
     return emit(fig, "validated_vs_oracle")
 

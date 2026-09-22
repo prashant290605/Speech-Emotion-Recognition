@@ -77,7 +77,9 @@ candidate-row discrepancy summaries. These are different averaging protocols:
 the discrepancy columns include every inner setting, whereas target scores
 use the source-selected setting in each cell. Their juxtaposition is
 descriptive and is not a matched map-level correlation. Figure~\ref{fig:ladder}
-shows these two summaries with the same qualification.
+shows these two summaries with the same qualification. The forward summaries
+include available Transformer cells from its reduced-seed arm; they are not
+an equal-family, identical-candidate-set comparison across seeds.
 
 \input{../tables/ladder}
 
@@ -116,7 +118,7 @@ $-0.0128$, respectively. Positive upper bounds are not evidence of an
 advantage, nor do these results establish practical equivalence without a
 predefined application-specific margin. The conditions can differ in the
 other direction: reverse \texttt{mkmmd\_full} minus \texttt{zscore} is
-$-0.0437$ $[-0.0559,-0.0320]$.
+$-0.0437$ $[-0.0559, -0.0320]$.
 
 The discrepancy summaries and selected performance summaries do not have the
 same ordering. For example, \texttt{mkmmd\_full} has the smallest candidate-row

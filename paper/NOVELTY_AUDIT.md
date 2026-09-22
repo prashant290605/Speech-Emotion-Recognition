@@ -57,6 +57,12 @@ question, its executable audit, and its manifestation in frozen SER runs.
 12. Small prior KL does not predict that prior correction must hurt. Neither
     this observation nor class-conditional MMD identifies a causal mechanism.
 
+13. The old text says the reduced-seed Transformer is never pooled with other
+    families. The full-grid headline and ladder code includes its available
+    forward cells. Only the explicitly matched-direction comparison excludes
+    it. This must be disclosed, not hidden by relabelling the same estimates.
+    The new translation audit excludes the Transformer by construction.
+
 ## Scope of the new evidence
 
 Join `none` and `mean_shift` by corpus direction, seed, backbone, layer,

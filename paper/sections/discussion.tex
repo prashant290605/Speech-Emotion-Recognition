@@ -86,7 +86,10 @@ predicted for an ideal full search surface. Cells share seeds and speakers;
 their count is not a count of independent replications.
 
 \paragraph{Other experimental arms.} The Transformer has two seeds in the
-forward direction only and is not pooled with the five-seed families.
+forward direction only. It is included where available in the full-grid
+headline and ladder summaries, which therefore have unequal forward candidate
+sets across seeds. It is excluded from the matched-direction comparison and
+from the translation audit.
 MK-MMD falls back to its warm start in $64.9\%$ of diagonal-map runs and
 $55.2\%$ of full-map runs. Its finite-sample acceptance check uses unpenalised
 MMD, not the penalised training objective. The results evaluate this complete

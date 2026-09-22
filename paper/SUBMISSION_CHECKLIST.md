@@ -2,7 +2,7 @@
 
 **Target:** *Speech Communication* (Elsevier)  
 **Article type:** Original Research Article  
-**Last reviewed:** 2026-09-02
+**Last reviewed:** 2026-09-22
 
 Status values: **MET** means the repository contains the item; **VERIFY** means
 it needs a final PDF or portal check; **PENDING** is an author action; and
@@ -16,19 +16,19 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | Originality, exclusive submission and co-author approval | **PENDING** | Corresponding author confirms in the portal and cover letter. |
 | Review model and anonymity | **MET** | The guide specifies single-anonymized review; the manuscript includes author and affiliation details. |
 | Final author order, affiliations and corresponding author | **VERIFY** | Prashant Singh and Pranav Singh share the IIT Ropar affiliation and equal-contribution note. Prashant Singh is the corresponding author. Confirm the final legal names and contact details in the portal. |
-| ORCIDs | **BLOCKED** | Hand-off H. Add each verified identifier and remove the empty-ORCID suppression in `paper/main.tex`. |
+| ORCIDs | **VERIFY** | Both identifiers are present in `paper/main.tex`; authors must confirm them. |
 | CRediT contributions | **VERIFY** | Present in `paper/sections/backmatter.tex`; update after author list is final. |
 | Funding and competing-interest declarations | **VERIFY** | No-funding and no-conflict statements are present; author must confirm they remain true. |
 | Ethics and corpus licence compliance | **PENDING** | Confirm permissions for RAVDESS and CREMA-D, permitted research use, and institutional requirements. |
 | Data and code availability | **VERIFY** | Text includes the verified public GitHub repository URL. Add a Zenodo DOI after the archival release; do not archive third-party raw corpora. |
 | Generative-AI disclosure | **MET** | `backmatter.tex` names OpenAI ChatGPT and OpenAI Codex, states their drafting and software-assistance roles, and records author review and responsibility. Confirm the portal field before final upload. |
 | English-language proofread | **VERIFY** | The compiled 21-page article was reviewed for readability and layout. Authors must complete the final domain proofread before portal submission. |
-| Abstract, keywords, main sections, captions and editable tables | **VERIFY** | The abstract is 179 words, six keywords are present, sections are numbered, and tables are editable. A local PDF review passed; validate once in Overleaf. |
+| Abstract, keywords, main sections, captions and editable tables | **VERIFY** | The current abstract contains 196 whitespace-delimited words, six keywords are present, and numbered sections and editable tables compile. Confirm the portal word count and final Overleaf output. |
 | Acknowledgements | **MET** | No acknowledgements section is present. Add one only if an author confirms a required acknowledgement. |
-| Bibliography integrity | **VERIFY** | 30 cited records, zero placeholders, zero probable-fabrication findings, and 22 Crossref-confirmed records in `reports/refs_report_submission.md`. Complete the eight publisher-page spot checks in `CITATIONS_NEEDED.md`. |
-| Figures and tables | **VERIFY** | Seven vector PDF figures and nine editable LaTeX tables are packaged. The local PDF review found no clipping or overflow; confirm column-width legibility in Overleaf. |
+| Bibliography integrity | **VERIFY** | 35 cited records, no placeholders or probable-fabrication flags; 23 Crossref confirmations. Four further PMLR additions were checked on primary pages. Eight older publisher spot checks remain. See `CITATIONS_NEEDED.md`. |
+| Figures and tables | **VERIFY** | Seven vector-PDF figures and thirteen editable tables compile. Page overviews and detailed checks of revised pages found no clipping. Confirm legibility in Overleaf. |
 | LaTeX source and bibliography style | **MET** | Elsevier CAS double-column v2.4, `cas-common.sty`, and `cas-model2-names.bst` are vendored for the upload package. |
-| Highlights | **MET** | Five separate highlights are in `paper/highlights.txt`; each is at most 85 characters including the bullet. |
+| Highlights | **MET** | Four highlights, each within 85 characters including the bullet. |
 | Suggested reviewers | **PENDING** | Hand-off H; use institutional emails and exclude conflicts/recent collaborators. |
 | Cover letter | **PENDING** | Hand-off H, after author block and Zenodo DOI are final. |
 | Copyright/licence agreement | **PENDING** | Completed through Elsevier after acceptance. |
@@ -38,12 +38,12 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 | Item | Status | Evidence |
 |---|---|---|
 | Structural manuscript validation | **MET** | `python tools/check_paper.py` validates inputs, graphics, citations, labels and environments. |
-| Outcome-number trace | **MET** | `python tools/check_number_trace.py` traces manuscript outcomes to `reports/RESULTS.md`. |
-| Reference audit | **VERIFY** | `python tools/check_refs.py --tex paper/main.tex --bib paper/refs.bib --out reports/refs_report_submission.md`. |
-| Python test suite | **VERIFY** | Focused tests for the corrected bounds, label controls, number tracing, and LaTeX generation pass. The full suite reached an existing CPU-bound test and was stopped after more than 30 minutes without an assertion failure; rerun it on dedicated compute before the Zenodo archive release. |
-| Hostile-review pass | **MET** | `paper/ANTICIPATED_OBJECTIONS.md`; no new experiment or number was added. |
-| Self-contained Overleaf archive | **MET** | `output/overleaf/Speech_Communication_submission_20260903_final.zip` contains 36 files: 22 TeX files and seven vector-PDF figures. Static path, asset, graphics, citation, and bibliography checks passed. The only nested path is the official CAS email-icon asset. |
-| Clean compile and PDF defect resolution | **MET** | A local Tectonic compile of the final CAS double-column archive produced a 21-page article PDF. The title, Tables 3, 4, 7 and 8, figures, availability section, references, and final conclusion wording were visually inspected. Confirm the final journal PDF in Overleaf. |
+| Outcome-number trace | **MET** | `python tools/check_number_trace.py` traces outcomes to generated reports, including the separate retrospective translation audit. |
+| Reference audit | **VERIFY** | Current output: `reports/refs_report_research_rebuild.md`; automatic flags and primary-page verification are distinguished in the citation register. |
+| Python test suite | **VERIFY** | All 44 focused audit, number-trace, figure/table, reference and global-bound tests pass. The complete legacy suite was not rerun in this no-training pass. Its earlier long-running CPU test remains a release check. |
+| Hostile-review pass | **MET** | `paper/RESEARCH_REVIEW.md` updates the earlier objections for the new analytical claim. No training experiment was added; retrospective summaries are explicitly identified. |
+| Self-contained Overleaf archive | **MET** | `output/overleaf/20260922-final/Speech_Communication_submission_20260922.zip`: 38 files, 24 TeX files, seven vector-PDF figures. Package structure, relative paths, citations and required bibliography fields pass. |
+| Local compile and PDF inspection | **MET** | Official CAS double-column sources compile to 21 pages, plus a one-page provenance supplement. No unresolved citations/references or off-page text spans were detected. Remaining nonfatal TeX warnings are recorded in `paper/BUILD_REPORT.md`. Overleaf confirmation remains a human check. |
 | Zenodo archive and DOI | **BLOCKED** | Hand-off H. |
 
 ## Author hand-off
@@ -61,9 +61,10 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 
 The September 3 PDF and archive are superseded drafts. The manuscript now
 centres the exact translation-selection audit, with a separate affine lemma
-and explicit retrospective scope. Its new compile and visual inspection are
-pending; it is not yet a submission-ready release.
-The read-only translation audit and 11 focused tests pass. It adds retrospective
+and explicit retrospective scope. The local compile, visual inspection and
+archive validation are complete. Scientific author sign-off and the human
+submission requirements above remain pending.
+The read-only translation audit and all 44 focused tests pass. It adds retrospective
 summaries of existing scores, not training runs. The manuscript must distinguish
 this post-hoc question from the original pre-specified comparison family.
 Five new related-work records were checked against primary proceedings pages;

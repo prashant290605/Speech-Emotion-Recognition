@@ -56,7 +56,7 @@ def main():
              "| Direction | Classifier | Pairs | Equal validation | Equal hyperparameters | Both equal | Positive target differences | Mean target difference | Chance |",
              "|---|---|---:|---:|---:|---:|---:|---:|---:|"]
     tex = [r"\begin{table*}[!t]", r"\centering\small",
-           r"\caption{Retrospective translation audit on frozen runs. Each row contains matched cells across three backbones, two fixed layer settings and five seeds. Equal validation and equal hyperparameters count exact equality of the stored winning score and selected classifier parameters. $\Delta$ is mean target macro-F1 for mean shift minus none; chance is the uniform-random baseline. Cells share seeds; no independence-based test is reported.}",
+           r"\caption{Retrospective translation audit on frozen runs. Each row contains matched cells across three backbones, two fixed layer settings and five seeds. Equal validation and equal hyperparameters count exact equality of the stored winning score and selected classifier parameters. $\Delta$ is mean target macro-F1 for mean shift minus none; Positive counts cells with a target improvement. Chance is the uniform-random baseline. Cells share seeds; no independence-based test is reported.}",
            r"\label{tab:translation-audit}", r"\begin{tabular}{llrrrrrr}", r"\toprule",
            r"Direction & Head & Pairs & Equal val. & Equal params & $\Delta$ & Positive & Chance \\", r"\midrule"]
     for s in summaries:
