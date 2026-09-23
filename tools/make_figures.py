@@ -265,6 +265,11 @@ def figure_decomposition():
                 "zscore markers at $10^{-8}$: RBF saturation",
                 xy=(0.98, 0.04), xycoords="axes fraction", ha="right",
                 fontsize=5.8, color="0.35",
+                # The saturated markers this note explains sit at the same
+                # height, so the series passes straight through the text.
+                bbox=dict(boxstyle="square,pad=0.15", facecolor="white",
+                          edgecolor="none", alpha=0.85),
+                zorder=6,
             )
     fig.suptitle("Marginal MMD in one source-defined reference geometry",
                  fontsize=9, y=0.99)
@@ -304,7 +309,11 @@ def figure_validated_vs_oracle(data):
                           xytext=(0, 3), textcoords="offset points",
                           rotation=90, ha="center", va="bottom", fontsize=5.5,
                           color="#D55E00" if rung == "none" else "0.3",
-                          fontweight="bold" if rung == "none" else "normal")
+                          fontweight="bold" if rung == "none" else "normal",
+                          # Above the chance label's backing box: where the two
+                          # land on each other, the selected rung is the one the
+                          # reader must be able to read.
+                          zorder=7)
         annotate_floor(axis, float(np.mean([r["chance_macro_f1"] for r in pool])))
         axis.set_xticks(x)
         axis.set_xticklabels([f"seed {s}" for s in seeds])

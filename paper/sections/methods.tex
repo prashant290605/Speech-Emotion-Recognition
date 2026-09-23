@@ -26,7 +26,8 @@ Section~\ref{sec:limitations} takes up what that does and does not license.
 
 The shared label space is the six-class intersection
 $\{$angry, disgust, fear, happy, neutral, sad$\}$, in alphabetical order, which
-is also the index order of every confusion matrix we report. Two mapping
+is also the index order of every confusion matrix reported in supplementary
+Section~S6. Two mapping
 decisions affect the priors and are stated because they are contestable.
 
 \emph{RAVDESS \texttt{calm} is merged into \texttt{neutral}}, since calm exists
@@ -269,8 +270,9 @@ only one sample.
 \subsection{Classifiers and the search budget}
 \label{sec:classifiers}
 
-Five families are evaluated: logistic regression, linear SVM, RBF SVM, an MLP,
-and a small Transformer head over the 8-segment sequence. Each is searched with
+Five families are evaluated: logistic regression, a linear support vector
+machine (SVM), an SVM with a radial basis function (RBF) kernel, a multilayer
+perceptron (MLP), and a small Transformer head over the 8-segment sequence. Each is searched with
 \textbf{exactly the same number of trials}; 20 random-search draws; and
 the trial count is recorded on every result row. This controls trial count,
 not effective model capacity or coverage of equally favourable settings.

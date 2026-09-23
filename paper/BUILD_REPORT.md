@@ -24,7 +24,7 @@
 - All article pages were rendered for layout review; revised proof, audit table,
   corpus table, plots, author metadata, references and supplement were checked.
   No unresolved `??` markers or text spans outside the page were detected.
-- The abstract has 196 whitespace-delimited words; all four highlights satisfy
+- The abstract has 208 whitespace-delimited words; all four highlights satisfy
   the 85-character limit.
 - No em dashes or triple-hyphen em-dash commands remain in the article sources.
 - The original ledger SHA256 remains

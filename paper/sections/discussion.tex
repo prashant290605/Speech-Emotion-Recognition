@@ -66,8 +66,8 @@ here, so we cannot rank them, and the translation result does not invalidate
 them. Nothing here recommends mean shift as an adaptation method: its advantage
 in these cells is descriptive, measured against an unaligned baseline in one
 corpus pair, and the criterion under study cannot detect it. Likewise, neither
-class-conditional MMD nor a small empirical prior KL identifies the cause of
-transfer error. A direct conditional-shift study would need adequate labelled
+class-conditional MMD nor a small empirical Kullback--Leibler divergence
+between label priors identifies the cause of transfer error. A direct conditional-shift study would need adequate labelled
 support and control of corpus, speaker and elicitation differences; paired
 recordings are one possible design, not a mathematical requirement.
 
@@ -91,7 +91,9 @@ domain-wise z-score. The affine lemma requires an invertible target map.
 
 \paragraph{Retrospective evidence.} The translation audit was designed after
 the runs existed. It reports all eligible matches and does not tune on target
-scores, but it is not a prospectively registered experiment. The ledger stores
+scores, but it is not a prospectively registered experiment, and this paper
+reports no independent prospective replication on a corpus pair held out from
+the audit's design. The ledger stores
 winning validation scores, not the predictions for every search candidate, so
 it verifies the recorded equalities rather than every numerical equality
 predicted for an ideal full search surface. Cells share seeds and speakers;

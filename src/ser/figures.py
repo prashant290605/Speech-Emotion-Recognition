@@ -108,7 +108,15 @@ def use_style() -> None:
         "xtick.labelsize": 7,
         "ytick.labelsize": 7,
         "legend.fontsize": 7,
-        "legend.frameon": False,
+        # A borderless legend looks cleaner but lets data run through the text:
+        # in a dense scatter the labels become unreadable at journal scale. An
+        # opaque patch with no visible edge keeps the borderless look and masks
+        # whatever is behind it.
+        "legend.frameon": True,
+        "legend.facecolor": "white",
+        "legend.edgecolor": "none",
+        "legend.framealpha": 0.85,
+        "legend.borderpad": 0.3,
         "axes.spines.top": False,
         "axes.spines.right": False,
         "axes.grid": True,
@@ -159,5 +167,11 @@ def annotate_floor(axis, value: float, label: str = "chance", x: float = 0.995,
         xycoords=("axes fraction", "data"),
         ha="right" if x > 0.5 else "left",
         va="bottom", fontsize=6, color="0.35",
+        # The label sits wherever the floor falls, which on a bar chart can be
+        # on top of a bar or of another annotation. Give it an opaque backing
+        # and put it above the bars so it stays readable at journal scale.
+        bbox=dict(boxstyle="square,pad=0.15", facecolor="white",
+                  edgecolor="none", alpha=0.8),
+        zorder=6,
         **kwargs,
     )

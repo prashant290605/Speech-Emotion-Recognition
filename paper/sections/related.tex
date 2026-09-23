@@ -4,8 +4,8 @@
 \subsection{Cross-corpus speech emotion recognition}
 \label{sec:related-crosscorpus}
 
-Cross-corpus SER and strategies for handling corpus variation are established
-research problems \cite{schuller2010cross}. Approaches include transfer
+Cross-corpus speech emotion recognition (SER) and strategies for handling
+corpus variation are established research problems \cite{schuller2010cross}. Approaches include transfer
 learning \cite{naderi2023cross}, multi-task learning \cite{fu2023cross},
 training-strategy changes \cite{pastor2023cross}, adversarial adaptation
 \cite{latif2023self}, and feature alignment \cite{naeeni2025feature}.
@@ -49,8 +49,9 @@ kernel two-sample statistic alone need not reduce that divergence or the
 joint-error term.
 
 CORAL matches covariance structure \cite{sun2016coral}, and Deep CORAL makes
-this a representation-learning objective \cite{sun2016deep}. MMD compares
-kernel mean embeddings \cite{gretton2012kernel}; deep adaptation networks
+this a representation-learning objective \cite{sun2016deep}. The maximum mean
+discrepancy (MMD) compares kernel mean embeddings
+\cite{gretton2012kernel}; deep adaptation networks
 apply multi-kernel matching to learned features \cite{long2015dan}.
 Domain-adversarial networks instead use a domain classifier
 \cite{ganin2016dann}. These are different adaptation objectives, not a nested
