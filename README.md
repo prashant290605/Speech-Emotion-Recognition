@@ -197,6 +197,16 @@ convention:
 python -m pytest
 ```
 
+Audit the bibliography of the current paper and its supplement:
+
+```bash
+python tools/check_refs.py --offline
+```
+
+It writes `reports/refs_report_current.md`. The default target is the current
+manuscript; `--legacy` audits the archived pre-rebuild report instead, and
+`--no-supplement` restricts the audit to the article.
+
 Tests marked `ledger` read committed repository artifacts rather than synthetic
 fixtures. They are part of the default run; `-m "not ledger"` deselects them.
 

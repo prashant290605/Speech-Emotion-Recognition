@@ -43,21 +43,14 @@ Table~\ref{tab:corpora} gives the resulting statistics.
 Class priors are close but not identical: RAVDESS carries $0.231$ neutral and
 $0.154$ for each remaining class, against CREMA-D's $0.146$ and $0.171$.
 The neutral mapping changes these empirical priors. It does not establish
-that all corpus differences arise from the mapping. Section~\ref{sec:decomposition}
-reports prior divergence and the separate label-harmonisation controls.
+that all corpus differences arise from the mapping. Prior divergence and
+the label-harmonisation controls are reported in
+Section~\ref{sec:results-robustness} and supplementary Sections~S1 and~S2.
 
-\paragraph{Label-harmonisation robustness protocol.} We pre-specified two
-focused controls. The first sets \path{ravdess_calm_to_neutral=false},
-drops the 192 RAVDESS \texttt{calm} utterances, and retains the six-class
-intersection. The second also excludes \texttt{neutral} from both corpora,
-forming the five-class space \texttt{five\_no\_neutral}. Each mapping has its
-own label-map hash, split specification, result ledger and run identifiers. The
-controls use cached HuBERT final-layer vectors, logistic regression, five
-speaker-disjoint seeds, and the \texttt{none}, \texttt{zscore},
-\texttt{mean\_shift} and \texttt{coral} rungs ($\varepsilon=10.0$). Source
-validation selects each classifier exactly as in the main protocol. These are
-label-harmonisation robustness controls, not replacements for the full
-classifier grid.
+\paragraph{Label-harmonisation robustness protocol.} Two controls were
+pre-specified to test whether the aligned-versus-unaligned conclusion depends
+on this mapping. Supplementary Section~S1 states their label spaces, ledgers
+and run identifiers, and reports them.
 
 \subsection{Splits and leakage control}
 \label{sec:splits}
@@ -205,29 +198,23 @@ $\lambda$ is searched over
 $\{10^{-3}, \ldots, 10^{2}\}$ in decades.
 
 Optimisation uses Adam \cite{kingma2015adam} for 200 steps at batch size 256,
-warm-started from the
-CORAL solution (full) or a diagonal moment match (diagonal). The learning rate
-is $\eta = \eta_0 / \sqrt{P}$ with $\eta_0 = 0.01$ and $P$ the parameter count:
-Adam normalises per parameter, so a fixed rate gives a step whose Frobenius
-norm grows as $\sqrt{P}$; for a full $W$, norm $\approx 0.77$ per iteration,
-which does not converge.
+warm-started from the CORAL solution (full) or a diagonal moment match
+(diagonal), with a parameter-count-normalised learning rate.
 
-\paragraph{Fallback, and why it must be reported.} An unpenalised MMD check
-on the first 400 observations compares the candidate with its warm start.
-If the candidate worsens this check, the returned map reverts to the
-warm start. This differs from the penalised minibatch training objective;
-rejection is not proof of failure to improve that objective. Optimiser
-diagnostics describe the attempted fit, while target scores use the returned
-map. Across the main grid the check rejects the candidate
-in \textbf{64.9\%} of \texttt{mkmmd\_diag} runs and \textbf{55.2\%} of
-\texttt{mkmmd\_full} runs. In those cells the fitted map is the warm start:
-the diagonal moment match for \texttt{mkmmd\_diag}, and CORAL for
-\texttt{mkmmd\_full}. Reporting either as a distinct learned map without saying
-so would overstate what was actually fitted. The rates accompany the ladder
-result in Section~\ref{sec:results-ladder} and the generated results document.
-They qualify every MK-MMD comparison in this paper: the experiment evaluates
-these affine maps, this warm start, and this optimisation budget. It does not
-establish what a differently optimised MK-MMD map would achieve.
+\paragraph{Fallback, and why it must be reported.} An unpenalised MMD check on
+the first 400 observations compares the candidate with its warm start, and the
+returned map reverts to the warm start when the candidate worsens that check.
+This differs from the penalised minibatch training objective, so rejection is
+not proof of failure to improve that objective. Across the main grid the check
+rejects the candidate in \textbf{64.9\%} of \texttt{mkmmd\_diag} runs and
+\textbf{55.2\%} of \texttt{mkmmd\_full} runs; in those cells the fitted map is
+the warm start, the diagonal moment match or CORAL respectively. Reporting
+either as a distinct learned map without saying so would overstate what was
+actually fitted. These rates qualify every MK-MMD comparison in this paper: the
+experiment evaluates these affine maps, this warm start and this optimisation
+budget, and does not establish what a differently optimised MK-MMD map would
+achieve. Supplementary Section~S8 records the procedure and the learning-rate
+derivation in full.
 
 \subsection{Measuring distribution discrepancy}
 \label{sec:discrepancy}
@@ -279,15 +266,6 @@ median-heuristic MMD is invariant to a global rescaling applied to both samples.
 This property does not extend to an arbitrary affine map or to a map applied to
 only one sample.
 
-\paragraph{Class-conditional diagnostic.} For each class $k$, the analysis
-computes the same unbiased multi-kernel MMD$^2$ between aligned
-$X_s \mid y=k$ and $X_t \mid y=k$ in the common reference geometry. A class is
-undefined rather than estimated when either side has fewer than 50 examples.
-The report also gives a class-specific half-split effect size. That normaliser
-is not the marginal normaliser, so we do not form or interpret a
-conditional-to-marginal ratio. The diagnostic is not a probability
-decomposition or an estimate of $P(y \mid x)$.
-
 \subsection{Classifiers and the search budget}
 \label{sec:classifiers}
 
@@ -326,8 +304,8 @@ primary direction only, one inner-grid setting per rung. Its per-cell cost is
 spent more compute on it than on every other axis combined. The full-grid
 headline and ladder summaries include its available cells, so the forward
 candidate set is not identical across seeds. The matched-direction comparison
-in Section~\ref{sec:results-direction} excludes it. The translation audit
-uses only the RBF-SVM and logistic-regression families and is unaffected.
+in supplementary Section~S3 excludes it. The translation audit
+excludes it by construction and is unaffected.
 
 \subsection{Selection protocol}
 \label{sec:selection}
@@ -430,11 +408,6 @@ Other discrepancy summaries state their own aggregation. The frame sweep's
 cell-and-seed correlations are descriptive because cells share seeds and
 feature sets; pooled independence-based intervals are not used as evidence
 for a population-level sign change.
-
-\paragraph{AI-assisted code development.} OpenAI Codex was used to assist with
-code scaffolding and maintenance. The authors specified the experimental
-protocol, reviewed and edited all generated code, ran the tests and experiments,
-and verified every reported result against the generated artifacts.
 
 \paragraph{Multiple comparisons.} A primary comparison family of seven
 contrasts $\times$ two directions was \textbf{pre-specified in code before the

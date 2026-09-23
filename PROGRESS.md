@@ -3273,3 +3273,94 @@ and after the refactor.
   `reports/RESULTS.md` is numerically identical apart from the recorded commit
   SHA, which is absent because the workspace has no git history.
 - Frozen ledgers, predictions and feature caches all byte-unchanged.
+
+
+## 2026-09-22 - Phase 3: manuscript slimming and story restructuring
+
+Editorial restructuring only. No experiment was rerun, no frozen result
+changed, and every table and figure remains script-generated.
+
+### Files modified
+
+- New: `paper/supplementary.tex` (S1-S9).
+- Retired: `paper/supplementary_provenance.tex`, whose withdrawn-claims ledger
+  is preserved verbatim as supplementary Section~S9; all seven bullets and the
+  closing paragraph were verified present before the file was removed.
+- Rewritten: `paper/sections/{introduction,related,results,discussion,
+  conclusion}.tex`. Edited: `paper/sections/{methods,reproducibility}.tex`.
+- Tooling: `tools/check_paper.py` now also checks the supplement and detects
+  every C0 control character rather than three named ones;
+  `tools/check_number_trace.py` scans the supplement so moved numbers stay
+  traced; `tools/build_paper.py` compiles and inspects both documents;
+  `tools/make_overleaf_package.ps1` and `paper/OVERLEAF.md` follow the rename.
+
+### What moved rather than disappeared
+
+Nothing was deleted. Blending, the label-shift correction, both
+label-harmonisation controls and their diagnostics, the class-conditional
+discrepancy decomposition, the CORAL shrinkage trajectory, per-class and
+confusion analysis, the matched-direction comparison and the MK-MMD optimiser
+detail all moved to the supplement, each with a one-line pointer from the
+article. Main-text tables went from 13 to 7 and figures from 7 to 2.
+
+### Decisions made
+
+- Results are reordered so the translation audit is first and the boundary
+  classifiers immediately follow it, rather than appearing after the alignment
+  ladder. The ladder is now framed as context for the criterion the audit
+  tests, not as a finding in its own right.
+- The introduction states three contributions, not five, and separates what is
+  new from what is established.
+- The layer-depth result is retained in compressed form because it is the
+  boundary evidence that source validation is not useless in general.
+- MK-MMD fallback rates stay in the article, because they qualify a negative
+  result the article states; the optimiser derivation moved to S8.
+
+### Corrections
+
+- Two cross-references in Methods pointed at subsections that moved
+  (`sec:decomposition`, `sec:results-direction`); both now point at the
+  retained subsection or the supplement.
+- Methods claimed the translation audit uses only two classifier families. It
+  has covered four since Phase 1; the sentence was corrected.
+- Two collapsed backslash escapes reached the supplement while it was being
+  assembled: a tab from `\texttt` and a bell from `\approx`, the second of
+  which stopped the compiler. `tools/check_paper.py` now rejects the whole
+  control-character class, and the detector was negative-tested.
+
+### Release-tooling cleanup (2026-09-23)
+
+Small fixes to the issues Phase 3 left open. No experiment, no scientific
+change; all 13 tables remain numerically identical to checkpoint `6e5970e`.
+
+- `tools/check_refs.py` defaulted to `legacy/SER_Report.tex`, so a bare run
+  audited the superseded document and wrote over the current report. The
+  default is now the current paper, the supplement is audited with it, and the
+  two targets write to separate files. `ser.refs.CURRENT_PAPER` and
+  `LEGACY_PAPER` hold the definitions so `ser check-refs` and the script cannot
+  drift apart. `run_audit` gained `extra_tex_paths`. 14 tests, including the
+  negative control that dropping the supplement is what made
+  `lipton2018bbse` and `saerens2002adjusting` look uncited. No bibliography
+  entry was edited.
+- The Overleaf package rewrote `\graphicspath` only in `main.tex`, so the
+  supplement would have looked for figures outside the archive. The rewrite now
+  covers every `.tex`. Both documents compile from an extracted copy.
+- The 123.63 pt title-block overfull box is a `cas-dc` artefact, not ours: a
+  minimal document with title "T" and one author "A" reproduces it to the
+  decimal, as do ablations removing our title, ORCIDs and author marks. Left
+  in place and documented.
+- The 4.59 pt headline box was the table exceeding the text width on
+  inter-column padding. `ser.latex.table` gained an optional `tabcolsep`, set
+  to 5pt for that table only. Data rows are byte-identical; the article now has
+  one overfull box instead of two.
+- One conservative Methods pass, 463 to 441 lines. The AI-assistance paragraph
+  duplicated the backmatter declaration Elsevier requires and was removed; the
+  label-harmonisation protocol and the class-conditional diagnostic definition
+  moved verbatim to the supplement sections that are now their only consumers,
+  each leaving a pointer. No protected material was touched.
+- `tools/build_paper.py --skip-reports` verifies rather than trusts: every
+  report must exist and be newer than the ledger, the derived artifacts and its
+  own generator, and the build fails naming the stale file. Iteration aid only.
+
+Tests: 572 collected, 572 passed. Article 17 pages, supplement 8 pages, zero
+undefined references or citations in either.

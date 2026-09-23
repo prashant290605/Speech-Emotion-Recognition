@@ -21,6 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PAPER = ROOT / "paper"
+SUPPLEMENT = PAPER / "supplementary.tex"
 RESULT_SOURCES = (
     ROOT / "reports" / "translation_audit.md",
     ROOT / "reports" / "RESULTS.md",
@@ -45,6 +46,19 @@ KNOWN_DESIGN_TOKENS = {
     ("neutral_excluded_sensitivity.tex", "95"),
     ("label_harmonisation_diagnostics.tex", "5"),
     ("label_harmonisation_diagnostics.tex", "10.0"),
+    # Supplementary S8 states the MK-MMD optimiser budget. These are fixed
+    # experimental inputs of the same kind Methods carries, not outcomes:
+    # 200 Adam steps, batch size 256, and the per-iteration step norm that
+    # motivates the parameter-count-normalised learning rate.
+    ("supplementary.tex", "200"),
+    ("supplementary.tex", "256"),
+    ("supplementary.tex", "0.77"),
+    # Design inputs that moved out of Methods with the protocols they belong
+    # to: the 192 RAVDESS calm utterances a control drops, and the minimum
+    # per-class support below which a conditional MMD is reported as undefined
+    # rather than estimated. Corpus and threshold constants, not outcomes.
+    ("supplementary.tex", "192"),
+    ("supplementary.tex", "50"),
 }
 
 
@@ -113,8 +127,16 @@ def is_traced(token: str, result_values: set[Decimal]) -> bool:
 
 
 def input_tables() -> list[Path]:
-    """Return generated tables that are included by the manuscript."""
+    """Return generated tables included by the manuscript or the supplement.
+
+    The supplement is scanned as well. Moving a table out of the article must
+    not move its numbers out of the trace: an unverified number is just as
+    wrong in supplementary material, and the supplement is where the detailed
+    robustness and diagnostic tables now live.
+    """
     text = (PAPER / "main.tex").read_text(encoding="utf-8")
+    if SUPPLEMENT.exists():
+        text += "\n" + SUPPLEMENT.read_text(encoding="utf-8")
     for section in (PAPER / "sections").glob("*.tex"):
         text += "\n" + section.read_text(encoding="utf-8")
     paths: list[Path] = []
@@ -129,6 +151,8 @@ def input_tables() -> list[Path]:
 
 def source_files() -> tuple[list[Path], list[Path]]:
     outcomes = [PAPER / "main.tex", PAPER / "highlights.txt"]
+    if SUPPLEMENT.exists():
+        outcomes.append(SUPPLEMENT)
     outcomes.extend(
         path for path in sorted((PAPER / "sections").glob("*.tex"))
         if path.name != "methods.tex"

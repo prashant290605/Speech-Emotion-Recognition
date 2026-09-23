@@ -28,7 +28,7 @@ Copy-Item (Join-Path $repositoryRoot "paper\main.tex") $stagingDirectory
 Copy-Item (Join-Path $repositoryRoot "paper\refs.bib") $stagingDirectory
 Copy-Item (Join-Path $repositoryRoot "paper\highlights.txt") $stagingDirectory
 Copy-Item (Join-Path $repositoryRoot "paper\OVERLEAF.md") $stagingDirectory
-Copy-Item (Join-Path $repositoryRoot "paper\supplementary_provenance.tex") $stagingDirectory
+Copy-Item (Join-Path $repositoryRoot "paper\supplementary.tex") $stagingDirectory
 Copy-Item (Join-Path $repositoryRoot "paper\vendor\cas\cas-dc.cls") $stagingDirectory
 Copy-Item (Join-Path $repositoryRoot "paper\vendor\cas\cas-common.sty") $stagingDirectory
 Copy-Item (Join-Path $repositoryRoot "paper\vendor\cas\cas-model2-names.bst") $stagingDirectory
@@ -45,10 +45,15 @@ $mainText = $mainText.Replace("\graphicspath{{../figures/}}", "\graphicspath{{./
 $mainText = $mainText.Replace("\input{sections/", "\input{")
 Set-Content -LiteralPath $mainPath -Value $mainText -NoNewline -Encoding UTF8
 
+# Every .tex in the flat package, not just main.tex: the supplement is a second
+# entry point and carries its own \graphicspath, so a main-only rewrite left it
+# looking for figures in a directory the archive does not have.
 Get-ChildItem $stagingDirectory -Filter "*.tex" -File |
     ForEach-Object {
         $text = Get-Content -LiteralPath $_.FullName -Raw
         $text = $text.Replace("\input{../tables/", "\input{")
+        $text = $text.Replace("\graphicspath{{../figures/}}", "\graphicspath{{./}}")
+        $text = $text.Replace("\input{sections/", "\input{")
         Set-Content -LiteralPath $_.FullName -Value $text -NoNewline -Encoding UTF8
     }
 

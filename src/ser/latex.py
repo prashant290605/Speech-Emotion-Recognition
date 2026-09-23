@@ -72,12 +72,21 @@ def table(
     column_spec: Optional[str] = None,
     notes: Optional[Iterable[str]] = None,
     escape_cells: bool = True,
+    tabcolsep: Optional[str] = None,
 ) -> str:
     """A complete two-column ``table*`` float using booktabs rules.
 
     ``notes`` become a small-font block under the rules -- the run filter, the
     seed count, the floor. They are part of the table, not the caption, so they
     survive a journal that truncates captions.
+
+    ``tabcolsep`` overrides the inter-column padding for this table only, set
+    inside the float so it cannot leak into another one. It exists because a
+    table can exceed the text width by a couple of points on padding alone:
+    LaTeX's default 6pt appears twice per column, so a six-column table spends
+    72pt on gaps. Shrinking that is typographic and changes no content, which
+    makes it the right lever -- reducing the font or dropping a column would
+    both be worse answers to a 4.6pt overflow.
     """
     if any(len(row) != len(header) for row in rows):
         widths = sorted({len(row) for row in rows} | {len(header)})
@@ -92,6 +101,10 @@ def table(
     lines = [
         r"\begin{table*}[!t]",
         r"  \centering",
+    ]
+    if tabcolsep:
+        lines.append(f"  \\setlength{{\\tabcolsep}}{{{tabcolsep}}}")
+    lines += [
         f"  \\caption{{{caption}}}",
         f"  \\label{{tab:{label}}}",
         f"  \\begin{{tabular}}{{{spec}}}",

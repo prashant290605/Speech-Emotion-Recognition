@@ -57,7 +57,29 @@ __all__ = [
     "TIER_CONFIRMED",
     "TIER_MANUAL",
     "TIER_FABRICATION",
+    "CURRENT_PAPER",
+    "LEGACY_PAPER",
 ]
+
+# Which manuscript the audit means by default. Named here rather than as
+# argparse literals so the `ser check-refs` subcommand and tools/check_refs.py
+# cannot drift apart on what "the paper" is -- they did, and a bare run audited
+# the superseded document while writing over the current report.
+CURRENT_PAPER = {
+    "tex": "paper/main.tex",
+    "bib": "paper/refs.bib",
+    "supplement": "paper/supplementary.tex",
+    "out": "reports/refs_report_current.md",
+}
+
+# The pre-rebuild report, kept auditable. It carries its own inline
+# thebibliography block, so it takes no --bib and has no supplement.
+LEGACY_PAPER = {
+    "tex": "legacy/SER_Report.tex",
+    "bib": None,
+    "supplement": None,
+    "out": "reports/refs_report.md",
+}
 
 CROSSREF_ENDPOINT = "https://api.crossref.org/works"
 
@@ -1013,10 +1035,17 @@ def run_audit(
     cache_path: Path,
     *,
     bib_path: Optional[Path] = None,
+    extra_tex_paths: Optional[Sequence[Path]] = None,
     mailto: Optional[str] = None,
     offline: bool = False,
 ) -> int:
     """Run the audit and write the report.
+
+    ``extra_tex_paths`` names further manuscript roots whose citations count as
+    cited. A submission can be more than one document -- this one is an article
+    plus a supplement -- and auditing only the article would report a reference
+    used solely in the supplement as uncited, which is wrong and would invite
+    someone to "fix" it by deleting a live entry.
 
     Returns 0 only when every reference lands in tier A. A non-zero exit is what
     lets this gate a release check once the bibliography has been corrected --
@@ -1027,19 +1056,27 @@ def run_audit(
         print(f"error: {tex_path} not found", file=sys.stderr)
         return 2
 
-    tex = tex_path.read_text(encoding="utf-8", errors="ignore")
+    roots = [tex_path]
+    for extra in extra_tex_paths or ():
+        extra = Path(extra)
+        if not extra.exists():
+            print(f"error: {extra} not found", file=sys.stderr)
+            return 2
+        roots.append(extra)
+
+    tex = "\n".join(_tex_tree(root) for root in roots)
     if bib_path is None:
         references = parse_bibliography(tex)
         cited = parse_citation_keys(tex)
-        source = tex_path.name
+        source = " + ".join(root.name for root in roots)
     else:
         bib_path = Path(bib_path)
         if not bib_path.exists():
             print(f"error: {bib_path} not found", file=sys.stderr)
             return 2
         references = parse_bibtex(bib_path.read_text(encoding="utf-8", errors="ignore"))
-        cited = parse_citation_keys(_tex_tree(tex_path))
-        source = f"{tex_path.name} + {bib_path.name}"
+        cited = parse_citation_keys(tex)
+        source = " + ".join([root.name for root in roots] + [bib_path.name])
 
     client = CrossrefClient(cache_path, mailto=mailto, allow_network=not offline)
 

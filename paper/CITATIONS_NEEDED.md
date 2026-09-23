@@ -32,7 +32,7 @@ Their canonical URLs are recorded in `refs.bib`. The Hu record also matched
 Crossref; the four PMLR records remain NOT-IN-CROSSREF in the automatic report,
 which does not override their primary-source verification. The eight earlier
 spot checks above remain separate author tasks. The current automated report
-is `reports/refs_report_research_rebuild.md`: 23 Crossref confirmations,
+is `reports/refs_report_current.md`, which audits the article and the supplement together: 23 Crossref confirmations,
 12 automatic manual-resolution flags, no probable-fabrication flags.
 
 ## Repairs made during submission preparation

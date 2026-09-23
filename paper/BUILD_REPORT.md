@@ -144,3 +144,69 @@ still reports a fontconfig warning. No new warning was introduced: the audit
 table's panel headings use bold rather than italic specifically to avoid
 a font substitution at 9 pt that an earlier draft introduced.
 
+
+---
+
+# Phase 3: manuscript slimming
+
+2026-09-23. Editorial restructuring only. No experiment was rerun, no frozen
+result changed, and all 13 generated tables remain numerically identical to the
+pushed checkpoint `6e5970e`.
+
+## Output
+
+Two documents, both produced by `python tools/build_paper.py`:
+
+- `output/paper/Speech_Communication.pdf` - **17 pages** (was 22),
+  0 undefined references, 0 undefined citations, 2 overfull hboxes.
+- `output/paper/Speech_Communication_supplementary.pdf` - **7 pages**,
+  0 undefined references, 0 undefined citations, 0 overfull hboxes.
+
+Both overfull boxes in the article are the pre-existing ones: the title block
+at 123.63 pt and `headline.tex` at 4.59 pt. **No new overfull box was
+introduced**, and the supplement has none.
+
+## What moved
+
+Main-text tables went from 13 to 7 and figures from 7 to 2. Nothing was
+deleted. Blending, the label-shift correction, the two label-harmonisation
+controls and their diagnostics, the class-conditional decomposition, the CORAL
+shrinkage trajectory, per-class and confusion analysis, the matched-direction
+comparison and the MK-MMD optimiser derivation are now supplementary Sections
+S1-S8, each with a pointer from the article. The withdrawn-claims ledger that
+was `supplementary_provenance.tex` is Section S9; every bullet was verified
+present before that file was retired.
+
+## Verification coverage followed the content
+
+Moving a table out of the article must not move its numbers out of the trace.
+`tools/check_number_trace.py` now scans the supplement, and
+`tools/check_paper.py` checks it for citations, labels and references. 892
+outcome occurrences trace, none untraced.
+
+`tools/check_paper.py` also now rejects every C0 control character rather than
+three named ones. Two collapsed backslash escapes reached the supplement while
+it was being assembled - a tab from `	exttt` and a bell from `pprox` - and
+the second stopped the compiler. The generalised detector was negative-tested
+by injecting a bell and confirming it fires.
+
+## Tests
+
+549 collected, 549 passed, 0 failed, 0 skipped.
+
+## Release-tooling cleanup (2026-09-23)
+
+- Article **17 pages, one overfull box**; supplement **8 pages, none**. The
+  remaining box is the `cas-dc` title block at 123.63 pt, proved to be a
+  template artefact: a minimal document with a one-character title and a
+  one-character author name reproduces it to the decimal. Not ours to fix.
+- The 4.59 pt headline box is gone. The table exceeded the text width on
+  inter-column padding alone, so that table now sets `tabcolsep` to 5pt inside
+  its own float. Data rows are byte-identical.
+- The Overleaf package carries both entry points and compiles both from an
+  extracted copy: 17 and 8 pages, zero undefined references or citations, zero
+  missing files.
+- `tools/check_refs.py` now audits the current paper and its supplement by
+  default instead of the archived pre-rebuild report.
+- Tests: 572 collected, 572 passed, 0 failed, 0 skipped.
+

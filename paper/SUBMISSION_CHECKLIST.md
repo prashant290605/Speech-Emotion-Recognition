@@ -39,7 +39,7 @@ it needs a final PDF or portal check; **PENDING** is an author action; and
 |---|---|---|
 | Structural manuscript validation | **MET** | `python tools/check_paper.py` validates inputs, graphics, citations, labels and environments. |
 | Outcome-number trace | **MET** | `python tools/check_number_trace.py` traces outcomes to generated reports, including the separate retrospective translation audit. |
-| Reference audit | **VERIFY** | Current output: `reports/refs_report_research_rebuild.md`; automatic flags and primary-page verification are distinguished in the citation register. |
+| Reference audit | **VERIFY** | Current output: `reports/refs_report_current.md` (article plus supplement); automatic flags and primary-page verification are distinguished in the citation register. |
 | Python test suite | **VERIFY** | All 44 focused audit, number-trace, figure/table, reference and global-bound tests pass. The complete legacy suite was not rerun in this no-training pass. Its earlier long-running CPU test remains a release check. |
 | Hostile-review pass | **MET** | `paper/RESEARCH_REVIEW.md` updates the earlier objections for the new analytical claim. No training experiment was added; retrospective summaries are explicitly identified. |
 | Self-contained Overleaf archive | **MET** | `output/overleaf/20260922-final/Speech_Communication_submission_20260922.zip`: 38 files, 24 TeX files, seven vector-PDF figures. Package structure, relative paths, citations and required bibliography fields pass. |

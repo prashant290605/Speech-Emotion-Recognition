@@ -1,22 +1,25 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-Source-only validation can be leakage-free yet uninformative about a specific
-adaptation decision. For stationary-kernel classifiers, translating source
-training and validation preserves the validation problem while shifting the
-target decision function. The frozen RBF-SVM runs exhibit the predicted
-stored-score equality in every matched cell, with target macro-F1 gains of
-$+0.1342$ forward and $+0.1969$ reverse on average. These are descriptive
-results for RAVDESS and CREMA-D, not a universal benefit of mean matching.
+A selection criterion can be leakage-free and still be uninformative. Avoiding
+target labels makes a protocol procedurally valid; it does not make its score
+sensitive to the decision being made.
 
-The affine factorisation shows why this exact statement must not be extended
-to the full alignment comparison. Relative transport, common classifier
-coordinates and the discrepancy kernel are separate objects. Changing them
-together yields a pipeline comparison, not an isolated test of how many
-distribution moments need to match.
+For stationary-kernel classifiers we give a case where that gap is exact.
+Translating source training and validation together preserves every
+source-validation prediction while shifting the target decision function, so
+the criterion is constant along a family of different target behaviours and no
+amount of additional source-validation data resolves it. The frozen RBF-SVM
+runs show the predicted equality in every matched cell, in both directions.
+Logistic regression, a linear SVM and an MLP fall outside the fitting
+assumptions and do not retain it, which is where the statement stops.
 
-The contribution is a criterion audit with explicit mathematical assumptions,
-an executable check against existing runs, and a framework for limiting the
-claims drawn from affine SER comparisons. It is not a new hybrid recogniser
-or an unsupervised solution to target-risk estimation. Establishing such a
-solution would require evidence beyond the present study.
+The same coordinate reasoning bounds what the surrounding comparison can show.
+Relative transport, the classifier's coordinates and the kernel a discrepancy
+is measured in are three separate objects, and an affine adaptation generally
+changes all of them at once. A ladder ordered by moments matched is therefore a
+comparison of pipelines, and a reported discrepancy reduction is defined only
+relative to a stated basis and bandwidth. What this paper contributes is an
+audit of what a criterion and a comparison can identify, with its assumptions
+written down and its checks executable against recorded runs. It is not a
+recogniser, and it is not an unsupervised estimator of target risk.

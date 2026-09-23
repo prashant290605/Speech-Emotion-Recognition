@@ -36,7 +36,13 @@ def strip_comments(text: str) -> str:
 
 
 def sources():
-    """main.tex plus every file it \\inputs, in order."""
+    """main.tex plus every file it \\inputs, then the supplement.
+
+    The supplement is a separate document but the same submission, and it now
+    carries the robustness and diagnostic tables. Leaving it out would let a
+    citation used only there be reported as uncited, and would leave its
+    references unchecked.
+    """
     main = PAPER / "main.tex"
     files = [main]
     for match in re.finditer(r"\\input\{([^}]+)\}", strip_comments(main.read_text(encoding="utf-8"))):
@@ -46,6 +52,9 @@ def sources():
         path = PAPER / (target if target.endswith(".tex") else target + ".tex")
         if path.exists():
             files.append(path)
+    supplement = PAPER / "supplementary.tex"
+    if supplement.exists():
+        files.append(supplement)
     return files
 
 
@@ -139,11 +148,21 @@ def main() -> int:
     for path in files:
         with open(path, encoding="utf-8", newline="") as handle:
             raw = handle.read()
-        for bad, what in ((chr(13), "carriage return"), (chr(9), "tab"),
-                          (chr(12), "form feed")):
-            if bad in raw.replace(chr(13) + chr(10), ""):
-                problems.append(f"{path.name}: contains a literal {what} -- a "
-                                "collapsed backslash escape")
+        # Every C0 control character, not a hand-picked three. The named ones
+        # were found the hard way: a tab from a collapsed `\\texttt` and a bell
+        # from a collapsed `\\approx`, each of which reached the compiler and
+        # stopped it. Any control character in a .tex source is a lost
+        # backslash, so the whole class is checked rather than the instances
+        # that have bitten so far.
+        named = {chr(7): "bell (lost backslash-a)", chr(8): "backspace (lost backslash-b)",
+                 chr(9): "tab (lost backslash-t)", chr(11): "vertical tab (lost backslash-v)",
+                 chr(12): "form feed (lost backslash-f)", chr(13): "carriage return"}
+        stripped = raw.replace(chr(13) + chr(10), "").replace(chr(10), "")
+        seen = {c for c in stripped if ord(c) < 32}
+        for bad in sorted(seen, key=ord):
+            what = named.get(bad, f"control character 0x{ord(bad):02x}")
+            problems.append(f"{path.name}: contains a literal {what} -- a "
+                            "collapsed backslash escape")
 
     # -- collapsed line breaks ---------------------------------------------
     # A line ending in exactly one backslash escapes the newline rather than

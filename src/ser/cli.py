@@ -116,10 +116,17 @@ def _build_parser() -> argparse.ArgumentParser:
     refs = sub.add_parser(
         "check-refs", help="[1] audit the bibliography against Crossref (reports only)"
     )
-    refs.add_argument("--tex", default="legacy/SER_Report.tex")
+    # Defaults come from ser.refs so this subcommand and tools/check_refs.py
+    # cannot disagree about which manuscript "the paper" means.
+    refs.add_argument("--tex", default=None, help="manuscript root (default: the current paper)")
     refs.add_argument("--bib", default=None,
-                      help="Optional BibTeX database; citations are read from --tex and its inputs")
-    refs.add_argument("--out", default="reports/refs_report.md")
+                      help="BibTeX database; citations are read from --tex, its inputs "
+                           "and the supplement")
+    refs.add_argument("--out", default=None, help="report path")
+    refs.add_argument("--no-supplement", action="store_true",
+                      help="audit the article alone")
+    refs.add_argument("--legacy", action="store_true",
+                      help="audit the archived pre-rebuild report instead")
     refs.add_argument("--cache", default=".cache/crossref.json")
     refs.add_argument("--mailto", default=None, help="Contact for Crossref's polite pool")
     refs.add_argument("--offline", action="store_true", help="Use the cache only")
@@ -426,15 +433,32 @@ def _cmd_smoke(args: argparse.Namespace) -> int:
 
 
 def _cmd_check_refs(args: argparse.Namespace) -> int:
-    """Phase 1: audit the bibliography. Reports only, never edits the .tex."""
-    from .refs import run_audit  # noqa: PLC0415 - keeps urllib off the import path
+    """Audit the bibliography of the current paper. Reports only, never edits.
 
+    The supplement is included by default: the submission is two documents, and
+    auditing only the article reports a reference used solely in the supplement
+    as uncited.
+    """
+    from .refs import CURRENT_PAPER, LEGACY_PAPER, run_audit  # noqa: PLC0415
+
+    defaults = LEGACY_PAPER if getattr(args, "legacy", False) else CURRENT_PAPER
     root = repo_root()
+    tex = args.tex or defaults["tex"]
+    bib = args.bib if args.bib is not None else defaults["bib"]
+    out = args.out or defaults["out"]
+
+    extras = []
+    if not getattr(args, "no_supplement", False) and defaults["supplement"]:
+        supplement = root / defaults["supplement"]
+        if supplement.exists():
+            extras.append(supplement)
+
     return run_audit(
-        tex_path=root / args.tex,
-        out_path=root / args.out,
+        tex_path=root / tex,
+        out_path=root / out,
         cache_path=root / args.cache,
-        bib_path=(root / args.bib) if args.bib else None,
+        bib_path=(root / bib) if bib else None,
+        extra_tex_paths=extras,
         mailto=args.mailto,
         offline=args.offline,
     )

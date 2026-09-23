@@ -25,7 +25,7 @@ thumbnails/cas-email.jpeg
 *.tex (sections and tables)
 *.pdf (figures)
 OVERLEAF.md
-supplementary_provenance.tex
+supplementary.tex
 ```
 
 Overleaf should run the required LaTeX/BibTeX passes automatically. The expected
@@ -53,5 +53,6 @@ invalid. See `paper/CITATIONS_NEEDED.md` for remaining author spot checks.
 Inspect the equations in Section 3, the exact-equality audit table, the author
 ORCIDs and email, and all full-width tables. The proof and matched-row audit
 are retrospective and do not add training runs. Confirm that the final
-manuscript states this scope before submitting. Build
-`supplementary_provenance.tex` separately for the supporting provenance PDF.
+manuscript states this scope before submitting. Build `supplementary.tex` separately for the supplementary PDF, which now
+carries the robustness controls, extended diagnostics and the provenance
+ledger of withdrawn claims.

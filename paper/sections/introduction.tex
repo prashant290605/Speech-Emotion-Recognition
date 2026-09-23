@@ -1,62 +1,75 @@
 \section{Introduction}
 \label{sec:introduction}
 
-Cross-corpus speech emotion recognition requires choosing a model without
-labelled examples from the deployment corpus. Source-side validation avoids
-using target test labels, but avoiding leakage does not make the criterion
-informative about every adaptation decision. This paper asks a narrower
-question: can a valid source-validation protocol be unable to distinguish an
-adaptation operation that changes target predictions?
+Deploying a speech emotion recogniser on a new corpus requires choosing a
+model, and often an adaptation operation, without labelled examples from the
+deployment corpus. The standard safe answer is to select on held-out
+\emph{source} data. That answer is procedurally correct: it touches no target
+label, and it cannot leak. This paper asks whether it is also informative, and
+shows that for one precisely characterised family of adaptation operations it
+is not, in the strongest possible sense.
 
-For source translations and stationary-kernel classifiers, the answer is
-exact. Translating source training and validation together preserves their
-kernel matrices. Target vectors are not translated, so their predictions can
-change. The validation criterion is constant along a family of different
-target decision functions. This is not sampling noise that a larger source
-validation set necessarily removes.
+Consider translating every source training and validation vector by a fixed
+offset while leaving target vectors alone. For a classifier whose fit depends
+on the source features only through a stationary kernel matrix, that
+translation leaves every source-validation prediction unchanged, because the
+kernel depends only on differences. The target decision function becomes
+$f_0(x-\delta)$, so target predictions can change. The criterion is therefore
+exactly constant along a family of different target decision functions. This is
+not sampling noise: a larger labelled source-validation set cannot break a
+symmetry that holds identically for every sample.
 
-The existing RAVDESS and CREMA-D results contain a direct test. In each
-direction, all 30 matched RBF-SVM cells have exactly equal stored validation
-scores and selected hyperparameters for \texttt{none} and
-\texttt{mean\_shift}. Mean shift improves target macro-F1 in every matched
-cell. The mean differences are $+0.1342$ forward and $+0.1969$ reverse.
-These are retrospective summaries of frozen runs, not new training experiments
-or independent replications across cells sharing a seed.
+The frozen RAVDESS and CREMA-D grid in this study contains a direct test. In
+each direction, all 30 matched RBF-SVM cells have exactly equal stored
+validation scores \emph{and} exactly equal selected hyperparameters for
+\texttt{none} and \texttt{mean\_shift}, while mean shift changes target
+macro-F1 in every one of them. The audit is retrospective and reads only
+already-recorded scores; it is reported as such throughout.
 
-The result must not be extended to every alignment operation. Domain-wise
-standardisation changes both domains' coordinates. CORAL and the evaluated
-affine MK-MMD maps transform only the source. We factor such maps into relative
-domain transport and a common coordinate change, then express the classifier
-penalty and discrepancy kernel in the same coordinates. This identifies a
-second limitation: the comparison commonly described as a ladder of matched
-moments also changes the effective learner. The recorded scores compare
-pipelines, not isolated moment-matching mechanisms.
+The result must not be read as a claim about affine adaptation in general, and
+two things stop it. First, its assumptions are specific: logistic regression, a
+linear SVM and an MLP appear in the same audit and do \emph{not} retain exact
+equality, exactly as a penalised intercept and iterative optimisation predict.
+Second, domain-wise standardisation and CORAL do not merely translate. We
+factor an affine adaptation into relative domain transport and a common change
+of coordinates, and show that the common part also changes the classifier's
+effective regularisation and the geometry in which any discrepancy is measured.
+A ladder of methods ordered by ``moments matched'' is therefore not a ladder of
+otherwise-identical pipelines, and a reported reduction in discrepancy is
+defined only relative to a stated basis and bandwidth.
 
-Neither the general failure of marginal alignment nor the difficulty of
-unsupervised model selection is new
-\cite{zhao2019invariant,you2019selection,ericsson2023practices,hu2024selection}.
-Our contribution is an explicit invariance test for one selection criterion,
-its manifestation in a controlled SER ledger, and the boundaries that prevent
-that result from being misread as a universal claim about alignment.
+\paragraph{What is and is not new.} Cross-corpus degradation in speech emotion
+recognition, the insufficiency of marginal invariance for successful
+adaptation, and the difficulty of unsupervised model selection under domain
+shift are all established
+\cite{schuller2010cross,zhao2019invariant,you2019selection,ericsson2023practices,hu2024selection}.
+We claim none of them. The affine reparameterisation is elementary and is
+already implicit in the CORAL account \cite{sun2016coral}. What is new is the
+identification of an \emph{exact} symmetry of a leakage-free selection
+criterion under stated assumptions, its confirmation in a controlled speech
+emotion recognition ledger, and the coordinate argument that bounds how far
+either result travels.
 
 \paragraph{Contributions.}
 \begin{enumerate}
- \item We establish a source-translation invariance for stationary-kernel
-   validation and state its implications and solver assumptions
+ \item A source-translation invariance for stationary-kernel validation, with
+   its fitting assumptions, its consequence for selection, and the numerical
+   boundary at which it stops holding
    (Section~\ref{sec:translation-theory}).
- \item We provide an executable, read-only audit of matched frozen runs. It
-   tests exact equality without rounding or target-based cell selection and
-   includes logistic regression as a numerical contrast
-   (Section~\ref{sec:results-translation}).
- \item We separate relative transport, classifier geometry and measurement
-   geometry. This gives explicit limits on interpreting the broader affine
-   comparison and its discrepancy diagnostics
+ \item An executable, read-only audit of matched frozen runs that tests the
+   predicted equality without rounding and without target-based cell
+   selection, covering every classifier family with balanced cells so that the
+   boundary is measured rather than asserted
+   (Sections~\ref{sec:results-translation} and~\ref{sec:results-boundary}).
+ \item A factorisation separating relative transport, classifier coordinates
+   and measurement geometry, which states what a broader affine comparison and
+   its discrepancy diagnostics can and cannot identify
    (Sections~\ref{sec:affine-factorisation} and~\ref{sec:results-frames}).
 \end{enumerate}
 
-The paper does not propose a recogniser or claim state-of-the-art performance.
-The analytic statements have explicit assumptions; the empirical evidence is
-limited to two English acted-speech corpora. The mathematical audit was
-developed after the experimental ledger was frozen. The original comparisons
-retain their recorded pre-specification status, but the present research
-question is retrospective.
+The paper proposes no recogniser and claims no state-of-the-art performance. It
+does not supply an unsupervised estimator of target risk; it characterises a
+blind spot in a criterion that is widely used precisely because it is safe. The
+analytic statements carry explicit assumptions, the empirical evidence is two
+English acted-speech corpora, and the central audit was designed after the
+ledger it reads was frozen.

@@ -22,6 +22,11 @@ Stages, in order, each refusing to continue when the one before it failed:
   8. LaTeX compile    (Tectonic, if available)
   9. log inspection   (undefined references, citations, overfull boxes)
 
+``--skip-reports`` replaces stage 3 with a staleness check rather than a
+regeneration: every report must exist and be newer than the ledger, the derived
+artifacts and its own generator. It is an iteration aid for manuscript work and
+is never correct for a submission build.
+
 Deliberate non-behaviours. It does not download a compiler or any package: a
 build that silently acquires a dependency is not a reproducible build, so a
 missing Tectonic is reported with where to get it and the run stops at stage 7
@@ -105,10 +110,80 @@ def stage_artifacts(strict: bool) -> list[tuple[str, str]]:
     return missing
 
 
+# Report artifacts, and the generator each one comes from. Used both to
+# regenerate them and, under --skip-reports, to prove the existing ones are
+# not stale.
+REPORT_ARTIFACTS = (
+    ("reports/per_class.json", "tools/phase10_per_class.py"),
+    ("reports/per_class.md", "tools/phase10_per_class.py"),
+    ("reports/RESULTS.md", "tools/make_results_doc.py"),
+)
+
+# Everything a report is derived from. If any of these is newer than a report,
+# that report describes a state that no longer exists.
+REPORT_INPUTS = (
+    "results/runs.jsonl",
+    "results/layer_sweep_v2.jsonl",
+    "results/eps_asymptote_full.jsonl",
+    "results/speaker_confusions.jsonl.gz",
+    "data/manifest_portable.csv",
+    "tools/make_figures.py",
+    "src/ser/phase8.py",
+)
+
+
 def stage_reports() -> None:
     banner("3/9", "reports")
     run([sys.executable, "tools/phase10_per_class.py"])
     run([sys.executable, "tools/make_results_doc.py"])
+
+
+def stage_reports_verify() -> None:
+    """Accept existing reports only after proving they are current.
+
+    --skip-reports exists because make_results_doc.py runs dozens of
+    2000-replicate cluster bootstraps and takes tens of minutes, which makes
+    manuscript iteration painful. It must not become a way to build a paper
+    from stale numbers, so this does not trust the files: every report must
+    exist and must be newer than the ledger, the derived artifacts and its own
+    generator. A single stale input fails the build and names it.
+    """
+    banner("3/9", "reports (verify only -- NOT regenerated)")
+    print("  *** --skip-reports: for manuscript iteration only. ***")
+    print("  *** Run a full build before treating any output as submittable. ***")
+
+    missing = [rel for rel, _ in REPORT_ARTIFACTS if not (REPO_ROOT / rel).exists()]
+    if missing:
+        raise BuildError(
+            "--skip-reports requires existing reports; absent: "
+            + ", ".join(missing) + ". Run a full build first."
+        )
+
+    inputs = []
+    for rel in REPORT_INPUTS:
+        path = REPO_ROOT / rel
+        if path.exists():
+            inputs.append((rel, path.stat().st_mtime))
+
+    stale = []
+    for rel, generator in REPORT_ARTIFACTS:
+        produced = (REPO_ROOT / rel).stat().st_mtime
+        newer = [name for name, when in inputs if when > produced]
+        gen = REPO_ROOT / generator
+        if gen.exists() and gen.stat().st_mtime > produced:
+            newer.append(generator)
+        if newer:
+            stale.append((rel, sorted(set(newer))))
+        else:
+            print(f"  ok      {rel}")
+
+    if stale:
+        detail = "; ".join(f"{rel} is older than " + ", ".join(sources)
+                           for rel, sources in stale)
+        raise BuildError(
+            f"{len(stale)} report(s) are stale: {detail}. "
+            "Rerun without --skip-reports."
+        )
 
 
 def stage_tables_and_figures() -> None:
@@ -158,7 +233,7 @@ def stage_compile(tectonic: str) -> Path:
     build.mkdir(parents=True)
 
     for source in [PAPER_DIR / "main.tex", PAPER_DIR / "refs.bib",
-                   PAPER_DIR / "supplementary_provenance.tex"]:
+                   PAPER_DIR / "supplementary.tex"]:
         shutil.copy2(source, build)
     for source in (PAPER_DIR / "sections").glob("*.tex"):
         shutil.copy2(source, build)
@@ -183,49 +258,63 @@ def stage_compile(tectonic: str) -> Path:
         if rewritten != text:
             tex.write_text(rewritten, encoding="utf-8", newline="\n")
 
-    completed = subprocess.run(
-        [tectonic, "-X", "compile", "main.tex", "--outdir", ".", "--keep-logs"],
-        cwd=str(build), capture_output=True, text=True,
-    )
-    pdf = build / "main.pdf"
-    if not pdf.exists():
-        sys.stderr.write(completed.stderr[-4000:])
-        raise BuildError("Tectonic produced no PDF")
-    print(f"  ok  {pdf.relative_to(REPO_ROOT)}")
+    for name in ("main.tex", "supplementary.tex"):
+        completed = subprocess.run(
+            [tectonic, "-X", "compile", name, "--outdir", ".", "--keep-logs"],
+            cwd=str(build), capture_output=True, text=True,
+        )
+        pdf = build / name.replace(".tex", ".pdf")
+        if not pdf.exists():
+            sys.stderr.write(completed.stderr[-4000:])
+            raise BuildError(f"Tectonic produced no PDF for {name}")
+        print(f"  ok  {pdf.relative_to(REPO_ROOT)}")
     return build
 
 
 def stage_inspect(build: Path) -> dict:
     banner("9/9", "compile log inspection")
-    log = (build / "main.log").read_text(encoding="utf-8", errors="replace")
-    pages = re.search(r"Output written on main\.xdv \((\d+) pages", log)
+    report = {}
+    for name, key in (("main", "article"), ("supplementary", "supplement")):
+        report[key] = _inspect_one(build, name)
+    _print_inspection(report)
+    for key, item in report.items():
+        if item["undefined_references"] or item["undefined_citations"]:
+            raise BuildError(
+                f"undefined references/citations in the {key}: "
+                f"{item['undefined_references']} {item['undefined_citations']}"
+            )
+    shutil.copy2(build / "main.pdf", OUTPUT_DIR / "Speech_Communication.pdf")
+    shutil.copy2(build / "supplementary.pdf",
+                 OUTPUT_DIR / "Speech_Communication_supplementary.pdf")
+    print(f"  wrote {(OUTPUT_DIR / 'Speech_Communication.pdf').relative_to(REPO_ROOT)}")
+    print(f"  wrote {(OUTPUT_DIR / 'Speech_Communication_supplementary.pdf').relative_to(REPO_ROOT)}")
+    return report
+
+
+def _print_inspection(report: dict) -> None:
+    for key, item in report.items():
+        print(f"  {key:<11} pages {item['pages']}  "
+              f"undefined refs {len(item['undefined_references'])}  "
+              f"undefined cites {len(item['undefined_citations'])}  "
+              f"overfull {item['overfull_boxes']}")
+        for detail in item["overfull_detail"]:
+            print(f"    {key}: {detail}")
+
+
+def _inspect_one(build: Path, name: str) -> dict:
+    log = (build / f"{name}.log").read_text(encoding="utf-8", errors="replace")
+    pages = re.search(r"Output written on " + re.escape(name) + r"\.xdv \((\d+) pages", log)
     undefined_ref = re.findall(r"Warning: Reference `([^']+)' .*undefined", log)
     undefined_cite = re.findall(r"Warning: Citation `([^']+)' .*undefined", log)
     overfull = re.findall(r"Overfull \\hbox \(([\d.]+)pt too wide\)[^\n]*", log)
 
-    report = {
+    return {
         "pages": int(pages.group(1)) if pages else None,
         "undefined_references": sorted(set(undefined_ref)),
         "undefined_citations": sorted(set(undefined_cite)),
         "overfull_boxes": len(overfull),
         "overfull_detail": overfull,
     }
-    print(f"  pages                 {report['pages']}")
-    print(f"  undefined references  {len(report['undefined_references'])}")
-    print(f"  undefined citations   {len(report['undefined_citations'])}")
-    print(f"  overfull hboxes       {report['overfull_boxes']}")
-    for item in overfull:
-        print(f"    {item}")
-    if report["undefined_references"] or report["undefined_citations"]:
-        raise BuildError(
-            "undefined references/citations in the compiled document: "
-            f"{report['undefined_references']} {report['undefined_citations']}"
-        )
-
-    final = OUTPUT_DIR / "Speech_Communication.pdf"
-    shutil.copy2(build / "main.pdf", final)
-    print(f"  wrote {final.relative_to(REPO_ROOT)}")
-    return report
 
 
 def main() -> int:
@@ -236,6 +325,10 @@ def main() -> int:
                       help="verify ledger, artifacts and manuscript; generate nothing")
     mode.add_argument("--analysis", action="store_true",
                       help="regenerate reports, tables and figures; skip the LaTeX compile")
+    parser.add_argument("--skip-reports", action="store_true",
+                        help="do not regenerate reports; verify the existing ones are "
+                             "current instead. Iteration aid only -- never a substitute "
+                             "for a full build before submission")
     parser.add_argument("--tectonic", help="path to a Tectonic binary")
     parser.add_argument("--allow-missing-artifacts", action="store_true",
                         help="continue when a tracked artifact is absent (degraded run)")
@@ -254,11 +347,16 @@ def main() -> int:
         print("  ledger, artifacts, structure and number trace all verified.")
         return 0
 
-    stage_reports()
+    if args.skip_reports:
+        stage_reports_verify()
+    else:
+        stage_reports()
     stage_tables_and_figures()
     stage_audit()
     stage_checks()
 
+    if args.skip_reports:
+        print("\n  NOTE: reports were verified, not regenerated (--skip-reports).")
     if args.analysis:
         banner("--", "analysis complete")
         print("  reports, tables, figures and the audit are regenerated.")
@@ -268,7 +366,8 @@ def main() -> int:
     build = stage_compile(find_tectonic(args.tectonic))
     report = stage_inspect(build)
     banner("--", "build complete")
-    print(f"  {report['pages']} pages, {report['overfull_boxes']} overfull box(es)")
+    print(f"  article {report['article']['pages']} pages, "
+          f"supplement {report['supplement']['pages']} pages")
     return 0
 
 

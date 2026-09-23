@@ -79,6 +79,11 @@ def table_headline(data):
                "95\\% $t$-interval. Both baselines are analytic from the realised "
                "target-test priors."],
         escape_cells=False,
+        # Six columns, three of them interval strings. At LaTeX's default 6pt
+        # the inter-column padding alone is 72pt and the table runs 4.6pt past
+        # the text width. 5pt clears it with room to spare, changes no content,
+        # and is scoped to this float.
+        tabcolsep="5pt",
     ), "headline")
 
 
