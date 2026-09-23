@@ -18,7 +18,7 @@ import os
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, Iterable, Iterator, List, Optional, Sequence
+from typing import Dict, Iterable, Iterator, List, Mapping, NamedTuple, Optional, Sequence
 
 from .labels import (
     CREMAD_EMOTION_CODES,
@@ -29,6 +29,8 @@ from .labels import (
 
 __all__ = [
     "ManifestRow",
+    "ParsedUtterance",
+    "IEMOCAP_EMOTION_CODES",
     "MANIFEST_COLUMNS",
     "PORTABLE_COLUMNS",
     "PORTABLE_MANIFEST",
@@ -99,6 +101,9 @@ class ManifestRow:
 CORPUS_EXPECTATIONS: Dict[str, Dict[str, int]] = {
     "ravdess": {"files": 1440, "speakers": 24},
     "cremad": {"files": 7442, "speakers": 91},
+    #   IEMOCAP: 5 sessions x 2 actors = 10 speakers, 10039 segmented
+    #   sentences across improvised and scripted dialogues.
+    "iemocap": {"files": 10039, "speakers": 10},
 }
 
 # Proportion by which an observed count may differ before the build halts.
@@ -126,8 +131,24 @@ _CREMAD_STEM = re.compile(
 )
 
 
-def _iter_ravdess(root: Path) -> Iterator[tuple[Path, str, str, str]]:
-    """Yield (path, utterance_id, speaker_id, original_label)."""
+class ParsedUtterance(NamedTuple):
+    """What a corpus parser yields, before durations and hashes are read.
+
+    ``session_id`` and ``subset`` default to empty because only IEMOCAP has
+    them. RAVDESS and CREMA-D rows are byte-identical to what they were before
+    these fields existed, which a regression test asserts.
+    """
+
+    path: Path
+    utterance_id: str
+    speaker_id: str
+    original_label: str
+    session_id: str = ""
+    subset: str = ""
+
+
+def _iter_ravdess(root: Path) -> Iterator[ParsedUtterance]:
+    """Yield one ParsedUtterance per audio-only speech file."""
     for path in sorted(root.rglob("*.wav")):
         match = _RAVDESS_STEM.match(path.stem)
         if not match:
@@ -137,19 +158,146 @@ def _iter_ravdess(root: Path) -> Iterator[tuple[Path, str, str, str]]:
         if match.group("channel") != "01":
             continue
         emotion = RAVDESS_EMOTION_CODES[match.group("emotion")]
-        yield path, f"ravdess/{path.stem}", f"ravdess_{match.group('actor')}", emotion
+        yield ParsedUtterance(path, f"ravdess/{path.stem}",
+                              f"ravdess_{match.group('actor')}", emotion)
 
 
-def _iter_cremad(root: Path) -> Iterator[tuple[Path, str, str, str]]:
+def _iter_cremad(root: Path) -> Iterator[ParsedUtterance]:
     for path in sorted(root.rglob("*.wav")):
         match = _CREMAD_STEM.match(path.stem)
         if not match:
             raise ValueError(f"CREMA-D filename does not parse: {path}")
         emotion = CREMAD_EMOTION_CODES[match.group("emotion")]
-        yield path, f"cremad/{path.stem}", f"cremad_{match.group('actor')}", emotion
+        yield ParsedUtterance(path, f"cremad/{path.stem}",
+                              f"cremad_{match.group('actor')}", emotion)
 
 
-_ITERATORS = {"ravdess": _iter_ravdess, "cremad": _iter_cremad}
+# --------------------------------------------------------------------------
+# IEMOCAP
+# --------------------------------------------------------------------------
+# IEMOCAP's labels live in annotation files, not in filenames, so this parser
+# reads them. `dialog/EmoEvaluation/<dialog>.txt` holds one summary line per
+# utterance:
+#
+#   [6.2901 - 8.2357]\tSes01F_impro01_F000\tneu\t[2.5000, 2.5000, 2.5000]
+#
+# That summary label is already the majority vote across annotators, with `xxx`
+# recorded where no majority exists. Reading it is therefore exactly the
+# configured `majority_vote_discard_disagreement` policy; the per-evaluator
+# files under EmoEvaluation/Categorical/ implement a *different* policy and are
+# deliberately not read here.
+_IEMOCAP_SUMMARY = re.compile(
+    r"^\[[\d.]+\s*-\s*[\d.]+\]\s+"
+    r"(?P<utt>Ses\d{2}[FM]_\w+)\s+"
+    r"(?P<code>[a-z]{3})\s+"
+    r"\[[-\d.,\s]+\]\s*$"
+)
+
+# Utterance id: Ses01F_impro01_F000 / Ses05M_script03_2_M012.
+# The leading Ses01F names the *dialog*; the trailing F000/M012 names the
+# speaker of this utterance, which is the one that matters for grouping.
+_IEMOCAP_UTT = re.compile(
+    r"^Ses(?P<session>\d{2})(?P<dialog_gender>[FM])_"
+    r"(?P<dialog>(?P<kind>impro|script)\w*?)_"
+    r"(?P<speaker_gender>[FM])(?P<index>\d{3})$"
+)
+
+# The three-letter codes IEMOCAP writes, mapped onto the raw-label vocabulary
+# ser.labels already declares for this corpus. Every code is listed: an
+# unmapped one raises rather than being silently dropped, because a silent drop
+# is indistinguishable from a deliberate exclusion.
+IEMOCAP_EMOTION_CODES: Mapping[str, str] = {
+    "ang": "angry",
+    "dis": "disgust",
+    "exc": "excited",
+    "fea": "fear",
+    "fru": "frustrated",
+    "hap": "happy",
+    "neu": "neutral",
+    "oth": "other",
+    "sad": "sad",
+    "sur": "surprised",
+    "xxx": "xxx",
+}
+
+
+def _iemocap_annotations(root: Path) -> Dict[str, str]:
+    """utterance stem -> raw label, read from every EmoEvaluation summary file."""
+    labels: Dict[str, str] = {}
+    files = sorted(root.rglob("EmoEvaluation/*.txt"))
+    if not files:
+        raise FileNotFoundError(
+            f"no EmoEvaluation annotation files under {root}. IEMOCAP labels "
+            "come from annotations, not filenames; a release without "
+            "dialog/EmoEvaluation cannot be parsed."
+        )
+    for path in files:
+        if path.parent.name != "EmoEvaluation":
+            continue  # skip Categorical/, Attribute/, Self-evaluation/
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            match = _IEMOCAP_SUMMARY.match(line.strip())
+            if not match:
+                continue
+            code = match.group("code")
+            if code not in IEMOCAP_EMOTION_CODES:
+                raise ValueError(
+                    f"{path.name}: unrecognised IEMOCAP emotion code {code!r}. "
+                    f"Known: {sorted(IEMOCAP_EMOTION_CODES)}. Refusing to guess."
+                )
+            utterance = match.group("utt")
+            mapped = IEMOCAP_EMOTION_CODES[code]
+            if labels.get(utterance, mapped) != mapped:
+                raise ValueError(
+                    f"{utterance} annotated as both {labels[utterance]!r} and "
+                    f"{mapped!r}; the release is inconsistent."
+                )
+            labels[utterance] = mapped
+    if not labels:
+        raise ValueError(f"EmoEvaluation files under {root} contained no summary lines")
+    return labels
+
+
+def _iter_iemocap(root: Path) -> Iterator[ParsedUtterance]:
+    """Yield one ParsedUtterance per segmented sentence with an annotation.
+
+    Audio comes from ``sentences/wav``; labels come from the annotations. A wav
+    with no annotation raises rather than being skipped: a partial release
+    should fail loudly, not quietly become a smaller corpus.
+    """
+    labels = _iemocap_annotations(root)
+    seen: set[str] = set()
+    for path in sorted(root.rglob("sentences/wav/*/*.wav")):
+        stem = path.stem
+        match = _IEMOCAP_UTT.match(stem)
+        if not match:
+            raise ValueError(f"IEMOCAP filename does not parse: {path}")
+        if stem not in labels:
+            raise ValueError(
+                f"{stem} has audio but no EmoEvaluation entry. Refusing to "
+                "silently exclude it."
+            )
+        if stem in seen:
+            raise ValueError(f"duplicate IEMOCAP utterance {stem}")
+        seen.add(stem)
+        session = int(match.group("session"))
+        yield ParsedUtterance(
+            path=path,
+            utterance_id=f"iemocap/{stem}",
+            # Two actors per session; the trailing F/M identifies which one
+            # spoke this utterance. Grouping on session (the configured unit)
+            # keeps both of a session's actors on the same side of a split.
+            speaker_id=f"iemocap_Ses{session:02d}{match.group('speaker_gender')}",
+            original_label=labels[stem],
+            session_id=f"iemocap_session{session}",
+            subset="improvised" if match.group("kind") == "impro" else "scripted",
+        )
+
+
+_ITERATORS = {
+    "ravdess": _iter_ravdess,
+    "cremad": _iter_cremad,
+    "iemocap": _iter_iemocap,
+}
 
 
 # --------------------------------------------------------------------------
@@ -181,16 +329,19 @@ def build_manifest(
             raise FileNotFoundError(f"{corpus}: {root} does not exist")
 
         corpus_rows: List[ManifestRow] = []
-        for path, utterance_id, speaker_id, original_label in _ITERATORS[corpus](root):
+        for parsed in _ITERATORS[corpus](root):
+            path = parsed.path
+            utterance_id = parsed.utterance_id
+            original_label = parsed.original_label
             info = sf.info(str(path))
             corpus_rows.append(
                 ManifestRow(
                     corpus=corpus,
                     file_path=path.as_posix(),
                     utterance_id=utterance_id,
-                    speaker_id=speaker_id,
-                    session_id="",
-                    subset="",
+                    speaker_id=parsed.speaker_id,
+                    session_id=parsed.session_id,
+                    subset=parsed.subset,
                     original_label=original_label,
                     label_six=map_label(corpus, original_label, "six", policy) or "",
                     label_four=map_label(corpus, original_label, "four", policy) or "",
