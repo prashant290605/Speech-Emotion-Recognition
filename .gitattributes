@@ -1,0 +1,27 @@
+# Line-ending policy for byte-verified artifacts.
+#
+# Several committed files are checked by SHA256 over their raw bytes, most
+# importantly results/runs.jsonl against configs/FROZEN_LEDGER.sha256. Git for
+# Windows ships with core.autocrlf=true, which rewrites LF to CRLF on checkout;
+# that changes those bytes and the frozen-ledger check then fails. Without this
+# file a clean clone on a default Windows install stops at the first build
+# stage, reporting the ledger as damaged when nothing is wrong with it.
+#
+# These paths are therefore exempt from end-of-line translation. Their blobs
+# are already stored with LF, so this changes no content -- it only stops Git
+# from rewriting them on the way out.
+#
+# Deliberately narrow: no `* text=auto` rule here. A repository-wide
+# normalisation would rewrite every tracked text file on the next commit, which
+# is exactly the kind of whole-file diff that hides real changes.
+
+*.jsonl     -text
+*.csv       -text
+*.sha256    -text
+
+# Compressed and rendered artifacts: never translate, never diff as text.
+*.gz        binary
+*.pdf       binary
+*.png       binary
+*.jpeg      binary
+*.jpg       binary
