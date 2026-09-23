@@ -5,6 +5,17 @@ third-party corpora and are not redistributed. The repository contains the
 manifest construction, label mapping, speaker-disjoint split derivation,
 generated results, and scripts for every manuscript table and figure.
 
+What this does and does not allow is worth separating. The committed
+artifacts are the result ledgers, a portable manifest of speakers and labels,
+and per-speaker confusion matrices, which are a sufficient statistic for the
+cluster bootstraps reported here. Every table, figure, interval and reported
+number in this article and its supplement regenerates from those files alone,
+with no audio and no model. What is \emph{not} committed is the audio itself,
+the self-supervised feature caches and the per-utterance prediction files:
+these are third-party or large and regenerable. Repeating the feature
+extraction and the grid therefore requires obtaining RAVDESS and CREMA-D from
+their own distributors under their own terms.
+
 \section*{Code availability}
 
 The code is available in the
