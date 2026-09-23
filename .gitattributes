@@ -19,6 +19,14 @@
 *.csv       -text
 *.sha256    -text
 
+# Configurations are digested too: tools/audit_translation.py records
+# config_sha256 over the raw bytes of configs/audit_translation.yaml, and
+# ser.prospective does the same for its protocol. Left translated, those
+# provenance digests change with the reader's Git settings, which defeats the
+# point of recording them.
+*.yaml      -text
+*.yml       -text
+
 # Compressed and rendered artifacts: never translate, never diff as text.
 *.gz        binary
 *.pdf       binary
