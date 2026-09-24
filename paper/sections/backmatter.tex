@@ -1,0 +1,55 @@
+\section*{Data availability}
+
+RAVDESS \citep{livingstone2018ryerson} and CREMA-D \citep{cao2014crema} are
+third-party corpora and are not redistributed. The repository contains the
+manifest construction, label mapping, speaker-disjoint split derivation,
+generated results, and scripts for every manuscript table and figure.
+
+What this does and does not allow is worth separating. The committed
+artifacts are the result ledgers, a portable manifest of speakers and labels,
+and per-speaker confusion matrices, which are a sufficient statistic for the
+cluster bootstraps reported here. Every table, figure, interval and reported
+number in this article and its supplement regenerates from those files alone,
+with no audio and no model. What is \emph{not} committed is the audio itself,
+the self-supervised feature caches and the per-utterance prediction files:
+these are third-party or large and regenerable. Repeating the feature
+extraction and the grid therefore requires obtaining RAVDESS and CREMA-D from
+their own distributors under their own terms.
+
+\section*{Code availability}
+
+The code is available in the
+\href{https://github.com/prashant290605/Speech-Emotion-Recognition}{public project repository}.
+
+\section*{Funding}
+
+This research received no specific grant from public, commercial, or
+not-for-profit funding agencies.
+
+\section*{Declaration of competing interest}
+
+The authors declare no competing financial interests or personal relationships.
+
+\section*{Ethics statement}
+
+This study uses existing public corpora of acted emotional speech. It collects
+no new human-participant data. The reported cross-corpus scores are evidence
+about evaluation methods and are not evidence for consequential affective
+inference.
+
+\section*{CRediT authorship contribution statement}
+
+\textbf{Prashant Singh} and \textbf{Pranav Singh}: Conceptualization,
+Methodology, Software, Formal analysis, Validation, Visualization, Writing -
+original draft, and Writing - review and editing.
+\textbf{Phyo Thet Yee}: Supervision.
+
+\section*{Declaration of generative AI and AI-assisted technologies in the
+manuscript preparation process}
+
+During preparation of this work, the authors used OpenAI ChatGPT and OpenAI
+Codex to assist with literature review, mathematical formulation, manuscript
+drafting, readability review, code scaffolding, and software maintenance.
+The authors specified the experiments, reviewed and
+edited the code and manuscript, verified results against generated artifacts,
+and take full responsibility for the content.

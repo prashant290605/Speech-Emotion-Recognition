@@ -1,0 +1,18 @@
+{
+  "artifact": "data/manifest_portable.csv",
+  "sha256": "662662d501c8b418eab12a72290bdc9160cf92fc01dc3908b4a629dc630c99b6",
+  "rows": 8882,
+  "corpora": {
+    "ravdess": {
+      "rows": 1440,
+      "speakers": 24
+    },
+    "cremad": {
+      "rows": 7442,
+      "speakers": 91
+    }
+  },
+  "label_map_hash": "18d3dcf42846888b",
+  "generator": "tools/make_portable_manifest.py",
+  "note": "Scientific metadata only. Audio paths are corpus-relative and are resolved against paths.raw_* at extraction time. No label mapping or corpus membership is changed by this export."
+}

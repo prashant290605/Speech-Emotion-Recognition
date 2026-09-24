@@ -1,113 +1,81 @@
-# -------------------------------------------------------------------
-# Datasets and private research assets
-# -------------------------------------------------------------------
-datasets/
-data/
-dataset/
-Radvess/
-Crema D/
-IEMOCAP/
-MAED/
-MEAD/
+# --- raw corpora and derived caches -------------------------------------
+# Raw audio is licence-restricted and never committed. Feature caches are
+# large, regenerable, and protected from deletion by the phase rules.
+# The .gitkeep exceptions keep the directory structure in a clean clone, which
+# Phase 11's clean-clone acceptance depends on.
+data/raw/*
+!data/raw/.gitkeep
+data/cache/*
+!data/cache/.gitkeep
+*.npy
+*.npz
+*.h5
 
-# Audio / video corpora and large media
-*.wav
-*.mp3
-*.flac
-*.ogg
-*.m4a
-*.aac
-*.mp4
-*.mov
-*.avi
-*.mkv
+# --- results ------------------------------------------------------------
+# results/runs.jsonl IS committed: it is the provenance record every table
+# and figure is generated from. Scratch outputs are not.
+results/scratch/
+results/*.tmp
+results/*.bak
 
-# -------------------------------------------------------------------
-# Model artifacts, caches, outputs
-# -------------------------------------------------------------------
-checkpoints/
-models/
-outputs/
-logs/
-cache/
-feature_cache/
-features/
-results/
-wandb/
-mlruns/
-lightning_logs/
-runs/
-
-# Hugging Face / model hubs
+# --- third-party API caches ---------------------------------------------
+# Crossref responses. Regenerable, and a stale copy would hide a correction
+# that the publisher has since made, so it is deliberately not committed.
 .cache/
-hf_cache/
-huggingface/
-**/huggingface/
-**/hf_home/
-**/transformers_cache/
 
-# -------------------------------------------------------------------
-# Python environments and build artifacts
-# -------------------------------------------------------------------
+# --- python -------------------------------------------------------------
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
-*.so
-*.dylib
-*.dll
-*.o
-*.a
-*.class
 *.egg-info/
+.eggs/
 build/
 dist/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-
-# Virtual environments
 .venv/
 venv/
-env/
-ENV/
+.pytest_cache/
+.coverage
+htmlcov/
+.tools/
+output/
+.template-inspect/
 
-# Notebooks
-.ipynb_checkpoints/
-
-# -------------------------------------------------------------------
-# Logs, temporary files, generated reports
-# -------------------------------------------------------------------
-*.log
-*.tmp
-*.temp
-*.bak
-*.swp
-*.swo
-*.out
-*.err
-
-# Local configuration / secrets
-.env
-.env.*
-*.env
-
-# Generated LaTeX artifacts
-*.aux
-*.bbl
-*.blg
-*.fdb_latexmk
-*.fls
-*.lof
-*.lot
-*.synctex.gz
-*.toc
-
-# -------------------------------------------------------------------
-# OS / editor junk
-# -------------------------------------------------------------------
+# --- editors / OS -------------------------------------------------------
+.vscode/
+.idea/
 .DS_Store
 Thumbs.db
-desktop.ini
-.idea/
-.vscode/
+
+# --- latex --------------------------------------------------------------
+*.aux
+*.log
+*.out
+*.bbl
+*.blg
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+
+# Derived: rebuild with `ser manifest` (file_path is machine-local)
+data/manifest.csv
+
+# Per-run predictions: regenerable, and large in aggregate.
+results/predictions/
+
+# Stage shard outputs and worker logs. The Stage 1/2 shards really are merged
+# into runs.jsonl. The 13-layer sweep shards are NOT -- only 180 of their 2340
+# rows share ids with the grid -- so they are packaged into the tracked
+# results/layer_sweep_v2.jsonl by tools/merge_layer_sweep.py, and that file is
+# what analysis reads. The shards stay here as the original source.
+results/shards/
+logs/
+
+# Scratch working directory: rendered page images for visual proof checks, a
+# downloaded LaTeX toolchain, staging copies. 122 MB of it, and nothing here is
+# an input to any result -- but it was NOT ignored, so `git add -A` would have
+# committed all of it. Ignored now, before that happens.
+tmp/
+
+# pytest --basetemp directories from past sessions (see PROGRESS.md). Disposable
+# temp fixtures; several were created with ACLs this account cannot read, so they
+# are ignored rather than cleaned up automatically.
+.pytest-*/

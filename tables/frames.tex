@@ -1,0 +1,20 @@
+\begin{table*}[!t]
+  \centering
+  \caption{Measurement-protocol sensitivity. Spearman $\rho$ between a layer's marginal discrepancy and its target macro-F1, across the 13 layers. The adaptive own-geometry and reference-basis calculations give opposite pooled signs.}
+  \label{tab:frames}
+  \begin{tabular}{lrrr}
+    \toprule
+    pair & backbone & $\rho$ (adaptive own) & $\rho$ (reference basis) \\
+    \midrule
+    RAVDESS $\rightarrow$ CREMA-D & \texttt{hubert} & -0.404 & 0.385 \\
+     & \texttt{wav2vec2} & -0.372 & 0.224 \\
+     & \texttt{wavlm} & -0.514 & 0.230 \\
+    CREMA-D $\rightarrow$ RAVDESS & \texttt{hubert} & -0.450 & -0.038 \\
+     & \texttt{wav2vec2} & -0.366 & 0.036 \\
+     & \texttt{wavlm} & -0.560 & 0.012 \\
+    \textbf{pooled} &  & \textbf{-0.444} & \textbf{0.142} \\
+    \bottomrule
+  \end{tabular}
+  \\[2pt]
+  \begin{minipage}{\linewidth}\footnotesize Filter: 13-layer sweep, 2340 runs, logreg, 6 rungs, 3 backbones, both directions, 5 seeds. Each correlation is computed across 13 layers within one direction, backbone, rung and seed, then averaged over rungs and seeds. The pooled row averages all 36 cells and 5 seeds. These are descriptive means: shared seeds and features preclude treating cell-and-seed correlations as independent replicates.\end{minipage}
+\end{table*}

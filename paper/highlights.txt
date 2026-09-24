@@ -1,0 +1,4 @@
+- Source translations preserve validation for stationary-kernel classifiers
+- Frozen RBF-SVM pairs have equal validation scores but different target scores
+- Affine factorisation separates domain transport from classifier geometry
+- A read-only audit reports every matched pair without retraining

@@ -1,0 +1,557 @@
+"""The frozen result schema and its append-only writer.
+
+Every completed run -- baseline, grid run, or failure -- is one JSON object on
+one line of ``results/runs.jsonl``. Every table and figure in the paper is
+generated from this file and nothing else. No number is ever typed by hand.
+
+The schema is FROZEN. Adding, removing, or retyping a field invalidates the
+grid, because rows written before the change would no longer validate. If a
+later phase genuinely needs a new column, bump ``SCHEMA_VERSION`` and write a
+migration -- do not quietly widen the schema.
+
+Design notes:
+
+* Metric columns are nullable so a crashed run can still be recorded with
+  ``status="failed"`` and a traceback. A silent skip is worse than a recorded
+  failure: it leaves a hole in the grid that nobody can see.
+* Structured values (per-class F1, confusion matrix, hyperparameters, library
+  versions) are stored as JSON *strings* rather than nested objects, so the file
+  loads into a flat dataframe with no column explosion and no ragged nesting.
+* ``run_id`` is a deterministic function of the experimental coordinates, which
+  is what makes the Phase 7 runner resumable: it can rebuild the completed set
+  by reading ids off disk.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, Iterator, Sequence
+
+from .runmeta import hash_payload
+
+__all__ = [
+    "SCHEMA_VERSION",
+    "SMOKE_CORPUS",
+    "FIELDS",
+    "FIELD_NAMES",
+    "RUN_ID_FIELDS",
+    "VOLATILE_FIELDS",
+    "VALID_STATUSES",
+    "rows_agree",
+    "field_disagreements",
+    "SchemaError",
+    "is_smoke_row",
+    "schema_as_markdown",
+    "make_run_id",
+    "new_row",
+    "validate_row",
+    "append_row",
+    "read_rows",
+    "count_rows",
+    "completed_run_ids",
+]
+
+# v2 (2026-08-10): added label_map_hash and split_spec_hash, both run_id
+# coordinates. Without them a changed label decision or split ratio leaves
+# run_id unchanged, and a Phase 7 resume silently merges runs scored against
+# different label spaces. Bumped before any experimental run existed.
+#
+# v3 (2026-08-15): added cov_condition_number and cov_effective_rank. With
+# d=768 and ~1000 source-train samples, every covariance this project forms is
+# rank-deficient, so how badly conditioned it was is part of what a result
+# means -- not a debugging detail. Explicit columns rather than a corner of
+# hyperparams_json, because "which runs were near-singular?" has to be
+# answerable by filtering. Bumped before any alignment run existed; the 60
+# baseline rows were regenerated.
+#
+# v4 (2026-08-15): config_hash REMOVED from RUN_ID_FIELDS (still recorded);
+# feature_spec_hash and search_spec_hash added as coordinates in its place;
+# marginal_mmd_raw, marginal_mmd_normalised and n_search_trials added.
+# config_hash as a coordinate meant editing any unrelated config section
+# orphaned every completed run -- observed for real in Phase 5.
+#
+# v5 (2026-08-16): added freeze_tag. The grid runs against a git-tagged config
+# and refuses to start if the working config has drifted; the tag is recorded so
+# a row states which frozen config produced it. Nullable: rows written before
+# the freeze legitimately have none.
+#
+# v6 (2026-08-16): everything Phase 8/9 will want, added BEFORE the grid runs
+# because none of it can be recovered afterwards without re-running. Per-class
+# precision/recall/support alongside F1; the collapse count; epochs to early
+# stop; and predictions_path, pointing at the per-utterance predictions.
+#
+# The predictions are the important one. Storing utterance_id -> predicted_label
+# per run costs ~15 KB gzipped and makes every downstream analysis free:
+# per-class transfer, confusion structure, McNemar and bootstrap paired tests,
+# all without a single rerun. They live in their own files rather than in the
+# row because a 3677-entry vector inline would bloat the JSONL by ~100x.
+#
+# v7 (2026-08-16): alignment_eps and alignment_lambda added, and made run_id
+# COORDINATES. They were neither, so all four CORAL epsilons and all six MMD
+# lambdas collapsed onto one run_id -- 480 enumerated Stage 1 runs mapped to 144
+# ids, and a resume would silently have skipped three of every four CORAL runs
+# while reporting the grid complete. Caught by the "every enumerated run has a
+# distinct run_id" test before any grid ran.
+#
+# v8 (2026-08-16): mmd_fallback_fired and marginal_mmd_reference.
+#
+# The first makes "did the optimiser beat its own warm start?" a filterable
+# column rather than a note, so the fallback RATE across the grid can be
+# reported -- a rung that silently reverts most of the time is CORAL wearing a
+# different label, and that has to be measurable.
+#
+# The second is the effect size measured in a fixed reference geometry (one ZCA
+# map derived from the unaligned source_train, applied identically to every
+# rung). The per-rung geometry statistic carries ~1.5-2x of variation unrelated
+# to domain overlap; the coarse ladder claim survives it, the fine ordering does
+# not, so both are reported.
+# v9 (2026-08-17): source_train_n, source_train_cap, solver_n_iter.
+#
+# The first two make the matched-n control auditable from the results file
+# alone. `splits.matched_source_train` caps cross-corpus source_train to the
+# smaller direction's size so that a reported transfer asymmetry cannot be a
+# training-set size effect -- CREMA-D otherwise contributes 5972 source-train
+# utterances against RAVDESS's 988. Recording the realised n and the cap that
+# produced it means a reader can check the control held rather than trust it.
+#
+# The third records the iterations the selected sklearn solver used. logreg
+# previously SEARCHED max_iter over [1000, 2000, 5000], which let a trial win
+# selection by stopping early; the cap is now fixed, convergence is asserted
+# rather than warned about, and the iteration count is on the row so
+# "the baseline converged" is checkable instead of assumed.
+SCHEMA_VERSION = 9
+
+VALID_STATUSES = ("ok", "failed")
+
+# `ser smoke` writes a synthetic row to the real results file to prove the
+# writer and schema work on the production path. The row is tagged with this
+# reserved corpus name so analysis can exclude it mechanically -- filtering by
+# convention ("ignore anything that looks like a test") is how fake numbers
+# reach a table.
+SMOKE_CORPUS = "smoke"
+
+
+@dataclass(frozen=True)
+class Field:
+    name: str
+    types: tuple[type, ...]
+    nullable: bool
+    doc: str
+
+
+def _f(name: str, types, nullable: bool, doc: str) -> Field:
+    return Field(name, types if isinstance(types, tuple) else (types,), nullable, doc)
+
+
+# --------------------------------------------------------------------------
+# THE FROZEN SCHEMA
+# --------------------------------------------------------------------------
+FIELDS: tuple[Field, ...] = (
+    # -- identity and provenance -------------------------------------------
+    _f("schema_version", int, False, "Result schema version; bump on any change."),
+    _f("run_id", str, False, "Deterministic id over the experimental coordinates."),
+    _f("git_sha", str, False, "Commit that produced the row, or 'unknown'."),
+    _f("git_dirty", bool, False, "True if the working tree had uncommitted changes."),
+    _f("config_hash", str, False, "sha256 of the whole config. Recorded, NOT a run_id coordinate."),
+    _f("label_map_hash", str, False, "Hash of the resolved label mapping."),
+    _f("split_spec_hash", str, False, "Hash of the split specification."),
+    _f("feature_spec_hash", str, False, "Hash of the feature extraction spec."),
+    _f("search_spec_hash", str, False, "Hash of the searched space and reported statistics."),
+    _f("freeze_tag", str, True, "Git tag of the frozen config this run used."),
+    _f("timestamp", str, False, "ISO-8601 UTC completion time."),
+    _f("hostname", str, False, "Machine that ran it."),
+    _f("lib_versions_json", str, False, "JSON map of tracked library versions."),
+    _f("seed", int, False, "Seed passed to set_all_seeds for this run."),
+    # -- data ---------------------------------------------------------------
+    _f("source_corpus", str, False, "Corpus supplying labelled training data."),
+    _f("target_corpus", str, False, "Corpus evaluated on. Equal to source for in-domain."),
+    _f("n_classes", int, False, "Size of the label space actually used."),
+    _f("class_names", list, False, "Ordered class names; indexes confusion_json."),
+    # -- features -----------------------------------------------------------
+    _f("backbone", str, False, "hubert | wav2vec2 | wavlm | mfcc."),
+    _f("layer_agg", str, False, "last | layer | mean | weighted | n/a."),
+    _f("layer_index", int, True, "Layer used when layer_agg='layer', else null."),
+    _f("feature_branch", str, False, "ssl | mfcc | fused."),
+    # -- alignment and blending ---------------------------------------------
+    _f("alignment", str, False, "none | zscore | coral | mmd."),
+    _f("blending", str, False, "none | scalar | gaa."),
+    _f("blend_alpha", (float, int), True, "Scalar alpha, or null for none/gaa."),
+    _f("n_groups", int, True, "Group count when blending='gaa', else null."),
+    # -- classifier ---------------------------------------------------------
+    _f("alignment_eps", (float, int), True, "CORAL shrinkage epsilon, or null."),
+    _f("alignment_lambda", (float, int), True, "MK-MMD identity penalty, or null."),
+    _f("classifier", str, False, "logreg | svm | mlp | transformer | baseline_*."),
+    _f("hyperparams_json", str, False, "JSON of the config selected on source_val."),
+    # -- numerical conditioning (null when no covariance was formed) --------
+    _f(
+        "cov_condition_number",
+        (float, int),
+        True,
+        "Worst condition number over covariances formed, after regularisation.",
+    ),
+    _f(
+        "cov_effective_rank",
+        (float, int),
+        True,
+        "Spectral-entropy effective rank of the source covariance (Roy & Vetterli).",
+    ),
+    _f(
+        "n_search_trials",
+        int,
+        True,
+        "Hyperparameter configurations evaluated on source_val. Equal across families.",
+    ),
+    # -- covariate shift, at a bandwidth fixed once on the unaligned pair ----
+    _f(
+        "marginal_mmd_raw",
+        (float, int),
+        True,
+        "Marginal MMD^2 between aligned source and target.",
+    ),
+    _f(
+        "marginal_mmd_reference",
+        (float, int),
+        True,
+        "Effect size in a FIXED reference geometry (ZCA from unaligned source).",
+    ),
+    _f("mmd_fallback_fired", bool, True, "True if MK-MMD reverted to its warm start."),
+    _f(
+        "marginal_mmd_normalised",
+        (float, int),
+        True,
+        "marginal_mmd_raw / typical same-distribution MMD^2. Scale-invariant.",
+    ),
+    # -- splits -------------------------------------------------------------
+    _f("split_id", str, False, "Identifies the speaker-disjoint split realisation."),
+    _f("n_train", int, False, "Utterances in source_train."),
+    _f("n_val", int, False, "Utterances in source_val."),
+    _f("n_target_adapt", int, False, "Utterances alignment was allowed to see."),
+    _f("n_target_test", int, False, "Utterances scored on."),
+    # -- metrics (null iff status='failed') ---------------------------------
+    _f("macro_f1", (float, int), True, "Primary metric, on target_test."),
+    _f("accuracy", (float, int), True, "Accuracy on target_test."),
+    _f("uar", (float, int), True, "Unweighted average recall on target_test."),
+    _f("per_class_f1_json", str, True, "JSON map class name -> F1."),
+    _f("per_class_precision_json", str, True, "JSON map class name -> precision."),
+    _f("per_class_recall_json", str, True, "JSON map class name -> recall."),
+    _f("per_class_support_json", str, True, "JSON map class name -> target_test count."),
+    _f("confusion_json", str, True, "JSON nested list, rows=true, cols=predicted."),
+    _f("n_collapsed_classes", int, True, "Classes never predicted. The collapse diagnostic."),
+    _f("epochs_run", int, True, "Epochs to early stop, for the torch families."),
+    _f(
+        "solver_n_iter",
+        int,
+        True,
+        "Iterations the selected sklearn solver used. Null for torch families.",
+    ),
+    _f("source_train_n", int, True, "Realised source_train size for this run."),
+    _f(
+        "source_train_cap",
+        int,
+        True,
+        "Matched-n cap applied to source_train, or null if left at natural size.",
+    ),
+    _f(
+        "predictions_path",
+        str,
+        True,
+        "Path to per-utterance predictions, relative to the results file.",
+    ),
+    # -- floors -------------------------------------------------------------
+    _f("chance_macro_f1", (float, int), True, "Uniform-random macro-F1 floor."),
+    _f("majority_macro_f1", (float, int), True, "Majority-class collapse floor."),
+    _f("prior_matched_macro_f1", (float, int), True, "Source-prior-sampling floor."),
+    # -- selection ----------------------------------------------------------
+    _f(
+        "selection_source_val_macro_f1",
+        (float, int),
+        True,
+        "source_val macro-F1 of the selected config. NEVER a target quantity.",
+    ),
+    # -- execution ----------------------------------------------------------
+    _f("wall_seconds", (float, int), False, "Wall-clock seconds for the run."),
+    _f("status", str, False, "ok | failed."),
+    _f("error", str, True, "Traceback when status='failed', else null."),
+)
+
+FIELD_NAMES: tuple[str, ...] = tuple(field.name for field in FIELDS)
+
+_FIELDS_BY_NAME: Dict[str, Field] = {field.name: field for field in FIELDS}
+
+# Coordinates that define "the same run". Deliberately excludes hyperparameters
+# (searched inside a run on source_val, so they are an output not a coordinate),
+# metrics, and provenance (which vary between reruns of an identical config).
+#
+# The four facet hashes replace config_hash, which was too coarse to be a
+# coordinate: it changes when ANY key changes, so editing an unrelated section
+# orphaned 60 completed baseline rows in Phase 5. Each facet pins one part of
+# the semantics that actually determines what a row means, so an edit
+# invalidates only the runs it can affect. ser.config.Config.FACET_SECTIONS
+# maps them to config sections, and a test asserts every config key is either
+# covered by a facet or explicitly declared inert.
+#
+# Note on gaa: per-group alphas are selected on source_val inside the run, so
+# they live in hyperparams_json, not here. Only the scalar blend_alpha axis is a
+# coordinate.
+RUN_ID_FIELDS: tuple[str, ...] = (
+    # config_hash is deliberately ABSENT. See SCHEMA_VERSION v4 and PHASES.md A6.
+    "label_map_hash",
+    "split_spec_hash",
+    "feature_spec_hash",
+    "search_spec_hash",
+    "seed",
+    "source_corpus",
+    "target_corpus",
+    "backbone",
+    "layer_agg",
+    "layer_index",
+    "feature_branch",
+    "alignment",
+    "alignment_eps",
+    "alignment_lambda",
+    "blending",
+    "blend_alpha",
+    "n_groups",
+    "classifier",
+    "split_id",
+)
+
+
+class SchemaError(ValueError):
+    """A row does not conform to the frozen schema."""
+
+
+def make_run_id(coords: Dict[str, Any]) -> str:
+    """Deterministic 16-hex-char id over :data:`RUN_ID_FIELDS`.
+
+    Two invocations with the same coordinates produce the same id on any
+    machine, which is what lets the Phase 7 runner skip completed work after a
+    kill. Missing coordinates are an error, not a default -- a silently defaulted
+    coordinate would collide two genuinely different runs onto one id.
+    """
+    missing = [name for name in RUN_ID_FIELDS if name not in coords]
+    if missing:
+        raise SchemaError(f"make_run_id missing coordinates: {missing}")
+    payload = {name: coords[name] for name in RUN_ID_FIELDS}
+    return hash_payload(payload)[:16]
+
+
+def new_row(**values: Any) -> Dict[str, Any]:
+    """Build a schema-shaped row.
+
+    Every field is present. Nullable fields default to ``None``; non-nullable
+    fields must be supplied. ``schema_version`` and ``status`` are filled in.
+    The result is validated before it is returned, so a malformed row fails at
+    construction rather than at write time.
+    """
+    values.setdefault("schema_version", SCHEMA_VERSION)
+    values.setdefault("status", "ok")
+
+    unknown = sorted(set(values) - set(FIELD_NAMES))
+    if unknown:
+        raise SchemaError(
+            f"unknown field(s) {unknown}; the schema is frozen -- see results.py"
+        )
+
+    row = {name: values.get(name) for name in FIELD_NAMES}
+    validate_row(row)
+    return row
+
+
+def validate_row(row: Dict[str, Any]) -> None:
+    """Raise :class:`SchemaError` unless ``row`` conforms exactly."""
+    if not isinstance(row, dict):
+        raise SchemaError(f"row must be a dict, got {type(row).__name__}")
+
+    missing = sorted(set(FIELD_NAMES) - set(row))
+    if missing:
+        raise SchemaError(f"missing field(s): {missing}")
+
+    extra = sorted(set(row) - set(FIELD_NAMES))
+    if extra:
+        raise SchemaError(f"unexpected field(s): {extra}")
+
+    for name, value in row.items():
+        field = _FIELDS_BY_NAME[name]
+        if value is None:
+            if not field.nullable:
+                raise SchemaError(f"field '{name}' is not nullable")
+            continue
+        if not _type_ok(value, field.types):
+            expected = "|".join(t.__name__ for t in field.types)
+            raise SchemaError(
+                f"field '{name}' expected {expected}, got "
+                f"{type(value).__name__} ({value!r})"
+            )
+
+    if row["schema_version"] != SCHEMA_VERSION:
+        raise SchemaError(
+            f"schema_version {row['schema_version']} != {SCHEMA_VERSION}"
+        )
+
+    if row["status"] not in VALID_STATUSES:
+        raise SchemaError(f"status must be one of {VALID_STATUSES}, got {row['status']!r}")
+
+    if row["status"] == "failed" and not row["error"]:
+        raise SchemaError("status='failed' requires a non-empty 'error'")
+
+    if row["status"] == "ok" and row["macro_f1"] is None:
+        raise SchemaError("status='ok' requires a macro_f1")
+
+    if not all(isinstance(name, str) for name in row["class_names"]):
+        raise SchemaError("class_names must be a list of strings")
+
+    if len(row["class_names"]) != row["n_classes"]:
+        raise SchemaError(
+            f"n_classes={row['n_classes']} does not match "
+            f"len(class_names)={len(row['class_names'])}"
+        )
+
+
+def _type_ok(value: Any, types: tuple[type, ...]) -> bool:
+    # bool is a subclass of int in Python; an int column must not silently
+    # accept True. Only allow a bool where bool is explicitly declared.
+    if isinstance(value, bool) and bool not in types:
+        return False
+    return isinstance(value, types)
+
+
+def append_row(path: str | os.PathLike, row: Dict[str, Any], *, validate: bool = True) -> None:
+    """Append one validated row to a JSONL file.
+
+    Append-only by construction: the file is opened in ``"a"`` mode and is never
+    read, rewritten, or truncated by this module. Concurrent writers are a
+    Phase 7 concern (file locking); a single writer is safe here because one
+    ``write`` of a sub-4KiB line in append mode is atomic on both POSIX and NTFS.
+    """
+    if validate:
+        validate_row(row)
+
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    line = json.dumps({name: row[name] for name in FIELD_NAMES}, separators=(",", ":"))
+    if "\n" in line:  # pragma: no cover - json.dumps escapes newlines
+        raise SchemaError("serialised row contains a newline")
+
+    with open(target, "a", encoding="utf-8", newline="\n") as handle:
+        handle.write(line + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
+def read_rows(path: str | os.PathLike, *, validate: bool = False) -> Iterator[Dict[str, Any]]:
+    """Yield rows from a JSONL file. Missing file yields nothing."""
+    target = Path(path)
+    if not target.exists():
+        return
+
+    with open(target, "r", encoding="utf-8") as handle:
+        for line_no, line in enumerate(handle, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise SchemaError(f"{target}:{line_no} is not valid JSON: {exc}") from exc
+            if validate:
+                try:
+                    validate_row(row)
+                except SchemaError as exc:
+                    raise SchemaError(f"{target}:{line_no} {exc}") from exc
+            yield row
+
+
+def is_smoke_row(row: Dict[str, Any]) -> bool:
+    """True for synthetic rows written by `ser smoke`. Excluded from analysis."""
+    return row.get("source_corpus") == SMOKE_CORPUS or row.get("target_corpus") == SMOKE_CORPUS
+
+
+def count_rows(path: str | os.PathLike) -> int:
+    return sum(1 for _ in read_rows(path))
+
+
+def completed_run_ids(path: str | os.PathLike) -> set[str]:
+    """Run ids already on disk. Used by the Phase 7 runner to resume."""
+    return {row["run_id"] for row in read_rows(path) if "run_id" in row}
+
+
+def schema_as_markdown() -> str:
+    """Render the frozen schema as a table, for the reproducibility appendix."""
+    lines = [
+        f"Result schema version {SCHEMA_VERSION} ({len(FIELDS)} fields)",
+        "",
+        "| field | type | nullable | meaning |",
+        "|---|---|---|---|",
+    ]
+    for field in FIELDS:
+        types = " \\| ".join(t.__name__ for t in field.types)
+        lines.append(
+            f"| `{field.name}` | {types} | {'yes' if field.nullable else 'no'} | {field.doc} |"
+        )
+    return "\n".join(lines)
+
+
+def field_names() -> Sequence[str]:
+    return FIELD_NAMES
+
+
+# --------------------------------------------------------------------------
+# Comparing two rows that claim to be the same run
+# --------------------------------------------------------------------------
+# Fields that legitimately differ between two executions of the identical
+# computation. Everything else is determined by the run_id coordinates, so a
+# disagreement outside this set is not a merge conflict: it means the
+# coordinates do not determine the result, which is a defect in the schema
+# rather than in the data. This set was previously written out inline in
+# tools/layer_sweep_v2_report.py; it lives here so the merge tool, the report
+# and the tests cannot drift apart on what "identical" means.
+VOLATILE_FIELDS: frozenset[str] = frozenset({
+    "timestamp",          # when it ran
+    "wall_seconds",       # how long it took
+    "hostname",           # where it ran
+    "git_dirty",          # whether the tree had edits at the time
+    "git_sha",            # which commit
+    "predictions_path",   # keyed by run_id, but written per output file
+    "run_started_utc",
+    "python_version",
+    "library_versions_json",
+})
+
+# Floats are compared with a relative tolerance rather than bitwise. Two
+# processes computing the same quantity through the same code path do agree
+# bitwise in practice -- that is one of this project's recorded consistency
+# checks -- but requiring it here would turn a BLAS difference into a merge
+# failure, and the claim being protected is that the rows describe the same
+# computation, not that they were produced by the same machine.
+_FLOAT_RTOL = 1e-12
+
+
+def field_disagreements(left: Dict[str, Any], right: Dict[str, Any]) -> Dict[str, tuple]:
+    """Non-volatile fields on which two rows for one ``run_id`` disagree.
+
+    Fields absent from either row are skipped rather than reported: a shard
+    written under an older schema is a different problem, caught by
+    ``validate_row``, and conflating the two would make this diagnostic
+    useless for the case it exists for.
+    """
+    out: Dict[str, tuple] = {}
+    for key in left:
+        if key in VOLATILE_FIELDS or key not in right:
+            continue
+        a, b = left[key], right[key]
+        if isinstance(a, float) and isinstance(b, float):
+            if a != b and abs(a - b) > _FLOAT_RTOL * max(1.0, abs(a)):
+                out[key] = (a, b)
+        elif a != b:
+            out[key] = (a, b)
+    return out
+
+
+def rows_agree(left: Dict[str, Any], right: Dict[str, Any]) -> bool:
+    """True when two rows describe the same computation."""
+    return not field_disagreements(left, right)

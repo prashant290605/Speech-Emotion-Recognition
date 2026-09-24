@@ -1,0 +1,184 @@
+# Prospective source-translation replication -- protocol v1
+#
+# STATUS: DRAFT, NOT FROZEN. IEMOCAP is not present on this machine, so the
+# subset decision below cannot yet be evaluated and no freeze commit or tag
+# exists. See docs/prospective_translation_v1.md for the freeze procedure.
+#
+# This protocol is machine-readable so the runner cannot quietly disagree with
+# the prose. Every field here is a decision made BEFORE any target-performance
+# number exists for this corpus pair.
+
+protocol: prospective-translation-v1
+schema: 1
+
+# ---------------------------------------------------------------------------
+# Hypothesis
+# ---------------------------------------------------------------------------
+primary_endpoint:
+  name: source_validation_invariance
+  # For matched RBF-SVM none/mean_shift cells, translating source training and
+  # source validation together must leave the source-validation predictions and
+  # therefore the selection criterion unchanged.
+  statistic: candidate_level_validation_prediction_equality
+  applies_to: [svm_rbf]
+
+secondary_endpoints:
+  - name: selected_model_invariance
+    statistic: selected_hyperparameter_and_score_equality
+    applies_to: [svm_rbf]
+  - name: target_difference
+    statistic: paired_target_macro_f1_difference
+    # DESCRIPTIVE ONLY. Proposition 1 predicts no sign. Improvement,
+    # degradation and no difference are all consistent with it.
+    predicted_sign: none
+    applies_to: [svm_rbf, logreg]
+  - name: implementation_contrast
+    statistic: candidate_level_validation_prediction_equality
+    # Exact equality is NOT predicted: a finite solver need not reproduce it.
+    predicted: not_predicted
+    applies_to: [logreg]
+
+# ---------------------------------------------------------------------------
+# Corpora
+# ---------------------------------------------------------------------------
+directions:
+  - [cremad, iemocap]
+  - [iemocap, cremad]
+
+# CREMA-D rather than RAVDESS: 91 speakers against 24, so the prospective
+# evidence does not rest again on the smallest corpus in the project.
+label_space: four          # angry, happy, neutral, sad
+label_map_source: configs/default.yaml   # unchanged; excited->happy, frustrated dropped
+
+iemocap_subset:
+  # PRE-COMMITTED DECISION RULE, evaluated on metadata only. Improvised speech
+  # is the more valuable contrast with acted CREMA-D, but only if it supports a
+  # session-disjoint four-class design. The rule is fixed here so the choice
+  # cannot be made after seeing an outcome.
+  rule: improvised_if_adequate
+  thresholds:
+    min_utterances_per_class: 150        # >= ~75 per class after a 50/50 adapt/test split
+    min_sessions_containing_each_class: 5
+    min_utterances_per_class_per_session: 20
+  fallback: both                          # improvised + scripted
+  # The branch taken, and the counts it was taken on, are recorded in the
+  # provenance file at freeze time.
+  decided: null
+
+# ---------------------------------------------------------------------------
+# Splits
+# ---------------------------------------------------------------------------
+splits:
+  grouping:
+    cremad: speaker_id
+    iemocap: session_id    # two actors per session are in dialogue; splitting
+                           # on speaker would put one conversation on both sides
+  roles: [source_train, source_val, target_adapt, target_test]
+  source_train_ratio: 0.8
+  target_adapt_ratio: 0.5
+  speaker_disjoint: true
+  matched_source_train: true
+  seeds: [0, 1, 2, 3, 4]
+  # IEMOCAP has only five sessions, so when it is the target the adapt/test
+  # split has 2-3 clusters. That is a stated limitation of the interval
+  # estimates, not of the primary equality endpoint, which uses no interval.
+
+# ---------------------------------------------------------------------------
+# Features
+# ---------------------------------------------------------------------------
+features:
+  backbones: [hubert, wav2vec2, wavlm]
+  layer: last
+  pooling: mean
+  # Deliberately NOT repeated from the frozen grid: all 13 layers, learned
+  # weighted aggregation, transformer sequence heads, MFCC. This is a criterion
+  # replication, not a representation benchmark.
+
+# ---------------------------------------------------------------------------
+# Conditions
+# ---------------------------------------------------------------------------
+alignments: [none, mean_shift]
+# mean_shift: x_source -> x_source + (mean(target_adapt) - mean(source_train)).
+# Fitted on source_train and target_adapt only; target vectors are unchanged.
+blending: none
+
+classifiers:
+  primary: svm_rbf
+  contrast: logreg
+search_budget: 20
+# The candidate list is generated once per (classifier, seed) and shared
+# byte-for-byte by the none and mean_shift arms of every matched cell.
+candidate_order: deterministic_from_seed
+
+# ---------------------------------------------------------------------------
+# Matching
+# ---------------------------------------------------------------------------
+match_fields:
+  - source_corpus
+  - target_corpus
+  - seed
+  - backbone
+  - layer_agg
+  - layer_index
+  - feature_branch
+  - classifier
+  - label_map_hash
+  - split_spec_hash
+  - feature_spec_hash
+  - search_spec_hash
+  - split_id
+  - n_classes
+  - class_names
+  - n_train
+  - n_val
+  - n_target_adapt
+  - n_target_test
+  - n_search_trials
+# No target quantity appears here, and none may be added.
+
+# ---------------------------------------------------------------------------
+# Equality policy -- fixed before any prospective number exists
+# ---------------------------------------------------------------------------
+equality:
+  validation_predictions: exact          # discrete labels; no tolerance
+  validation_macro_f1: exact             # stored float equality
+  selected_hyperparameters: exact
+  decision_function_atol: 1.0e-12
+  # 1e-12 is the tolerance already justified and in use by
+  # tests/test_proposition1_source_translation.py: ~3 orders above the observed
+  # ~4e-15 drift from rbf_kernel's squared-distance expansion, and far below
+  # any decision margin. It is NOT to be revised after seeing results.
+  on_unexpected_inequality: investigate  # never round away, never re-tune
+
+# ---------------------------------------------------------------------------
+# Inclusion, exclusion, stopping
+# ---------------------------------------------------------------------------
+inclusion:
+  require_status: ok
+  require_both_arms: true
+  reject_duplicate_run_ids: true
+  reject_unmatched_cells: true
+exclusion:
+  # A cell is excluded only for a recorded execution failure, never for its
+  # target value.
+  permitted_reasons: [run_failed, missing_arm]
+stopping:
+  # The design is fixed. No seed, backbone, classifier or hyperparameter may be
+  # added after execution begins, whatever the results look like.
+  adaptive_expansion: forbidden
+  retry_policy: none          # a failed run is recorded as failed and reported
+
+# ---------------------------------------------------------------------------
+# Outputs -- isolated from the historical ledger
+# ---------------------------------------------------------------------------
+output_root: results/prospective_translation_v1
+runs: results/prospective_translation_v1/runs.jsonl
+trials: results/prospective_translation_v1/trials.jsonl
+provenance: results/prospective_translation_v1/provenance.json
+audit_json: results/prospective_translation_v1/audit.json
+audit_markdown: results/prospective_translation_v1/audit.md
+forbidden_outputs: [results/runs.jsonl]
+freeze_tag: prospective-translation-v1
+
+expected_runs: 120      # 2 directions x 5 seeds x 3 backbones x 2 alignments x 2 classifiers
+expected_trials: 2400   # 120 runs x 20 candidates

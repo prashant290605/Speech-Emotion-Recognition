@@ -1,0 +1,32 @@
+# Pre-specified label-harmonisation control. This configuration uses a distinct
+# five-class label space and is never merged into the calm-drop ledger.
+version: neutral-excluded-v2
+output: results/neutral_excluded_sensitivity_v2.jsonl
+report: reports/neutral_excluded_sensitivity.md
+table: tables/neutral_excluded_sensitivity.tex
+table_label: neutral-excluded-sensitivity
+variant:
+  name: neutral_excluded_five
+  ravdess_calm_to_neutral: false
+  label_space: five_no_neutral
+  classes: [angry, disgust, fear, happy, sad]
+  description: drops RAVDESS \texttt{calm} and excludes \texttt{neutral} from both corpora.
+backbone: hubert
+classifier: logreg
+layer_agg: last
+seeds: [0, 1, 2, 3, 4]
+directions:
+  - [ravdess, cremad]
+  - [cremad, ravdess]
+rungs:
+  - alignment: none
+  - alignment: zscore
+  - alignment: mean_shift
+  - alignment: coral
+    eps: 10.0
+diagnostics:
+  output: results/neutral_excluded_diagnostics.jsonl
+  report: reports/neutral_excluded_diagnostics.md
+  max_samples: 128
+  null_repeats: 5
+  bandwidth_rule: median_pairwise_distance_source_target

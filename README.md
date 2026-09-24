@@ -1,218 +1,196 @@
-# Cross-Corpus Speech Emotion Recognition
+# What source validation cannot see
 
-A reproducibility rebuild of cross-corpus SER over RAVDESS and CREMA-D with
-self-supervised speech representations (HuBERT Base, wav2vec 2.0 Base, WavLM
-Base), an ordered feature-alignment ladder, and five classifier families.
+Repository for *"What source validation cannot see: an affine adaptation audit
+for cross-corpus speech emotion recognition"* (manuscript in preparation for
+*Speech Communication*).
 
-> **The rebuilt pipeline, results, figures and tables live on the [`rebuild`](https://github.com/prashant290605/Speech-Emotion-Recognition/tree/rebuild) branch.**
-> This branch (`main`) still holds the original pre-revision code, kept for
-> traceability. Every link below points into `rebuild`.
+The paper asks one question: **can a source-side validation protocol be
+completely leakage-free and still be structurally unable to distinguish an
+adaptation operation that changes target predictions?** For source translations
+with stationary-kernel classifiers, the answer is exact, and the frozen
+RAVDESS/CREMA-D runs in this repository contain a direct test of it.
 
-**Every number below regenerates from `results/` by script. Nothing is typed by
-hand.** The full set, with intervals, floors and run filters, is in
-[reports/RESULTS.md](https://github.com/prashant290605/Speech-Emotion-Recognition/blob/rebuild/reports/RESULTS.md).
-
----
-
-## Headline
-
-Target macro-F1 of the configuration a practitioner could actually select —
-chosen on **source-side validation only**, never on target labels — against the
-best configuration present in the grid.
-
-| pair | validated | oracle (upper bound) | chance floor |
-|---|---|---|---|
-| RAVDESS → CREMA-D | **0.3156** [0.1880, 0.4432] | 0.4555 [0.4326, 0.4785] | 0.1665 |
-| CREMA-D → RAVDESS | **0.4994** [0.4592, 0.5395] | 0.5680 [0.5148, 0.6212] | 0.1656 |
-
-Three findings, each with its own report:
-
-**1. Alignment buys one step, then nothing.** Moving from unaligned features to
-*any* aligned condition is worth +0.12 to +0.20 macro-F1 (all 14 pre-registered
-comparisons survive Holm correction). Among the five aligned rungs the largest
-difference is 0.0151 / 0.0437 — an order of magnitude smaller, and **not ordered
-by discrepancy**. `mkmmd_full` achieves the lowest discrepancy in both
-geometries and is never the best rung. Per-dimension z-scoring matches
-everything more elaborate that was tried.
-
-**2. Alignment removes the wrong term.** The three-way shift decomposition shows
-label shift is negligible (KL ≈ 0.022 nats). Alignment drives the *marginal*
-discrepancy down to 0.010× while the *conditional* term falls only to 0.07×; the
-conditional/marginal ratio rises from 0.14 to 0.92. What remains after alignment
-is conditional shift, which no marginal alignment can touch. A label-shift
-correction, as the near-zero KL predicts, **hurts in 238 of 240 cases**.
-
-**3. Reporting "MMD reduction" is not well posed.** Measured in each rung's own
-geometry the discrepancy-transfer correlation is ρ = **−0.444** [−0.505, −0.383];
-measured in a fixed reference frame it is **+0.142** [+0.062, +0.221]. Opposite
-signs, neither interval covering zero, same features and same target scores. The
-CORAL shrinkage asymptote supplies a case where the correct answer is known
-analytically, and the reference frame is the one that tracks it.
-
-Retractions and null results are reported alongside these in
-[RESULTS.md §8–9](https://github.com/prashant290605/Speech-Emotion-Recognition/blob/rebuild/reports/RESULTS.md) — five claims made during this rebuild
-were later withdrawn or narrowed, and they are listed so they cannot be reused
-by accident.
+`main` holds the completed work. The pre-rebuild history is reachable through
+the `grid-freeze-v1`, `grid-freeze-v2` and `grid-freeze-v3` tags.
 
 ---
 
-## Reproducing this from a clean clone
+## The central result
 
-Everything except feature extraction runs from the committed result files.
+Translating every source training and validation vector by a fixed offset
+preserves their kernel matrices, so an RBF-SVM's source-validation predictions
+are unchanged, while the target decision function becomes `f(x - delta)` and
+target predictions can change.
+
+A retrospective audit of the frozen ledger finds **exact equality of the
+selected validation score and of the selected hyperparameters in all 30 matched
+RBF-SVM cells per direction**. Logistic regression, a linear SVM and an MLP are
+reported alongside as implementation contrasts that fall outside the
+proposition's fitting assumptions; they do not retain exact numerical equality,
+which is what those assumptions predict.
+
+```bash
+PYTHONPATH=src python tools/audit_translation.py
+```
+
+That command needs only `results/runs.jsonl` and
+`configs/audit_translation.yaml`, both committed. It reads the ledger and
+writes `reports/translation_audit.{json,md}` and `tables/translation_audit.tex`.
+
+Three kinds of evidence are kept distinct throughout, and should not be
+conflated when reading the manuscript:
+
+| | what it is | status |
+|---|---|---|
+| **The frozen experiment** | 4986 confirmatory runs under `grid-freeze-v3`, enumerated and run before any of its numbers were computed | pre-specified |
+| **The retrospective audit** | the translation analysis above, designed after the runs existed | retrospective, and labelled as such in the paper |
+| **Sensitivity analyses** | calm-drop and neutral-exclusion label controls, MMD measurement-protocol checks | controls, separately frozen under their own tags |
+
+---
+
+## Reproducing the analysis from a clean clone
+
+**Everything the manuscript reports regenerates from committed files.** No raw
+audio, no SSL feature caches and no per-utterance prediction files are needed.
 
 ```bash
 git clone https://github.com/prashant290605/Speech-Emotion-Recognition.git
 cd Speech-Emotion-Recognition
-git checkout rebuild
 python -m pip install -r requirements.txt && python -m pip install -e .
-python -m pytest                      # 429 tests
+python -m pytest
 ```
 
-Regenerate every table, figure and report:
+Verify inputs without generating anything:
 
 ```bash
-PYTHONPATH=src python tools/phase10_per_class.py    # per-class analysis
-PYTHONPATH=src python tools/make_figures.py         # 7 figures -> figures/
-PYTHONPATH=src python tools/make_tables.py          # 7 LaTeX tables -> tables/
-PYTHONPATH=src python tools/make_results_doc.py     # reports/RESULTS.md
+python tools/build_paper.py --check-only
 ```
 
-Re-running the experiments themselves needs the raw corpora (see **Data**) and
-about 62 hours of CPU; `tools/launch_stage2.ps1` is the entry point.
+Regenerate every report, table and figure:
 
-## Provenance and the frozen config
+```bash
+python tools/build_paper.py --analysis
+```
 
-| artifact | rows | failures |
-|---|---|---|
-| `results/runs.jsonl` — the designed grid | 5424 | 0 |
-| 13-layer sweep (`results/shards/sweep2_*.jsonl`) | 2340 | 0 |
-| eps asymptote probe | 120 | 0 |
-| shift decomposition (`results/phase9_shift.jsonl`) | 120 | 0 |
+Regenerate and compile the PDF (needs Tectonic on `PATH`; the script will not
+download one):
 
-Zero failures across 8004 runs and zero non-converged trials of 99,720.
+```bash
+python tools/build_paper.py
+```
 
-Experimental configuration is **frozen against a git tag** and the runner
-refuses to start if the working config has drifted from it. Three tags exist:
-`grid-freeze-v1` (Stage 0 gate), `grid-freeze-v2` (Stage 1 screening),
-`grid-freeze-v3` (Stage 2 and everything reported here). Each row records its
-tag, its git SHA, four config facet hashes, and library versions.
+The build runs in stages and stops at the first failure: frozen-ledger digest,
+tracked artifacts present, reports, tables and figures, translation audit,
+`tools/check_paper.py`, `tools/check_number_trace.py`, LaTeX compile, then a log
+inspection that fails on any undefined reference or citation. Output goes to
+`output/paper/`.
 
-Every `run_id` is a deterministic hash over 19 coordinates, and all 5424
-recompute from their own recorded columns. Two unplanned determinism checks came
-free: 23 sweep cells recomputed by a duplicate worker were bit-identical, and
-151 sweep runs sharing coordinates with grid rows agree on all 57 non-volatile
-fields.
+### Tracked analysis inputs
+
+Listed in `ser.artifacts.REQUIRED_ARTIFACTS`, which is what `--check-only`
+verifies.
+
+| artifact | what it carries |
+|---|---|
+| `results/runs.jsonl` | the 5424-row result ledger, of which 4986 are the frozen grid |
+| `results/layer_sweep_v2.jsonl` | the 2340-run 13-layer sweep, packaged from its shards |
+| `results/speaker_confusions.jsonl.gz` | per-speaker confusion counts: the sufficient statistic for every cluster bootstrap |
+| `data/manifest_portable.csv` | corpus, speaker, session, labels and durations, with corpus-relative audio paths |
+| `results/eps_asymptote_full.jsonl` | the 120-run CORAL shrinkage probe, packaged from its sources |
+| `results/phase9_*.jsonl`, sensitivity ledgers | shift decomposition and label controls |
+| `configs/default.yaml`, `configs/FROZEN_LEDGER.sha256` | the frozen configuration and the ledger's expected digest |
+
+Four of these are derived artifacts, each built by a script that verifies its
+own inputs and records a provenance sidecar. They exist because the analyses
+that depend on them previously required gitignored, machine-local state:
+
+```bash
+python tools/merge_layer_sweep.py        # results/shards/sweep2_*.jsonl -> layer_sweep_v2.jsonl
+python tools/merge_eps_probe.py          # results/shards/eps_*.jsonl     -> eps_asymptote_full.jsonl
+python tools/make_portable_manifest.py   # data/manifest.csv              -> data/manifest_portable.csv
+python tools/make_speaker_confusions.py  # results/predictions/           -> speaker_confusions.jsonl.gz
+```
+
+Each has a `--check`/`--verify` mode that rebuilds in memory and compares
+against what is committed, so a reviewer can confirm the derivation without
+holding the source data. `make_speaker_confusions.py --verify` additionally
+proves exact equivalence: per-speaker tensors identical, pooled confusions
+identical, zero difference in macro-F1, per-class F1, and a full paired
+bootstrap under identical seeds, across all 5364 runs with stored predictions.
+
+### What still requires the raw corpora
+
+| task | needs |
+|---|---|
+| Building `data/manifest.csv` from scratch | RAVDESS and CREMA-D audio |
+| Feature extraction (`ser extract`) | audio, plus GPU/CPU time and ~4.4 GB of cache |
+| Re-running the grid (`ser run-grid`) | the feature caches; about 250 hours of CPU |
+| Utterance-level analysis (McNemar, per-clip inspection) | `results/predictions/`, which is not tracked |
+
+RAVDESS and CREMA-D are public downloads but are **not redistributed here**.
+Point `paths.raw_*` at local copies. IEMOCAP is **not** included: its licence
+requires a signed agreement with a faculty signatory, which was not obtained.
+Every claim in the paper is over two corpora in both directions, and the
+manuscript says so.
+
+---
+
+## The frozen experiment
+
+The configuration is frozen against a git tag and the runner refuses to start if
+the working config has drifted. Three tags exist: `grid-freeze-v1` (Stage 0
+gate), `grid-freeze-v2` (Stage 1 screening), `grid-freeze-v3` (Stage 2 and
+everything the paper reports). Every row records its tag, its git SHA, four
+config facet hashes and library versions.
+
+Each `run_id` is a deterministic hash over 19 experimental coordinates, and all
+5424 recompute from their own recorded columns. `config_hash` is deliberately
+not one of the coordinates.
+
+The ledger itself is also pinned. `configs/FROZEN_LEDGER.sha256` holds the
+expected SHA256 of `results/runs.jsonl`, and the retrospective audit and the
+build wrapper both refuse to run when the file no longer matches:
+
+```bash
+python -c "import sys; sys.path.insert(0,'src'); from ser.freeze import assert_ledger_unchanged; print(assert_ledger_unchanged())"
+```
+
+This is a detector, not a lock. It does not make the file read-only and it does
+not restrict any new result file; it makes an accidental overwrite of the
+historical ledger loud instead of silent.
+
+### Analysing a different frozen experiment
+
+`ser.artifacts.PUBLICATION_FREEZE_TAG` names the tag the published build
+resolves to. `filter_by_freeze_tag` selects exactly one tag and raises on one
+that no row carries, so there is no code path that unions two frozen
+configurations into a single summary, and none that silently returns an empty
+selection.
+
+---
 
 ## Leakage assertions
 
 The original pipeline fitted alignment on the target **test** set and selected
-models on target-test scores. Both are prevented mechanically here, not by
+models on target-test scores. Both are prevented mechanically, not by
 convention:
 
-- Splits are **speaker-disjoint**, with `target_adapt` and `target_test`
-  separated. Alignment may see `target_adapt` only.
-- Every fitted alignment object records the utterance ids it was fitted on, and
+- Splits are speaker-disjoint, with `target_adapt` and `target_test` separated.
+  Alignment may see `target_adapt` only.
+- Every fitted alignment records the utterance ids it was fitted on, and
   `assert_alignment_blind_to_target_test` runs on the **real fitted object in
-  every run** — not on a mock, not once at startup.
+  every run**.
 - `fit_and_select` receives a source validation split and never receives target
-  data at all. The target score is computed afterwards, by the caller, from a
-  model already chosen.
+  data at all. The target score is computed afterwards, from a model already
+  chosen.
 - No `StandardScaler` inside any classifier, because standardisation *is* the
-  `zscore` rung — doing it silently would collapse two conditions the paper
-  reports as distinct.
-- Axis pruning between stages was scored on `source_val` only.
+  `zscore` rung.
+- The conditional-shift diagnostic reads target labels and is firewalled into
+  `src/ser/analysis/`; an executable assertion reads the source of the
+  alignment, classifier, grid-runner and blending modules to confirm none can
+  reach it.
 
-## The A10 firewall
-
-The conditional-shift diagnostic computes `MMD(X_src | y=k, X_tgt | y=k)`, which
-requires **target test labels** by construction. That is legitimate as post-hoc
-analysis and illegitimate anywhere near fitting or selection. Containment is
-executable, not documentary:
-
-- It lives in `src/ser/analysis/` and nothing else may import it.
-  `assert_conditional_shift_firewall()` reads the source of `alignment`,
-  `classifiers`, `run_grid` and `blending` to confirm none of them can reach it.
-- The frozen result schema has **no field** for it, and the assertion checks
-  that too. It is written only to `results/phase9_shift.jsonl`.
-- Values below `shift.conditional_mmd_min_support` (50) are reported as
-  undefined rather than as numbers, and per-class *n* accompanies every value.
-- `tests/test_analysis_shift.py` simulates the exact regression A10 warns about
-  — a "diagnostics" column carrying the conditional term — and confirms the
-  assertion fires.
-
-## Status
-
-Twelve phases; see [PHASES.md](https://github.com/prashant290605/Speech-Emotion-Recognition/blob/rebuild/PHASES.md) for the plan and
-[PROGRESS.md](https://github.com/prashant290605/Speech-Emotion-Recognition/blob/rebuild/PROGRESS.md) for the running log.
-
-| Phase | | Status |
-|---|---|---|
-| 0 | Scaffold and reproducibility spine | complete |
-| 1 | Reference integrity checker | script complete; 5 DOIs outstanding |
-| 2 | Manifest, label map, splits, leakage tests | complete for {RAVDESS, CREMA-D} |
-| 3 | Feature extraction and caching | complete for {RAVDESS, CREMA-D} |
-| 4 | Metrics and trivial baselines | complete |
-| 5 | Alignment and blending | complete |
-| 6 | Classifiers with equal-budget search | complete |
-| 7 | Grid runner (Stage 0/1/2) | complete — 4986 Stage 2 runs |
-| 8 | Selection protocol and headline tables | complete |
-| 9 | Shift decomposition | complete |
-| 10 | Per-class analysis and figures | complete |
-| 11 | Release packaging and LaTeX tables | complete |
-
-IEMOCAP is **not** included: its licence requires a signed agreement with a
-faculty signatory, which was not obtained. Every claim here is over two corpora
-in both directions, and the manuscript says so.
-
-The original pipeline is preserved untouched under [`legacy/`](https://github.com/prashant290605/Speech-Emotion-Recognition/tree/rebuild/legacy) for
-traceability. It is **not** the entry point and should not be run for new work.
-
-## What the rebuild changes
-
-- Speaker-disjoint splits with an explicit `target_adapt` / `target_test`
-  separation, asserted rather than asserted-in-prose.
-- All 13 hidden layers cached, so layer aggregation is a searchable condition
-  rather than an unexamined default.
-- Two reporting protocols, both published: **validated** and **oracle**. The gap
-  between them is a result in its own right.
-- An ordered alignment ladder — identity, z-score, mean shift, CORAL, MK-MMD —
-  by moments matched, rather than two arbitrary comparisons. The condition the
-  original reported as "MMD" was a plain mean shift; it is kept as its own
-  named rung, `mean_shift`, so that column's real value is measured.
-- Chance, majority-class and prior-matched floors on every table and figure.
-- Five seeds, paired cluster bootstrap over target-test speakers **and** seeds.
-- A pre-registered primary comparison family, declared in code before any of its
-  numbers were computed, Holm-corrected within that family.
-- Equal tuning budget: 20 random-search trials per family, asserted identical.
-  `max_iter` is a fixed convergence budget, not a searched hyperparameter, and
-  convergence is asserted rather than warned about.
-- Matched-n reverse direction, so a reported transfer asymmetry cannot be a
-  6× training-set size difference in disguise.
-
-## Environment
-
-Python 3.12. Fully pinned; see [requirements.txt](https://github.com/prashant290605/Speech-Emotion-Recognition/blob/rebuild/requirements.txt).
-
-```bash
-python -m pip install -r requirements.txt && python -m pip install -e .
-```
-
-## Usage
-
-```bash
-ser --help
-```
-
-`ser inventory` reports repository state, configuration and open decisions.
-On Windows, or without `make`:
-
-```bash
-PYTHONPATH=src python -m ser.cli inventory
-```
-
-Every experimental value lives in [`configs/default.yaml`](https://github.com/prashant290605/Speech-Emotion-Recognition/blob/rebuild/configs/default.yaml).
-Configuration loading is strict — an unknown or missing key is an error, never a
-silent default.
+---
 
 ## Tests
 
@@ -220,22 +198,58 @@ silent default.
 python -m pytest
 ```
 
-## Data
+Audit the bibliography of the current paper and its supplement:
 
-Raw corpora are licence-restricted and are not distributed here. RAVDESS and
-CREMA-D are public downloads; IEMOCAP requires a signed agreement with USC.
-Point `paths.raw_*` in the config at local copies. Feature caches and raw audio
-are gitignored; `results/runs.jsonl` **is** committed, because it is the
-provenance record every table and figure is generated from.
+```bash
+python tools/check_refs.py --offline
+```
 
-## Paper
+It writes `reports/refs_report_current.md`. The default target is the current
+manuscript; `--legacy` audits the archived pre-rebuild report instead, and
+`--no-supplement` restricts the audit to the article.
 
-The manuscript is written from [reports/RESULTS.md](https://github.com/prashant290605/Speech-Emotion-Recognition/blob/rebuild/reports/RESULTS.md), with
-tables from `tables/*.tex` and figures from `figures/*.pdf`. Pre-revision
-sources under [`legacy/`](https://github.com/prashant290605/Speech-Emotion-Recognition/tree/rebuild/legacy) contain the results this rebuild corrects and
-should not be cited.
+Tests marked `ledger` read committed repository artifacts rather than synthetic
+fixtures. They are part of the default run; `-m "not ledger"` deselects them.
 
-## License
+Coverage worth naming: Proposition 1 is certified end to end against a real
+`sklearn.svm.SVC`, the translation audit is pinned to the committed ledger by
+digest, the compact bootstrap artifact is proved equivalent to the predictions
+it replaces, and the portable manifest is checked for absolute-path leakage.
+
+---
+
+## Documentation
+
+- [`docs/inference_estimands.md`](docs/inference_estimands.md) — what each
+  manuscript table estimates, which interval procedure it uses, and why. Read
+  this before comparing two tables' intervals: the paper uses two estimators
+  deliberately.
+- [`PHASES.md`](PHASES.md) — the rebuild plan.
+- [`PROGRESS.md`](PROGRESS.md) — the running log.
+- [`paper/BUILD_REPORT.md`](paper/BUILD_REPORT.md) — the current build's checks
+  and outstanding warnings.
+- [`reports/RESULTS.md`](reports/RESULTS.md) — every number the manuscript
+  cites, with intervals, baselines and run filters.
+
+The original pipeline is preserved untouched under [`legacy/`](legacy/) for
+traceability. It is **not** the entry point and should not be cited.
+
+---
+
+## Environment
+
+Python 3.12, fully pinned; see [requirements.txt](requirements.txt).
+
+```bash
+python -m pip install -r requirements.txt && python -m pip install -e .
+```
+
+`ser inventory` reports repository state, configuration and open decisions.
+Every experimental value lives in [`configs/default.yaml`](configs/default.yaml);
+configuration loading is strict, so an unknown or missing key is an error rather
+than a silent default.
+
+## Licence
 
 No licence is currently granted. Treat this as research code accompanying work
 in progress.

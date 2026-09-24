@@ -1,0 +1,82 @@
+\section{Related work}
+\label{sec:related}
+
+\subsection{Cross-corpus speech emotion recognition}
+\label{sec:related-crosscorpus}
+
+Cross-corpus speech emotion recognition (SER) and strategies for handling
+corpus variation are established research problems \cite{schuller2010cross}. Approaches include transfer
+learning \cite{naderi2023cross}, multi-task learning \cite{fu2023cross},
+training-strategy changes \cite{pastor2023cross}, adversarial adaptation
+\cite{latif2023self}, and feature alignment \cite{naeeni2025feature}.
+A recent \emph{Speech Communication} study combines class-sensitive feature
+dictionaries with an adversarial discriminator in a semi-supervised network
+\cite{zhang2025sdan}; it learns representations with additional target
+supervision, unlike the frozen source-only affine maps examined here.
+
+Frequently used corpora include IEMOCAP \cite{busso2008iemocap}, RAVDESS
+\cite{livingstone2018ryerson} and CREMA-D \cite{cao2014crema}. Their label
+mappings, speakers, elicitation procedures and evaluation protocols differ, so
+reported scores cannot be ranked without controlling those choices, and EmoBox
+\cite{ma2024emobox} addresses reproducible cross-corpus evaluation. Another
+benchmark alone would not distinguish the present paper: our question concerns
+the information available to the model-selection criterion.
+
+\subsection{Unsupervised model selection under domain shift}
+\label{sec:related-protocol}
+
+Selecting hyperparameters on target test scores gives an optimistic,
+non-deployable estimate, and selection bias is a general evaluation issue
+\cite{cawley2010selection}. Deep Embedded Validation \cite{you2019selection},
+the study of validation practice by \cite{ericsson2023practices} and the
+reliability study of \cite{hu2024selection} already address model selection in
+domain adaptation. Their criteria use or evaluate signals beyond the
+source-validation score of a single candidate. The restricted invariance
+reported here does not invalidate those criteria, and it does not imply that no
+unsupervised selector can work; it characterises what one widely used and
+safe-by-construction criterion cannot see.
+
+\subsection{Alignment and the limits of marginal matching}
+\label{sec:related-alignment}
+
+Under covariate shift, the feature marginal changes while the conditional
+label distribution is stable \cite{shimodaira2000covariate}; domain adaptation
+also studies settings outside that assumption. A standard target-error bound
+contains source error, a domain divergence and the error of the best joint
+hypothesis \cite{bendavid2010theory}. Its divergence is classifier-induced,
+defined over the symmetric difference of the hypothesis class, so reducing a
+kernel two-sample statistic alone need not reduce that divergence or the
+joint-error term.
+
+CORAL matches covariance structure \cite{sun2016coral}, and Deep CORAL makes
+this a representation-learning objective \cite{sun2016deep}. The maximum mean
+discrepancy (MMD) compares kernel mean embeddings
+\cite{gretton2012kernel}; deep adaptation networks
+apply multi-kernel matching to learned features \cite{long2015dan}.
+Domain-adversarial networks instead use a domain classifier
+\cite{ganin2016dann}. These are different adaptation objectives, not a nested
+sequence of interventions on moments alone. Marginal invariance with low source
+error is already known to be insufficient for successful adaptation
+\cite{zhao2019invariant}, and we do not claim discovery of that failure. Our
+exact result concerns a validation symmetry within a specified family of source
+transformations, and the affine factorisation clarifies why it does not
+automatically apply to the other conditions.
+
+\subsection{Speech representations and layer choice}
+\label{sec:related-ssl}
+
+HuBERT, wav2vec 2.0 and WavLM supply the frozen features in this study
+\cite{hsu2021hubert,baevski2020wav2vec,chen2022wavlm}. Final-layer pooling and
+learned layer aggregation are established choices \cite{yang2021superb}, and
+layer-wise probing shows that the information a speech encoder represents
+changes with depth \cite{pasad2021layer}. The retained layer comparisons are
+experimental context for the criterion audit, not a claim that intermediate
+speech representations can be useful.
+
+The nearest methodological precedents therefore concern adaptation model
+selection rather than SER benchmarking. This paper contributes a concrete
+criterion audit: an exact source-translation invariance, a matched-run check,
+and a coordinate account that limits its extension to other affine operations.
+The reparameterisation identities are elementary and the underlying selection
+problem is established; their role here is to make this SER result
+interpretable and independently checkable.

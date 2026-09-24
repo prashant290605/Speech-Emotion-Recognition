@@ -1,0 +1,342 @@
+# Default configuration for the cross-corpus SER rebuild.
+#
+# Everything that can change a number lives here. Scripts read this file; they
+# never hardcode values. A result is reproducible from (this file, a seed).
+#
+# Loading is strict: unknown keys, missing keys, and out-of-range values raise
+# at load time. See src/ser/config.py.
+
+project:
+  name: cross-corpus-ser
+  # Master seed. Per-run seeds come from splits.seeds; this one seeds anything
+  # that happens outside a run (manifest ordering, cache construction).
+  seed: 42
+  results_path: results/runs.jsonl
+
+paths:
+  # Raw corpora are licence-restricted and never committed. Point these at
+  # local copies; Phase 2 walks them to build the manifest.
+  raw_ravdess: data/raw/RAVDESS
+  raw_cremad: data/raw/CREMA-D
+  raw_iemocap: data/raw/IEMOCAP
+  manifest: data/manifest.csv
+  cache_dir: data/cache
+  reports_dir: reports
+  figures_dir: figures
+
+labels:
+  # Bump when the semantics of ser.labels.map_label change in a way the keys
+  # below do not express. Feeds label_map_hash, a run_id coordinate.
+  label_map_version: v1
+
+  # Class order is alphabetical and is the index order of every confusion
+  # matrix in the paper. Do not reorder.
+  #
+  # 'four' replaces the original plan's 'five'. IEMOCAP disgust has ~2
+  # utterances and fear ~40; across 10 speakers that is ~4 fear utterances per
+  # speaker-disjoint fold, so macro-F1 collapse on IEMOCAP pairs is guaranteed
+  # by construction and would be misread as transfer failure. IEMOCAP pairs run
+  # as canonical 4-class instead.
+  #
+  # CONSEQUENCE: chance floors now differ by pair -- 1/6 = 0.167 for
+  # RAVDESS<->CREMA-D, 1/4 = 0.250 for IEMOCAP pairs. No headline number may
+  # average macro-F1 across pairs; report per-pair against per-pair chance.
+  spaces:
+    six:  [angry, disgust, fear, happy, neutral, sad]
+    four: [angry, happy, neutral, sad]
+  space_for_iemocap_pairs: four
+  space_for_other_pairs: six
+
+  # Any class with fewer than this many utterances after mapping is flagged in
+  # reports/dataset_stats.md.
+  min_class_support_warn: 100
+
+  # ---------------------------------------------------------------------
+  # DECIDED 2026-08-10. Rationale in PROGRESS.md; each belongs in the paper's
+  # data section. Values the original used are noted where they differ.
+  # ---------------------------------------------------------------------
+
+  # How an IEMOCAP utterance gets its categorical label. Majority vote over the
+  # three categorical annotators, discarding the ~2507 no-agreement utterances.
+  # This is the canonical rule and produces the canonical counts (neutral 1708,
+  # frustrated 1849, angry 1103, sad 1084, excited 1041, happy 595, fear 40,
+  # disgust 2). Switching to any-annotator or folding in self-assessment changes
+  # every count substantially, hence every prior, hence the entire shift
+  # analysis -- so it is an explicit key inside label_map_hash rather than an
+  # implicit property of the parsing code.
+  # Options: majority_vote_discard_disagreement | majority_vote_with_self_assessment
+  #          | any_annotator | self_assessment
+  iemocap_label_source: majority_vote_discard_disagreement
+
+  # Standard IEMOCAP convention; makes the 4-class setup comparable to the
+  # literature. Happy goes from ~595 to ~1636 utterances. (Original: same.)
+  iemocap_excited_to_happy: true
+
+  # DROP, do not merge into angry. Frustration has ~1849 utterances against
+  # anger's ~1103, so merging would make 'angry' ~30% of retained IEMOCAP --
+  # manufacturing the label-prior skew the paper's thesis then claims to
+  # discover. Neither RAVDESS nor CREMA-D elicits frustration, so the merge
+  # would also import acoustic material with no counterpart in the target
+  # space. (Original: merge_angry.)
+  iemocap_frustrated: drop
+
+  # Both. Scripted sessions repeat sentences across speakers and emotions -- a
+  # lexical confound -- but improvised alone roughly halves IEMOCAP.
+  # Per-utterance subset is recorded in the manifest so improvised-only is
+  # available as a free robustness check. (Original: both, unrecorded.)
+  iemocap_subsets: both
+  iemocap_record_subset: true
+
+  # Merge. Calm exists only in RAVDESS, so it cannot transfer and cannot be
+  # evaluated cross-corpus. Merging gives neutral 288 against 192 for every
+  # other class; dropping would leave neutral at 96 against 192. Neither is
+  # balanced -- RAVDESS is balanced at 8 classes, NOT at the 6-class
+  # intersection. The "RAVDESS is exactly balanced" claim in the current draft
+  # must be corrected. (Original: same.)
+  ravdess_calm_to_neutral: true
+
+splits:
+  # Bump when split construction changes in a way the keys below do not
+  # express. Feeds split_spec_hash, a run_id coordinate.
+  # v2: matched_source_train (below).
+  split_spec_version: v2
+
+  # Cap source_train to the size of the SMALLER direction's source_train, per
+  # seed, stratified by class, within the existing speaker-disjoint split.
+  #
+  # Without this, direction is confounded with training-set size: CREMA-D
+  # contributes 5972 source-train utterances against RAVDESS's 988, so any
+  # transfer asymmetry between ravdess->cremad and cremad->ravdess could just
+  # be 6x the data. Matching n is the control that removes the confound -- and
+  # it happens to make the reverse direction affordable, since the SVM's O(n^2)
+  # term is what made a full-n mirror cost 528 hours.
+  #
+  # The cap is DERIVED per (pair, seed), never hard-coded: both directions'
+  # uncapped source_train sizes are computed and the minimum is taken, so the
+  # smaller direction is untouched and the larger is subsampled down to it.
+  # Full-n runs remain available with this false, as a separate reported arm.
+  matched_source_train: true
+
+  # Source corpus -> source_train / source_val, speaker-disjoint.
+  source_train_ratio: 0.8
+  # Target corpus -> target_adapt / target_test, speaker-disjoint.
+  # target_adapt is the ONLY target data any alignment method may see.
+  target_adapt_ratio: 0.5
+
+  # In-domain pairs (source == target) partition ONE corpus four ways. Speakers
+  # are first divided into a source side and a target side by this ratio, and
+  # the two ratios above then apply within each side. Without this, running the
+  # source and target splits independently over the same corpus would place the
+  # same speakers in source_train and target_test -- an in-domain result that
+  # silently reports training data.
+  in_domain_source_ratio: 0.5
+  # IEMOCAP splits on session, the standard unit for that corpus.
+  iemocap_split_unit: session
+  # One split realisation per seed. Minimum five.
+  seeds: [0, 1, 2, 3, 4]
+
+features:
+  # Bump when the extraction code changes in a way that alters values. Part of
+  # the cache key, so old and new features can never be mixed.
+  feature_version: v1
+
+  # Preprocessing, identical for every corpus and backbone.
+  sample_rate: 16000
+  mono: true
+  peak_normalise: true
+
+  backbones:
+    hubert: facebook/hubert-base-ls960
+    wav2vec2: facebook/wav2vec2-base
+    wavlm: microsoft/wavlm-base
+
+  # Base models: CNN feature-encoder output plus 12 transformer layers.
+  n_layers: 13
+  hidden_dim: 768
+  storage_dtype: float16
+
+  # Segment-pooled cache for the Transformer baseline (Decision A: fix, not
+  # drop). 8 uniform temporal segments give it real sequence structure at 8x
+  # storage. Set false to drop the Transformer instead.
+  segment_pooling_enabled: true
+  n_segments: 8
+
+  # 13 coefficients + delta + delta-delta, mean- and std-pooled -> 78 dims.
+  mfcc_n_coefficients: 13
+  mfcc_deltas: true
+  mfcc_pooling: [mean, std]
+
+alignment:
+  # The ladder, ordered by which moments each condition matches:
+  #   zscore      per-dimension 1st + 2nd, no cross-terms
+  #   mean_shift  1st            (= MMD under a linear kernel)
+  #   coral       1st + 2nd, with covariance
+  #   mmd         all, via a sum of RBF kernels
+  # Reported as one ordered ablation, not as scattered points. If performance
+  # is flat across the ladder, the shift is demonstrably not covariate -- shown
+  # with an ordered series rather than two arbitrary comparisons.
+  methods: [none, zscore, mean_shift, coral, mkmmd_diag, mkmmd_full]
+
+  # CORAL covariance regularisation, scale-aware: Cov + eps * trace(Cov)/d * I.
+  #
+  # d=768 with ~1000 source-train samples means the sample covariance is
+  # rank-deficient by construction, so shrinkage is mandatory and eps is a
+  # SEARCHED axis, selected on source_val and recorded in the run row. An
+  # unreported eps makes CORAL unreproducible, which is one of the defects this
+  # rebuild exists to fix.
+  #
+  # Anchoring to trace/d (the mean eigenvalue) rather than a bare eps*I matters:
+  # the original added a fixed 1e-5*I regardless of feature scale, so the same
+  # nominal epsilon meant something different for every backbone and layer.
+  # Extended upward at grid-freeze-v3. Stage 1 screening found source_val
+  # monotone increasing in eps with 1e-1 -- the old grid maximum -- the argmax
+  # in 18 of 18 conditions. A hyperparameter selected at the edge of its search
+  # range is not evidence that the edge is optimal, only that the grid stopped
+  # too early, so 1.0 and 10.0 extend it until the surface turns over.
+  # Plain decimals, not 1.0e1: YAML 1.1 parses an unsigned exponent as a STRING.
+  coral_shrinkage: [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0]
+  # Ledoit-Wolf as a second, parameter-free variant. If it matches the best
+  # searched eps, the search is not buying anything a principled estimator
+  # would not give for free.
+  coral_ledoit_wolf: true
+
+  # MMD operator, fully specified (Decision B). Learn an affine map (W, b)
+  # minimising
+  #
+  #     MMD^2_k(W.X_src + b, X_target_adapt) + lambda * ||W - I||_F^2
+  #
+  # with k a sum of RBF kernels at these multiples of the median pairwise
+  # distance. Fitted on source_train and target_adapt ONLY -- never target_test.
+  #
+  # 'mean_shift' is the separate first rung, NOT an alias for this. The
+  # original study's "mmd" was X_src + (mu_tgt - mu_src), which is exactly the
+  # minimiser of linear-kernel MMD: a degenerate special case of what it
+  # claimed. Both rungs are reported so that column's real value is measured.
+  mmd_kernel: gaussian_multikernel
+  mmd_bandwidth_multipliers: [0.25, 0.5, 1.0, 2.0, 4.0]
+  mmd_fit_bias: true
+
+  # lambda on ||W - I||_F^2, a SEARCHED axis over a wide range.
+  #
+  # Full W is 768x768 ~= 590k parameters fitted on ~1000 samples. Without strong
+  # regularisation it interpolates source into target and generalises to
+  # nothing. The identity anchor means lambda -> infinity recovers the identity
+  # map, so the ladder degrades towards `none` rather than towards noise. The
+  # selected value is recorded in the run row.
+  # NOTE: written as plain decimals on purpose. YAML 1.1 only recognises
+  # scientific notation when the exponent carries a sign, so `1.0e1` parses as
+  # the *string* "1.0e1" while `1.0e-1` parses as a float. Mixed types here
+  # would fail the config validator at best and silently skew a searched axis at
+  # worst.
+  mmd_lambda_grid: [0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
+
+  # 200, the validated setting. Measured on ravdess->cremad HuBERT `last`:
+  # 200 steps reaches 3.45x null against the CORAL warm start's 3.76, and 500
+  # steps reaches only 3.69 -- so 200 is as good or better at half the cost.
+  #
+  # The fallback is FEATURE-dependent, not budget-dependent. On `layer:6` the
+  # warm start is already at 1.93x null, close enough to the same-distribution
+  # floor that no budget can improve on it, and the optimiser reverts at both
+  # 200 and 500 steps. That is the guard working, not a budget to raise.
+  mmd_steps: 200
+
+  # Target Frobenius norm of ONE optimiser step on W. Adam normalises per
+  # parameter, so a raw learning rate moves ||dW||_F ~= lr * sqrt(P) -- at
+  # lr=1e-3 and P=768x768 that is 0.77 per step, which hurls the map away from
+  # any good solution. Measured: warm-started exactly at CORAL, the objective
+  # ROSE from 0.00400 to 0.00580. Deriving lr = step_norm / sqrt(P) instead
+  # makes the step size mean the same thing for the 768-parameter diagonal
+  # variant and the ~590k-parameter full one.
+  mmd_step_norm: 0.01
+
+  # Warm start the full map at the fitted CORAL solution. The MMD optimum is at
+  # least as good as CORAL's, because CORAL's W is in the feasible set, so
+  # starting there makes "did the optimiser converge?" separable from "is the
+  # objective attainable?". With this and the step-norm fix, mkmmd_full reaches
+  # 1.3x the same-distribution null against CORAL's 2.1x.
+  mmd_warm_start: coral
+
+  # Keep the warm start if optimisation makes it worse, and record that it did.
+  # The warm start is a valid transform in its own right -- CORAL for the full
+  # map, per-dimension moment matching for the diagonal -- so shipping a fitted
+  # map that is worse than its own starting point would report the optimiser's
+  # failure as the method's performance.
+  mmd_fallback_to_warm_start: true
+  # Minibatch for the kernel matrices. Full matrices over several thousand
+  # target samples would dominate runtime without improving the gradient.
+  mmd_batch_size: 256
+
+blending:
+  modes: [none, scalar, gaa]
+  # alpha is selected on source_val. Never on target test.
+  alpha_grid: [0.0, 0.25, 0.5, 0.75, 1.0]
+  # k-means over feature dimensions into this many groups, per-group alpha.
+  n_groups: 16
+
+classifiers:
+  # Linear and RBF SVM are separate families: they have different capacity and
+  # different search spaces, and collapsing them hides which one carried a
+  # result.
+  families: [logreg, svm_linear, svm_rbf, mlp, transformer]
+  # Configurations evaluated on source_val, per family. Equal for every family:
+  # no family runs at library defaults while another gets a training loop.
+  search_budget: 20
+  # Early stopping on source_val for the torch families. The original ran a
+  # fixed 8 gradient steps with no validation set and therefore no evidence of
+  # convergence; fixed-epoch training is not permitted here.
+  early_stopping_patience: 10
+  max_epochs: 200
+
+  # Iteration cap for the iterative sklearn solvers. NOT a searched
+  # hyperparameter -- it was, drawn from [1000, 2000, 5000], and that was wrong:
+  # a convergence budget is not a model choice, and searching it means a trial
+  # can win selection by having stopped early rather than by fitting better.
+  #
+  # Sized from measurement, not guessed. Worst observed case is lbfgs at C=1e4
+  # on 5972 CREMA-D source-train utterances: 3529 iterations. At the matched-n
+  # size of 988 the worst case is 313. 20000 leaves headroom for the full-n
+  # reverse arm and for backbones not yet measured.
+  #
+  # Convergence is ASSERTED, not warned about: a trial that hits this cap is
+  # recorded as a failed trial and scored -inf rather than being selected. A
+  # non-converged baseline is the exact defect this rebuild exists to correct.
+  sklearn_max_iter: 20000
+
+  # Layer aggregation is a searchable option because Phase 3 caches all layers.
+  # 'last' is kept as a condition so the paper can quantify how much of the
+  # original study's weak numbers came from final-layer-only pooling.
+  # last reproduces the original; layer:k probes the middle layers; weighted
+  # learns a softmax over all 13 states jointly with the head. 'weighted' is
+  # only valid for the torch families -- a closed-form sklearn model has no
+  # parameters to learn it with.
+  layer_agg_options: [last, layer, weighted]
+  layer_candidates: [4, 6, 8, 10]
+
+grid:
+  corpora: [ravdess, cremad, iemocap]
+  feature_branches: [ssl, mfcc, fused]
+
+  # The conditional-shift probe (A8): treat IEMOCAP-improvised and
+  # IEMOCAP-scripted as two corpora. Same speakers, same label space, near
+  # identical priors -- so label shift and covariate shift are both structurally
+  # near zero and only elicitation style differs. Transfer degradation across
+  # that boundary is conditional shift with the confounds held fixed. Costs one
+  # extra pair. Requires labels.iemocap_record_subset.
+  include_iemocap_subset_pair: true
+
+baselines:
+  # Draws for the empirical uniform-random and prior-matched estimates.
+  n_random_draws: 1000
+
+shift:
+  # Phase 9 shift decomposition. Extended when Phase 9 is built.
+  #
+  # Class-conditional MMD on a class with a few dozen target samples is mostly
+  # estimator variance. Below this support the value is reported as undefined,
+  # not as a number, and per-class n accompanies every value that is defined.
+  conditional_mmd_min_support: 50
+
+stats:
+  bootstrap_resamples: 2000
+  ci_level: 0.95
+  correction: holm-bonferroni

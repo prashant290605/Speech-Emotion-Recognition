@@ -1,11 +1,31 @@
+# Fully pinned environment for the cross-corpus SER rebuild.
+#
+# These pins are the versions verified on the extraction machine (see
+# PROGRESS.md, Phase 0). Feature caches record the transformers/torch/torchaudio
+# versions used to produce them; changing any of the three invalidates the
+# cache key rather than silently mixing feature generations.
+#
+# Python 3.12.7
+
 numpy==1.26.4
-scipy==1.12.0
-scikit-learn==1.4.2
+scipy==1.13.1
+scikit-learn==1.8.0
 pandas==2.2.2
+
 librosa==0.10.2.post1
-soundfile==0.12.1
-matplotlib==3.8.4
-tqdm==4.66.4
-transformers==4.44.2
-torch==2.4.1
-python-speech-features==0.6
+soundfile==0.13.1
+
+matplotlib==3.9.2
+seaborn==0.13.2
+statsmodels==0.14.2
+
+tqdm==4.66.5
+
+transformers==4.51.2
+torch==2.5.1
+torchaudio==2.5.1
+
+PyYAML==6.0.1
+filelock==3.13.1
+
+pytest==7.4.4

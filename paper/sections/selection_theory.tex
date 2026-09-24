@@ -1,0 +1,134 @@
+\section{What source validation can identify}
+\label{sec:selection-theory}
+
+An adaptation rule can change the target decision function without changing
+any source-validation prediction. This section gives an exact example and
+then separates it from transformations for which the invariance does not hold.
+Features are row vectors. All maps are fitted on source training and
+unlabelled target adaptation data, never on target test data.
+
+\subsection{A source-translation invariance}
+\label{sec:translation-theory}
+
+Consider a candidate offset $\delta$. Add it to every source-training and
+source-validation vector, but leave target vectors unchanged. Mean matching
+chooses $\delta=\mu_t-\mu_s$; the argument holds for any fixed offset.
+
+\paragraph{Proposition 1: stationary-kernel validation.}
+Let a kernel classifier use $k(x,y)=\psi(x-y)$. Suppose fitting and tie-breaking
+depend on the source features only through the training Gram matrix, with
+identical labels, hyperparameters and random state. Translating all source
+vectors by $\delta$ leaves every source-validation score unchanged. Its target
+decision function satisfies
+\begin{equation}
+ f_\delta(x)=f_0(x-\delta).
+ \label{eq:translation-kernel}
+\end{equation}
+This statement holds for each candidate in a fixed hyperparameter search, not
+only for the selected candidate.
+
+\paragraph{Proof.}
+Training entries obey $k(x_i+\delta,x_j+\delta)=k(x_i,x_j)$. Validation entries
+obey the same identity because both arguments are translated. The fitted
+coefficients, intercept and validation predictions are therefore unchanged
+under the stated fitting rule. For an unshifted target vector,
+$k(x_i+\delta,x)=k(x_i,x-\delta)$. Substitution into the fitted kernel expansion
+gives Equation~\ref{eq:translation-kernel}. The argument applies separately
+to each binary decision function in a multiclass SVM.
+
+\paragraph{Consequence for selection.}
+Even an arbitrarily large labelled source-validation set cannot distinguish
+these offsets using the classifier's predictions on that set. A deterministic
+tie-break can choose an offset, but its validation score supplies no evidence
+that this offset has the best target risk. Target predictions can change when
+$x-\delta$ crosses a decision boundary. This is a limitation of this criterion,
+not an impossibility result for selectors that also use unlabelled target
+features, additional assumptions, or target supervision.
+
+\paragraph{Linear objectives and numerical limits.}
+The same phenomenon occurs for an affine head $xW+q$ trained with a loss on
+source predictions and a penalty on $W$ alone. Replacing $q$ by $q-\delta W$
+preserves every translated-source score and the penalty. Corresponding optima
+therefore have the same source risk but can have different target scores.
+This is an objective identity, not a guarantee about finite optimisation.
+Penalising the intercept breaks it. The implemented \texttt{LinearSVC} uses a
+penalised synthetic intercept; neural initialisation, weight decay and early
+stopping also prevent an unrestricted invariance claim. Logistic regression
+with an unpenalised intercept satisfies the ideal objective assumptions, but
+its finite solver can return different numerical solutions. We report that
+contrast rather than treating it as an exception to be discarded.
+
+\subsection{Separating transport from classifier coordinates}
+\label{sec:affine-factorisation}
+
+The translation result does not imply that validation is invariant to
+standardisation or CORAL. To state the distinction, write the two domain maps
+as $T_s(x)=xA+a$ and $T_t(x)=xB+b$, where $B$ is invertible. Define
+\begin{equation}
+ R=AB^{-1},\qquad r=(a-b)B^{-1}.
+ \label{eq:relative-transport}
+\end{equation}
+Then $T_s(x)=(xR+r)B+b$. Thus $xR+r$ is the source transport expressed in
+original target coordinates, followed by a common coordinate map $zB+b$.
+The source matrix $A$ need not be invertible. This covers source-only affine
+maps, whose target map is the identity.
+
+\paragraph{Lemma 2: the induced geometries.}
+For a head $zW+q$, let $V=BW$, $u=bW+q$, and $G=BB^\top$. Source scores become
+$(xR+r)V+u$ and target scores become $xV+u$. A Euclidean coefficient penalty
+and an RBF distance in the transformed coordinates become
+\begin{align}
+ \lVert W\rVert_F^2 &= \operatorname{tr}(V^\top G^{-1}V),
+ \label{eq:penalty-pullback}\\*
+ \lVert(x-y)B\rVert^2 &= (x-y)G(x-y)^\top.
+ \label{eq:kernel-pullback}
+\end{align}
+The identities follow by substituting $W=B^{-1}V$ and expanding the squared
+norm. The common map therefore induces inverse metrics for the coefficient
+penalty and the feature distance. They are not additional alignment methods.
+
+These elementary reparameterisations are not presented as new linear algebra.
+Feature/weight equivalence is already part of the CORAL account
+\cite{sun2016coral}. Their use here is to specify what the experimental
+comparison holds fixed. Equal trial counts and equal scalar regularisation
+ranges do not generally equalise an anisotropic penalty matrix. Nor does a
+scalar RBF bandwidth search remove arbitrary anisotropy. Equivalence of
+objectives also does not imply identical optimisation trajectories.
+
+\paragraph{Why z-score is not a moment-only control.}
+Let $D_s,D_t$ contain the effective positive standard deviations used by the
+implementation, including its constant-dimension replacements. Domain-wise
+z-score has
+\begin{equation}
+ \begin{split}
+ R&=D_s^{-1}D_t,\qquad r=\mu_t-\mu_sR,\\
+ B&=D_t^{-1},\qquad b=-\mu_tD_t^{-1}.
+ \end{split}
+ \label{eq:zscore-factorisation}
+\end{equation}
+It is diagonal moment transport followed by common target standardisation.
+In raw target coordinates its weight penalty uses $D_t^2$, while its distance
+metric uses $D_t^{-2}$. A classifier with an isotropic penalty fitted directly
+on diagonal moment-matched features is generally a different learner.
+Consequently, the existing alignment comparison measures complete pipelines.
+It does not isolate the causal contribution of matching additional moments.
+
+\subsection{What a discrepancy comparison measures}
+\label{sec:audit-measurement}
+
+Equation~\ref{eq:kernel-pullback} also applies to an MMD kernel. For a change
+of common coordinates, keeping Euclidean distance in the new coordinates
+changes the kernel in the old coordinates. Conversely, if the intention is
+only to express a fixed metric $H$ in coordinates $z'=zQ$, its representation
+must change to $Q^{-1}HQ^{-\top}$. These are different measurement questions.
+Forcing invariance to every invertible map is not a universal solution;
+representation-comparison research shows that excessive invariance can discard
+useful information \cite{kornblith2019similarity}.
+
+We therefore audit three objects separately: relative transport $(R,r)$,
+the classifier objective in those coordinates, and the diagnostic kernel.
+The existing corpus scores cannot retrospectively separate their causal
+effects. They can test the exact translation prediction, demonstrate the
+failure of a particular source-validation criterion, and quantify sensitivity
+to specified measurement protocols. No new alignment algorithm is required
+for those questions.

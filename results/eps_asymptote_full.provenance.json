@@ -1,0 +1,32 @@
+{
+  "artifact": "results/eps_asymptote_full.jsonl",
+  "artifact_sha256": "936af8d5592b6af12dc9c26720120a6b4f641e81709cab96c61a35df5005e764",
+  "rows": 120,
+  "epsilons": [
+    100.0,
+    1000.0
+  ],
+  "freeze_tags": [
+    "grid-freeze-v3"
+  ],
+  "identical_duplicates_collapsed": 0,
+  "sources": [
+    {
+      "source": "results/eps_asymptote.jsonl",
+      "rows": 35,
+      "sha256": "12289fcbf7470c90a7508ec12d58728c7af270c97d8cffa6c72ca0ddbce0df1a"
+    },
+    {
+      "source": "results/shards/eps_fwd.jsonl",
+      "rows": 25,
+      "sha256": "316a5b1e3b22adc3da1a92778ff26754878e24632d2cde3d6dd8e6f0bcade9bf"
+    },
+    {
+      "source": "results/shards/eps_rev.jsonl",
+      "rows": 60,
+      "sha256": "d09627a98d5fca7ec7b12dd740160bbe10451df45926304bd2e6c00bcf50ec75"
+    }
+  ],
+  "generator": "tools/merge_eps_probe.py",
+  "note": "Packaging of existing frozen rows. No run was executed and no value recomputed. The source files are retained."
+}

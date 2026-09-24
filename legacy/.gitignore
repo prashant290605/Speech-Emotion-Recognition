@@ -1,0 +1,113 @@
+# -------------------------------------------------------------------
+# Datasets and private research assets
+# -------------------------------------------------------------------
+datasets/
+data/
+dataset/
+Radvess/
+Crema D/
+IEMOCAP/
+MAED/
+MEAD/
+
+# Audio / video corpora and large media
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.m4a
+*.aac
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# -------------------------------------------------------------------
+# Model artifacts, caches, outputs
+# -------------------------------------------------------------------
+checkpoints/
+models/
+outputs/
+logs/
+cache/
+feature_cache/
+features/
+results/
+wandb/
+mlruns/
+lightning_logs/
+runs/
+
+# Hugging Face / model hubs
+.cache/
+hf_cache/
+huggingface/
+**/huggingface/
+**/hf_home/
+**/transformers_cache/
+
+# -------------------------------------------------------------------
+# Python environments and build artifacts
+# -------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.dylib
+*.dll
+*.o
+*.a
+*.class
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# -------------------------------------------------------------------
+# Logs, temporary files, generated reports
+# -------------------------------------------------------------------
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*.out
+*.err
+
+# Local configuration / secrets
+.env
+.env.*
+*.env
+
+# Generated LaTeX artifacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.synctex.gz
+*.toc
+
+# -------------------------------------------------------------------
+# OS / editor junk
+# -------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/

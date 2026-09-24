@@ -1,0 +1,51 @@
+input: results/runs.jsonl
+freeze_tag: grid-freeze-v3
+
+# Every classifier family in the frozen grid that has complete, balanced
+# none/mean_shift pairs. The RBF SVM is the only one whose fitting rule meets
+# Proposition 1's assumptions; the other three are reported because the
+# manuscript already predicts that they do not, and confirming a stated
+# boundary on existing rows costs nothing and forecloses the question of why
+# some eligible arms went unreported.
+#
+# The transformer arm is excluded by construction, not by preference: it ran
+# two seeds in the forward direction only, so it has no balanced matched cells.
+classifiers: [svm_rbf, logreg, svm_linear, mlp]
+
+# The partition the table is drawn in. Heads listed here are the exact
+# prediction test; everything else is scope evidence and must never be
+# presented as a counterexample to a proposition it is outside the assumptions
+# of. Configured rather than hardcoded so the distinction is reviewable here
+# alongside the eligibility list.
+exact_prediction_classifiers: [svm_rbf]
+
+classifier_names:
+  svm_rbf: RBF SVM
+  logreg: Logistic
+  svm_linear: Linear SVM
+  mlp: MLP
+
+match_fields:
+  - source_corpus
+  - target_corpus
+  - seed
+  - backbone
+  - layer_agg
+  - layer_index
+  - feature_branch
+  - classifier
+  - label_map_hash
+  - split_spec_hash
+  - feature_spec_hash
+  - search_spec_hash
+  - split_id
+  - n_classes
+  - class_names
+  - n_train
+  - n_val
+  - n_target_adapt
+  - n_target_test
+  - n_search_trials
+output_json: reports/translation_audit.json
+output_markdown: reports/translation_audit.md
+output_table: tables/translation_audit.tex

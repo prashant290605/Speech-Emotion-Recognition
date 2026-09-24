@@ -1,0 +1,83 @@
+%% Speech Communication submission using Elsevier CAS v2.4 (cas-dc).
+\documentclass[a4paper,fleqn]{cas-dc}
+\usepackage[authoryear]{natbib}
+\setlength{\emergencystretch}{2em}
+
+\graphicspath{{../figures/}}
+
+\begin{document}
+\let\WriteBookmarks\relax
+\def\floatpagepagefraction{1}
+\def\textpagefraction{.001}
+
+\shorttitle{Source-validation invariance in cross-corpus SER}
+\shortauthors{P. Singh et~al.}
+
+\title[mode=title]{What source validation cannot see:
+  an affine adaptation audit for cross-corpus speech emotion recognition}
+
+\author[1]{Prashant Singh}[orcid=0009-0001-8585-6005]
+\cormark[1]
+\fnmark[1]
+\ead{2023mcb1309@iitrpr.ac.in}
+
+\author[1]{Pranav Singh}[orcid=0009-0007-3589-6344]
+\fnmark[1]
+
+\author[1]{Phyo Thet Yee}
+\ead{phyo.22csz0009@iitrpr.ac.in}
+
+\affiliation[1]{organization={Indian Institute of Technology Ropar},
+  city={Rupnagar},
+  state={Punjab},
+  postcode={140001},
+  country={India}}
+
+\cortext[1]{Corresponding author}
+\fntext[1]{Prashant Singh and Pranav Singh contributed equally to this work.}
+
+\begin{abstract}
+Source-side validation avoids target-label leakage in cross-corpus speech
+emotion recognition, but can be invariant to an adaptation operation that
+changes target predictions. We establish this property for source translations
+and stationary-kernel classifiers: translating source training and validation
+together preserves their kernel matrices while shifting the target decision
+function. A retrospective audit of frozen RAVDESS and CREMA-D runs finds exact
+equality of the selected validation score and hyperparameters in all 30 matched
+RBF-SVM cells per direction. Mean matching improves target macro-F1 in every
+matched cell, with mean gains of $0.1342$ and $0.1969$ against chance baselines
+of $0.1665$ and $0.1656$. Logistic regression, a linear SVM and an MLP are
+reported as implementation contrasts outside the proposition's assumptions and
+do not generally retain exact numerical equality. We then factor affine
+adaptation into relative domain transport and common classifier coordinates.
+The factorisation shows why domain-wise standardisation also changes effective
+regularisation and kernel geometry, so the broader alignment comparison cannot
+isolate the benefit of matching additional moments. The contribution is an
+executable audit of what a selection criterion and an affine comparison can
+identify, not a new recogniser or an unsupervised target-risk estimator.
+The empirical evidence is limited to two English acted-speech corpora; the
+analytic claims require the stated kernel and fitting assumptions.
+\end{abstract}
+
+\begin{keywords}
+speech emotion recognition \sep cross-corpus \sep domain adaptation \sep
+distribution alignment \sep self-supervised speech representations \sep
+model selection
+\end{keywords}
+
+\maketitle
+
+\input{sections/introduction}
+\input{sections/related}
+\input{sections/selection_theory}
+\input{sections/methods}
+\input{sections/results}
+\input{sections/discussion}
+\input{sections/reproducibility}
+\input{sections/conclusion}
+\input{sections/backmatter}
+
+\bibliographystyle{cas-model2-names}
+\bibliography{refs}
+
+\end{document}

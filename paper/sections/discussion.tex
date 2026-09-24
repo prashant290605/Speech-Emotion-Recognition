@@ -1,0 +1,110 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{A limitation of the criterion, not of its sample size}
+\label{sec:discussion-selection}
+
+The translation result explains a specific failure mode. A source-validation
+criterion can assign identical evidence to different target decision functions.
+In the matched RBF-SVM runs, both the selected validation score and the selected
+hyperparameters are equal across the two arms, yet all target differences favour
+mean shift. No amount of additional labelled source-validation data breaks the
+symmetry in Proposition 1, because the symmetry holds for every sample. A
+tie-break that always preferred mean shift would have succeeded on these
+recorded pairs, but that preference is not learned from the source-validation
+scores and is not justified for a new corpus pair by this study.
+
+The broader selection failure in Section~\ref{sec:results-selection} is a
+different and weaker phenomenon. Z-score changes anisotropic geometry and need
+not preserve validation predictions; the small forward validation difference
+there is empirical, not a consequence of Proposition 1. The two together give a
+graded picture: the criterion is exactly blind on one axis, nearly blind on
+another, and informative on a third (Section~\ref{sec:results-aggregation}).
+Usefulness on one search axis does not imply usefulness on another.
+
+\subsection{Why the result does not extend to all affine adaptation}
+\label{sec:discussion-practice}
+
+The factorisation prevents a tempting generalisation. Standardisation changes
+relative moments \emph{and} the common feature coordinates the head works in.
+The latter turns an isotropic coefficient penalty into an anisotropic one when
+expressed in original target coordinates, and a finite scalar search does not
+generally compensate for it. The existing grid therefore cannot decide how much
+of standardisation's gain is due to moment transport, to conditioning, or to
+their interaction with optimisation. Its scores remain valid measurements of
+the pipelines that were evaluated.
+
+The same argument applies to the measurement side. A discrepancy is defined
+relative to a basis and a bandwidth, and Section~\ref{sec:results-frames} shows
+two defensible protocols giving opposite pooled signs on the same runs and the
+same target scores. The CORAL limit is informative for a third reason: it
+specifies the map as shrinkage increases, independently of any measured MMD.
+That limit retains a source-only scalar factor, so it is not exactly the
+mean-shift map unless that factor is unity, and the observed score proximity is
+empirical rather than implied.
+
+\subsection{What the executable audit gives a researcher}
+\label{sec:discussion-testing}
+
+Before interpreting a feature-alignment comparison, record both domain maps,
+the head's penalty and intercept convention, and the diagnostic kernel. Check
+whether a candidate adaptation leaves the validation predictions invariant; for
+a stationary kernel and a source-only translation, the check is arithmetic and
+needs no training run. For coordinate-equivalent pipelines, either transform the
+objective and the kernel consistently or state that the comparison includes
+their change. When reporting a discrepancy reduction, state the basis and the
+bandwidth rule. The affine-identity tests and the ledger matcher released with
+this paper make each of these checks executable against recorded runs.
+
+\subsection{What it does not give them}
+\label{sec:discussion-limits}
+
+This audit detects an uninformative criterion; it does not supply the missing
+target-risk information. Existing unsupervised selectors use additional signals
+or assumptions \cite{you2019selection,hu2024selection}; they were not evaluated
+here, so we cannot rank them, and the translation result does not invalidate
+them. Nothing here recommends mean shift as an adaptation method: its advantage
+in these cells is descriptive, measured against an unaligned baseline in one
+corpus pair, and the criterion under study cannot detect it. Likewise, neither
+class-conditional MMD nor a small empirical Kullback--Leibler divergence
+between label priors identifies the cause of transfer error. A direct conditional-shift study would need adequate labelled
+support and control of corpus, speaker and elicitation differences; paired
+recordings are one possible design, not a mathematical requirement.
+
+\subsection{Limitations}
+\label{sec:limitations}
+
+\paragraph{Empirical scope.} The evidence comes from RAVDESS and CREMA-D,
+both acted English speech. It does not establish the frequency or magnitude
+of validation invariance in spontaneous, multilingual or additional-corpus
+SER. Source-training size is matched, but validation, adaptation and test
+sizes differ by direction, so the directional asymmetry cannot be assigned to
+one corpus property. The target scores are not state-of-the-art claims.
+
+\paragraph{Analytic scope.} The kernel proposition assumes matching candidate
+sets and fitting rules determined by invariant matrices. The linear-objective
+argument assumes an unpenalised intercept and corresponding optima. Finite
+solvers can violate numerical equality, as the logistic-regression, linear-SVM
+and MLP rows of the audit show; those rows delimit the proposition rather than
+testing it. These conditions exclude a blanket claim for neural training or for
+domain-wise z-score. The affine lemma requires an invertible target map.
+
+\paragraph{Retrospective evidence.} The translation audit was designed after
+the runs existed. It reports all eligible matches and does not tune on target
+scores, but it is not a prospectively registered experiment, and this paper
+reports no independent prospective replication on a corpus pair held out from
+the audit's design. The ledger stores
+winning validation scores, not the predictions for every search candidate, so
+it verifies the recorded equalities rather than every numerical equality
+predicted for an ideal full search surface. Cells share seeds and speakers;
+their count is not a count of independent replications.
+
+\paragraph{Other experimental arms.} The transformer has two seeds in the
+forward direction only. It is included where available in the full-grid
+headline and ladder summaries, which therefore have unequal forward candidate
+sets across seeds, and it is excluded from the translation audit. MK-MMD falls
+back to its warm start in $64.9\%$ of diagonal-map runs and $55.2\%$ of
+full-map runs, so those results evaluate a complete finite procedure rather
+than every possible optimiser or affine MK-MMD solution. The
+measurement-protocol correlations are descriptive sensitivity analyses, not
+independent evidence for a causal mechanism.

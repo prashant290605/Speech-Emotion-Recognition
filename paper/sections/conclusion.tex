@@ -1,0 +1,29 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+A selection criterion can be leakage-free and still be uninformative. Avoiding
+target labels makes a protocol procedurally valid; it does not make its score
+sensitive to the decision being made.
+
+For stationary-kernel classifiers we give a case where that gap is exact.
+Translating source training and validation together preserves every
+source-validation prediction while shifting the target decision function, so
+the criterion is constant along a family of different target behaviours and no
+amount of additional source-validation data resolves it. The frozen RBF-SVM
+runs show the predicted equality in every matched cell, in both directions.
+Logistic regression, a linear SVM and an MLP fall outside the fitting
+assumptions and do not retain it, which is where the statement stops.
+
+The same coordinate reasoning bounds what the surrounding comparison can show.
+Relative transport, the classifier's coordinates and the kernel a discrepancy
+is measured in are three separate objects, and an affine adaptation generally
+changes all of them at once. A ladder ordered by moments matched is therefore a
+comparison of pipelines, and a reported discrepancy reduction is defined only
+relative to a stated basis and bandwidth. What this paper contributes is an
+audit of what a criterion and a comparison can identify, with its assumptions
+written down and its checks executable against recorded runs. For a
+practitioner choosing a cross-corpus speech emotion recognition pipeline
+without target labels, the consequence is concrete: an identical
+source-validation score can conceal a different target decision function, so
+that score is not by itself evidence about the adaptation choice. It is not a
+recogniser, and it is not an unsupervised estimator of target risk.
