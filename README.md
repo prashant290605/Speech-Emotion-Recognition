@@ -10,7 +10,8 @@ adaptation operation that changes target predictions?** For source translations
 with stationary-kernel classifiers, the answer is exact, and the frozen
 RAVDESS/CREMA-D runs in this repository contain a direct test of it.
 
-Work happens on the `rebuild` branch. `main` is the pre-rebuild history.
+`main` holds the completed work. The pre-rebuild history is reachable through
+the `grid-freeze-v1`, `grid-freeze-v2` and `grid-freeze-v3` tags.
 
 ---
 
@@ -54,7 +55,7 @@ audio, no SSL feature caches and no per-utterance prediction files are needed.
 
 ```bash
 git clone https://github.com/prashant290605/Speech-Emotion-Recognition.git
-cd Speech-Emotion-Recognition && git checkout rebuild
+cd Speech-Emotion-Recognition
 python -m pip install -r requirements.txt && python -m pip install -e .
 python -m pytest
 ```
