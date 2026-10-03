@@ -6,9 +6,12 @@ required, and it is close to universal. No `siunitx`, no `multirow`, no
 table that gets retyped by hand, which is exactly what this module exists to
 prevent.
 
-Every table carries a `\\label` derived from its filename and a caption that
-states the run filter it was computed from. A number in a paper whose
-provenance is not on the same page as it is a number nobody can check.
+Every table carries a `\\label` derived from its filename and a statement of
+the run filter it was computed from. A number in a paper whose provenance is
+not next to it is a number nobody can check. Supplementary tables typeset that
+statement in a note block; main-text tables keep it as a source comment beside
+the float, because the article's captions are deliberately short and its tables
+carry no explanatory notes.
 """
 
 from __future__ import annotations
@@ -73,12 +76,18 @@ def table(
     notes: Optional[Iterable[str]] = None,
     escape_cells: bool = True,
     tabcolsep: Optional[str] = None,
+    provenance: Optional[str] = None,
 ) -> str:
     """A complete two-column ``table*`` float using booktabs rules.
 
     ``notes`` become a small-font block under the rules -- the run filter, the
     seed count, the floor. They are part of the table, not the caption, so they
     survive a journal that truncates captions.
+
+    ``provenance`` is the same kind of statement kept as a LaTeX comment
+    (``% Provenance: ...``) inside the float instead of being typeset. It is
+    for tables whose explanation lives in the surrounding text, and it keeps
+    the run filter beside the numbers in the source without printing it.
 
     ``tabcolsep`` overrides the inter-column padding for this table only, set
     inside the float so it cannot leak into another one. It exists because a
@@ -120,6 +129,10 @@ def table(
         lines.append(r"  \\[2pt]")
         lines.append(r"  \begin{minipage}{\linewidth}\footnotesize " + note
                      + r"\end{minipage}")
+    if provenance:
+        if "\n" in provenance:
+            raise ValueError("provenance must be a single line")
+        lines.append("  % Provenance: " + provenance)
     lines.append(r"\end{table*}")
     return "\n".join(lines) + "\n"
 

@@ -4,8 +4,9 @@ Usage:
     python tools/check_number_trace.py
 
 The paper contains two numeric classes. Outcome numbers in the abstract,
-results, discussion, reproducibility section, conclusion, highlights, and
-result tables must be in a generated report (allowing ordinary display rounding).
+results, discussion, conclusion, highlights, supplement (which carries the
+reproducibility section) and result tables must be in a generated report
+(allowing ordinary display rounding).
 Corpus and fixed-design constants in Methods and the corpus-description table
 are reported separately: they are reproducibility inputs, not outcomes.
 """

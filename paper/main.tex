@@ -1,6 +1,12 @@
 %% Speech Communication submission using Elsevier CAS v2.4 (cas-dc).
 \documentclass[a4paper,fleqn]{cas-dc}
 \usepackage[authoryear]{natbib}
+%% Continuous line numbers for the review copy. In two-column mode the
+%% `switch' option places left-column numbers in the left margin and
+%% right-column numbers in the right margin; it needs a second LaTeX pass,
+%% which latexmk and Overleaf run automatically. Remove \linenumbers below
+%% for the camera-ready version.
+\usepackage[switch]{lineno}
 \setlength{\emergencystretch}{2em}
 
 \graphicspath{{../figures/}}
@@ -27,6 +33,9 @@
 \author[1]{Phyo Thet Yee}
 \ead{phyo.22csz0009@iitrpr.ac.in}
 
+\author[1]{Shweta Jain}
+\ead{shwetajain@iitrpr.ac.in}
+
 \affiliation[1]{organization={Indian Institute of Technology Ropar},
   city={Rupnagar},
   state={Punjab},
@@ -37,26 +46,29 @@
 \fntext[1]{Prashant Singh and Pranav Singh contributed equally to this work.}
 
 \begin{abstract}
-Source-side validation avoids target-label leakage in cross-corpus speech
-emotion recognition, but can be invariant to an adaptation operation that
-changes target predictions. We establish this property for source translations
-and stationary-kernel classifiers: translating source training and validation
-together preserves their kernel matrices while shifting the target decision
-function. A retrospective audit of frozen RAVDESS and CREMA-D runs finds exact
-equality of the selected validation score and hyperparameters in all 30 matched
-RBF-SVM cells per direction. Mean matching improves target macro-F1 in every
-matched cell, with mean gains of $0.1342$ and $0.1969$ against chance baselines
-of $0.1665$ and $0.1656$. Logistic regression, a linear SVM and an MLP are
-reported as implementation contrasts outside the proposition's assumptions and
-do not generally retain exact numerical equality. We then factor affine
-adaptation into relative domain transport and common classifier coordinates.
-The factorisation shows why domain-wise standardisation also changes effective
-regularisation and kernel geometry, so the broader alignment comparison cannot
-isolate the benefit of matching additional moments. The contribution is an
-executable audit of what a selection criterion and an affine comparison can
-identify, not a new recogniser or an unsupervised target-risk estimator.
-The empirical evidence is limited to two English acted-speech corpora; the
-analytic claims require the stated kernel and fitting assumptions.
+Speech emotion recognition (SER) systems lose accuracy when deployed on a
+corpus that differs from their training corpus, and aligning the features of
+the two corpora is a common remedy. Because the deployment corpus is
+unlabelled, the alignment method and its hyperparameters are usually selected
+on held-out training-corpus data. This source-side validation cannot leak
+target labels, but whether it is informative about the alignment choice has not
+been characterised. We study this question for affine feature alignment in
+cross-corpus SER. We prove that, for classifiers whose fit depends on the
+features only through a stationary kernel matrix, translating the source
+training and validation features by a common offset leaves every
+source-validation prediction unchanged while shifting the target decision
+function. We test this prediction with a read-only audit of 4,986 completed
+runs between RAVDESS and CREMA-D, spanning three self-supervised speech
+encoders, six alignment conditions and five classifier families. We also factor
+affine alignment into relative domain transport and a common change of
+classifier coordinates. In all 30 matched RBF-SVM cells per direction, source
+validation returns identical scores and hyperparameters with and without
+mean-shift alignment, although mean shift raises target macro-F1 by 0.1342 and
+0.1969 on average. The factorisation shows that standardisation also changes
+effective regularisation and kernel geometry, so comparisons of alignment
+methods ordered by matched moments evaluate complete pipelines. A leakage-free
+selection criterion can therefore be blind to the adaptation decision it is
+used to make.
 \end{abstract}
 
 \begin{keywords}
@@ -66,6 +78,7 @@ model selection
 \end{keywords}
 
 \maketitle
+\linenumbers
 
 \input{sections/introduction}
 \input{sections/related}
@@ -73,7 +86,6 @@ model selection
 \input{sections/methods}
 \input{sections/results}
 \input{sections/discussion}
-\input{sections/reproducibility}
 \input{sections/conclusion}
 \input{sections/backmatter}
 

@@ -3,9 +3,11 @@
 
     python tools/make_tables.py
 
-Writes tables/*.tex. Each table states its own run filter in a note, so a
-reader can see which slice of the retained result ledger produced it without
-leaving the page.
+Writes tables/*.tex. Each table states its own run filter, so a reader can
+see which slice of the retained result ledger produced it. Supplementary tables
+typeset it in a note; main-text tables keep it as a source comment beside the
+float, because the article explains its tables in the text and keeps captions
+short.
 
 Requires only `booktabs` in the document preamble.
 """
@@ -69,15 +71,16 @@ def table_headline(data):
     return emit(table(
         rows,
         ["pair", "validated", "oracle", "gap", "chance", "majority"],
-        caption=("Target macro-F1 of the configuration selected on source "
-                 "validation, against the best configuration present in the grid. "
-                 "The oracle is a post-hoc target-selected benchmark unavailable "
-                 "to the deployable source-only selection protocol."),
+        caption=("Target macro-F1 of the source-validated and oracle "
+                 "configurations (mean over five seeds with 95\\% "
+                 "$t$-intervals)."),
         label="headline",
-        notes=["Filter: \\texttt{freeze\\_tag=grid-freeze-v3}, "
-               "\\texttt{blending=none}, 4986 runs. Mean over 5 seeds with a "
-               "95\\% $t$-interval. Both baselines are analytic from the realised "
-               "target-test priors."],
+        # The article explains the protocol in the text, so the run filter is
+        # kept beside the numbers as a source comment rather than typeset.
+        provenance=("Filter: \\texttt{freeze\\_tag=grid-freeze-v3}, "
+                    "\\texttt{blending=none}, 4986 runs. Mean over 5 seeds with a "
+                    "95\\% $t$-interval. Both baselines are analytic from the "
+                    "realised target-test priors."),
         escape_cells=False,
         # Six columns, three of them interval strings. At LaTeX's default 6pt
         # the inter-column padding alone is 72pt and the table runs 4.6pt past
@@ -109,19 +112,15 @@ def table_ladder(data):
     return emit(table(
         rows,
         ["pair", "rung", "candidate rows", "target macro-F1", "adaptive-own", "reference-basis"],
-        caption=("The alignment ladder. Within each (pair, seed, backbone, "
-                 "layer aggregation, classifier) cell, the source-validation-best "
-                 "inner setting is selected before target scoring. The discrepancy "
-                 "columns instead average all candidate rows. These are different "
-                 "estimands, not a matched map-level correlation."),
+        caption=("Source-selected target macro-F1 and mean marginal "
+                 "discrepancy of each alignment rung."),
         label="ladder",
-        notes=["Filter: \\texttt{freeze\\_tag=grid-freeze-v3}, "
-               "\\texttt{blending=none}. Target intervals are a paired cluster "
-               "bootstrap over target-test speakers and seeds, "
-               f"{N_BOOT} replicates; discrepancy columns are candidate-row means "
-               "without intervals. Candidate counts differ because CORAL and MK-MMD have "
-               "larger inner grids. Both measurement protocols are stated separately "
-               "(Table~\\ref{tab:frames})."],
+        provenance=("Filter: \\texttt{freeze\\_tag=grid-freeze-v3}, "
+                    "\\texttt{blending=none}. Target intervals are a paired "
+                    "cluster bootstrap over target-test speakers and seeds, "
+                    f"{N_BOOT} replicates; discrepancy columns are candidate-row "
+                    "means without intervals. Candidate counts differ because "
+                    "CORAL and MK-MMD have larger inner grids."),
         escape_cells=False,
     ), "ladder")
 
@@ -142,14 +141,13 @@ def table_primary(data):
     return emit(table(
         rows,
         ["id", "comparison", "pair", "difference in target macro-F1", "Holm $p$", "verdict"],
-        caption=("The pre-specified primary comparisons. All 14 survive Holm "
-                 "correction. The family was fixed in code before the frozen "
-                 "confirmatory grid was run."),
+        caption=("Pre-specified primary comparisons of target macro-F1 with "
+                 "Holm-corrected $p$-values."),
         label="primary",
-        notes=[f"Paired cluster bootstrap over target-test speakers and seeds, "
-               f"{payload[0]['n_boot']} replicates. $p$ values marked $<$ are at "
-               "the bootstrap's resolution floor of $1/n_{\\mathrm{boot}}$ and "
-               "are not resolvable below it."],
+        provenance=(f"Paired cluster bootstrap over target-test speakers and "
+                    f"seeds, {payload[0]['n_boot']} replicates. $p$ values marked "
+                    "$<$ are at the bootstrap's resolution floor of "
+                    "$1/n_{\\mathrm{boot}}$ and are not resolvable below it."),
         escape_cells=False,
     ), "primary")
 
@@ -253,17 +251,14 @@ def table_frames():
     return emit(table(
         out_rows,
         ["pair", "backbone", "$\\rho$ (adaptive own)", "$\\rho$ (reference basis)"],
-        caption=("Measurement-protocol sensitivity. Spearman $\\rho$ between a "
-                 "layer's marginal discrepancy and its target macro-F1, across "
-                 "the 13 layers. The adaptive own-geometry and reference-basis "
-                 "calculations give opposite pooled signs."),
+        caption=("Spearman correlation between layer-wise marginal discrepancy "
+                 "and target macro-F1 under two measurement protocols."),
         label="frames",
-        notes=["Filter: 13-layer sweep, 2340 runs, logreg, 6 rungs, 3 backbones, "
-               "both directions, 5 seeds. Each correlation is computed across 13 layers "
-               "within one direction, backbone, rung and seed, then averaged over "
-               "rungs and seeds. The pooled row averages all 36 cells and 5 seeds. "
-               "These are descriptive means: shared seeds and features preclude "
-               "treating cell-and-seed correlations as independent replicates."],
+        provenance=("Filter: 13-layer sweep, 2340 runs, logreg, 6 rungs, "
+                    "3 backbones, both directions, 5 seeds. Each correlation is "
+                    "computed across 13 layers within one direction, backbone, "
+                    "rung and seed, then averaged over rungs and seeds. The pooled "
+                    "row averages all 36 cells and 5 seeds."),
         escape_cells=False,
     ), "frames")
 
@@ -347,16 +342,19 @@ def table_corpora():
         out_rows,
         ["corpus", "spk", "utts", "hours", "mean dur (s)", "$n$ (6-class)"]
         + [f"\\texttt{{{c[:4]}}}" for c in classes],
-        caption=("Corpora and the mapped six-class intersection. Speakers, "
-                 "utterances and durations describe the raw speech subsets; "
-                 "the last six columns are mapped class priors. "
-                 "Merging RAVDESS \\texttt{calm} changes the neutral prior."),
+        caption=("Corpus statistics and mapped class priors. Speakers (spk), "
+                 "utterances (utts) and durations (dur) describe the raw speech "
+                 "subsets. The last six columns give the class priors of the "
+                 "six-class intersection, with class names abbreviated to four "
+                 "letters."),
         label="corpora",
-        notes=["Derived from \\texttt{data/manifest.csv}. RAVDESS "
-               "\\texttt{surprised} (192 utterances) is excluded as having no "
-               "CREMA-D counterpart; RAVDESS \\texttt{calm} is merged into "
-               "\\texttt{neutral}. Neither the original eight-label subset "
-               "nor this six-class intersection is exactly balanced."],
+        # The manifest path and the label decisions are stated in the Method
+        # text; the source note is kept here so the numbers stay traceable.
+        provenance=("Derived from the corpus manifest by "
+                    "\\texttt{tools/make\\_tables.py}. RAVDESS "
+                    "\\texttt{surprised} (192 utterances) is excluded as having "
+                    "no CREMA-D counterpart; RAVDESS \\texttt{calm} is merged "
+                    "into \\texttt{neutral}."),
         escape_cells=False,
     ), "corpora")
 
@@ -384,16 +382,14 @@ def table_floors(data):
         rows,
         ["pair", "source\\_train", "source\\_val", "target\\_adapt",
          "target\\_test", "chance", "majority"],
-        caption=("Split sizes and the baselines every macro-F1 in this paper is "
-                 "read against. Both directions are matched-$n$: CREMA-D "
-                 "source-train is subsampled from 5972 to match RAVDESS, so a "
-                 "reported asymmetry is not a source-training-size effect alone."),
+        caption=("Split sizes (ranges over five seeds) and macro-F1 baselines "
+                 "for each transfer direction."),
         label="floors",
-        notes=["Ranges span the five seeds within the speaker-disjoint "
-               "constraint. Baselines are analytic from the realised "
-               "\\texttt{target\\_test} priors, not simulated. Because the "
-               "chance baseline is pair-dependent, no result in this paper averages "
-               "macro-F1 across pairs."],
+        provenance=("Filter: \\texttt{freeze\\_tag=grid-freeze-v3}, "
+                    "\\texttt{blending=none}. Ranges span the five seeds within "
+                    "the speaker-disjoint constraint. Baselines are analytic from "
+                    "the realised \\texttt{target\\_test} priors, not "
+                    "simulated."),
         escape_cells=False,
     ), "floors")
 

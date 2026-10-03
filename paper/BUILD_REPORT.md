@@ -210,3 +210,70 @@ by injecting a bell and confirming it fires.
   default instead of the archived pre-rebuild report.
 - Tests: 572 collected, 572 passed, 0 failed, 0 skipped.
 
+
+
+---
+
+# Phase 4: co-author review revision
+
+2026-10-03. Editorial revision answering Phyo Thet Yee's review of the
+manuscript, and Shweta Jain added as fourth author (supervisor, CRediT
+Supervision). No experiment was rerun, no result row edited and no cached
+feature touched; the ledger SHA256 is unchanged.
+
+## Output
+
+- Article: **15 pages** (was 17), 0 undefined references, 0 undefined
+  citations, one overfull box (the known `cas-dc` title-block artefact).
+- Supplement: **9 pages** (was 8, Section S10 added), 0 undefined references,
+  0 undefined citations, no overfull box.
+- Compiled with pdfLaTeX and BibTeX (TeX Live 2023) through `latexmk` from the
+  flat Overleaf package, which is the Overleaf path. Tectonic was not available
+  in this environment, so `tools/build_paper.py` was not run end to end; its
+  analysis stages were run individually (below).
+
+## What changed
+
+- Abstract and introduction rewritten to the structure the review asked for:
+  background, research gap, problem, method, gains near the end of the
+  abstract, concluding sentence, no limitations in the abstract. The
+  introduction has no formula, defines "frozen", and states the contributions
+  as "Our contributions are as follows:".
+- Every wh-type heading replaced by a formal one; every highlighted sentence
+  split or rewritten; no "here", "need not", clause-joining semicolon, or
+  reference to an earlier version of the work remains in the article.
+- Main-text table captions are now short titles. Their explanations moved into
+  the text; their run filters stay beside the numbers as `% Provenance:`
+  source comments emitted by the generators (`ser.latex.table(provenance=...)`,
+  `tools/audit_translation.py`), so regenerated tables keep the new captions.
+  Table 1's caption defines spk, utts and dur. The manifest path is no longer
+  printed.
+- Numbers already shown in tables were removed from the prose.
+- New Figure 1, a pipeline overview, drawn in TikZ (`tools/pipeline_figure.tex`)
+  and built by `tools/make_pipeline_figure.py` into `figures/pipeline.pdf` and
+  `.png`.
+- Discussion, Limitations and Conclusion shortened; the Reproducibility
+  section moved to supplementary Section S10 together with its null results.
+- Continuous line numbers (`lineno`, `switch` option) for the review copy in
+  both documents.
+- Highlight 2 says "Matched" instead of the unexplained "Frozen".
+
+## Verification
+
+- `tools/make_tables.py` and `tools/audit_translation.py` rerun under Python
+  3.12: the tabular bodies of all seven main-text tables are byte-identical to
+  the previous commit, the three supplementary tables they regenerate and the
+  audit reports are byte-identical, and only captions and notes changed.
+- `tools/check_paper.py`: no structural problems, 35 of 35 bibliography entries
+  cited. `tools/check_number_trace.py`: every outcome number traces; 794
+  occurrences now, down from 890 because repeated table values left the prose.
+- Every number in the revised sources already appears in the previous sources.
+- A 73-point check of each review comment against the compiled PDF passed.
+- Full test suite under Python 3.12: identical to the previous commit in the
+  same environment, plus one new test for the provenance comment. The 32
+  failures in both runs are environmental: `torch`, `soundfile` and `librosa`
+  not installed, the machine-local manifest and prediction files absent, and
+  git tags not fetched in the clone.
+- Overleaf package rebuilt (38 files, 23 TeX files, 8 figures),
+  `tools/verify_overleaf_package.py` passed, and the extracted ZIP compiles to
+  15 and 9 pages with `latexmk`.

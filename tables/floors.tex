@@ -1,6 +1,6 @@
 \begin{table*}[!t]
   \centering
-  \caption{Split sizes and the baselines every macro-F1 in this paper is read against. Both directions are matched-$n$: CREMA-D source-train is subsampled from 5972 to match RAVDESS, so a reported asymmetry is not a source-training-size effect alone.}
+  \caption{Split sizes (ranges over five seeds) and macro-F1 baselines for each transfer direction.}
   \label{tab:floors}
   \begin{tabular}{lrrrrrr}
     \toprule
@@ -10,6 +10,5 @@
     CREMA-D $\rightarrow$ RAVDESS & 988 & 1470--1476 & 624--624 & 624 & 0.1656 & 0.0444 \\
     \bottomrule
   \end{tabular}
-  \\[2pt]
-  \begin{minipage}{\linewidth}\footnotesize Ranges span the five seeds within the speaker-disjoint constraint. Baselines are analytic from the realised \texttt{target\_test} priors, not simulated. Because the chance baseline is pair-dependent, no result in this paper averages macro-F1 across pairs.\end{minipage}
+  % Provenance: Filter: \texttt{freeze\_tag=grid-freeze-v3}, \texttt{blending=none}. Ranges span the five seeds within the speaker-disjoint constraint. Baselines are analytic from the realised \texttt{target\_test} priors, not simulated.
 \end{table*}
