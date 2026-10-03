@@ -52,33 +52,23 @@ runs.
 \subsection{Limitations of the audit}
 \label{sec:limitations}
 
-The audit detects an uninformative criterion, but it does not supply the
-missing target-risk information. Unsupervised selectors that use additional
-signals or assumptions \cite{you2019selection,hu2024selection} were not
-evaluated, so we cannot rank them, and the translation result does not
-invalidate them. This work also does not recommend mean shift as an adaptation
-method, because its advantage in these cells is descriptive and the criterion
-under study cannot detect it. Neither the class-conditional discrepancy nor the
-small divergence between label priors identifies the cause of transfer error.
+The audit identifies an uninformative selection criterion, but it does not
+provide the missing information about target risk. Unsupervised selectors that
+use additional signals or assumptions \cite{you2019selection,hu2024selection}
+were not evaluated, and the translation result does not invalidate them. The
+analytical results also depend on explicit assumptions. The kernel proposition
+requires matched candidate sets and fitting rules determined by invariant
+kernel matrices, the linear-objective argument requires an unpenalised
+intercept, and the affine lemma requires an invertible target map. Neural
+training and domain-wise z-score standardisation therefore fall outside the
+scope of the exact result.
 
-The empirical evidence comes from two acted English corpora. It does not
-establish the frequency or magnitude of validation invariance in spontaneous,
-multilingual or other corpora, and the target scores are not state-of-the-art
-claims. Source-training size is matched, but the other split sizes differ by
-direction, so the directional asymmetry cannot be assigned to one corpus
-property. On the analytic side, the kernel proposition assumes matched
-candidate sets and fitting rules determined by invariant matrices, the
-linear-objective argument assumes an unpenalised intercept, and the affine
-lemma requires an invertible target map. These conditions exclude a blanket
-claim for neural training or for domain-wise z-score.
-
-Finally, the evidence is retrospective. The translation audit was designed
-after the runs existed. It reports all eligible matches and does not tune on
-target scores, but it is not a prospectively registered experiment, and no
-independent replication on a held-out corpus pair is reported. The ledger
-stores winning validation scores rather than the predictions of every search
-candidate, and the matched cells share seeds and speakers, so their number is
-not a count of independent replications. The Transformer arm has two seeds in
-the forward direction only, the MK-MMD results evaluate a complete finite
-procedure including its fallback, and the measurement-protocol correlations are
-descriptive sensitivity analyses rather than evidence for a causal mechanism.
+The empirical evidence comes from two acted English corpora, so the frequency
+and magnitude of validation invariance in spontaneous, multilingual or other
+corpora remain to be established. The audit is also retrospective. Although it
+reports all eligible matches without using target scores, it was designed after
+the runs were completed, and no prospective replication on a held-out corpus
+pair is reported. The matched cells share seeds and speakers, so they are not
+independent replications. Finally, the Transformer arm was run with two seeds
+in one direction only, the MK-MMD results include the fallback to the warm
+start, and the measurement-protocol correlations are descriptive.

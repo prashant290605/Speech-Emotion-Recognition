@@ -37,7 +37,7 @@ reported number changed.
 | Do not use "here" | No occurrence remains in the article ("in this work" and similar instead). |
 | "need not reduce" | "does not necessarily reduce"; no "need not" remains. |
 | "Features are row vectors. All maps are fitted ..." | Replaced with the suggested sentence (Section 3). |
-| Wh-type headings | All replaced. Section 3: "Identifiability under source-side validation"; "Z-score standardisation beyond moment matching"; 3.3 "Measurement geometry of discrepancy comparisons"; 5.2 "Classifiers outside the proposition's assumptions"; 5.3 "Practical consequences of source-side selection"; 5.6 "Cases where source validation remains informative"; 6.2 "Scope of the affine factorisation"; 6.3 "Practical implications of the executable audit"; 6.4 "Limitations of the audit"; and the paragraph headings "Acceptance check and fallback", "Unequal inner grids in the ladder summary", "Interval for the source-selected summary", "Interpretation of the oracle column". |
+| Wh-type headings | All replaced, including the paper title, now "Source-validation invariance in cross-corpus speech emotion recognition: an affine adaptation audit" (previously "What source validation cannot see: ..."). Section 3: "Identifiability under source-side validation"; "Z-score standardisation beyond moment matching"; 3.3 "Measurement geometry of discrepancy comparisons"; 5.2 "Classifiers outside the proposition's assumptions"; 5.3 "Practical consequences of source-side selection"; 5.6 "Cases where source validation remains informative"; 6.2 "Scope of the affine factorisation"; 6.3 "Practical implications of the executable audit"; 6.4 "Limitations of the audit"; and the paragraph headings "Acceptance check and fallback", "Unequal inner grids in the ladder summary", "Interval for the source-selected summary", "Interpretation of the oracle column". |
 | Semicolons joining clauses | Split into separate sentences; none remains in the article prose. |
 | Do not repeat table numbers in paragraphs | Removed. Paragraphs now state which setting outperforms which and cite the table. Numbers that appear in no table, such as the 0.7304 against 0.7322 near-tie and the post hoc bounds, are kept. |
 | Long and weak highlighted sentences | All split or rewritten (details below). |
@@ -79,16 +79,19 @@ explanatory notes moved into the text.
 
 | Comment | Change |
 |---|---|
-| Discussion can be removed or shortened | Shortened from five subsections to four (951 to 724 words including limitations). |
-| Shorten the limitations | "What it does not give them" and "Limitations" merged into "Limitations of the audit", three paragraphs. |
+| Discussion can be removed or shortened | Shortened from five subsections to four (949 to 615 words including limitations). |
+| Shorten the limitations | "What it does not give them" and "Limitations" merged into "Limitations of the audit" and cut to two paragraphs: 220 words, against 319 for the old Limitations section alone (counts exclude line numbers). Caveats already stated where their evidence appears (mean shift not recommended, directional asymmetry, class-conditional discrepancy, ledger contents) were not repeated. |
 | Reproducibility not needed in the main paper | Moved to Supplementary Section S10, with a pointer from Code availability. |
 | Shorten the conclusion | One paragraph (269 to 138 words). |
 | Line numbers | Continuous line numbers added to the article and supplement. Remove `\linenumbers` for the camera-ready version. |
 | Page limit | The journal's guide could not be opened from the build environment, so no limit was confirmed. The article is now 15 pages and should be checked against the portal's requirements. |
 | Paper too long, remove unimportant parts | 17 to 15 pages including the new figure. Duplicated caveats, repeated numbers and the unused MFCC sentence were removed. |
 
-## Not changed
+## Beyond the marked comments
 
-- The paper title, "What source validation cannot see: ...", is still a
-  wh-type phrase. The review did not mark it, so it was left for the authors to
-  decide.
+- Figure 3: the right panel title "Where the answer is known", also a
+  wh-type phrase, is now "CORAL shrinkage path".
+- Figures 2 and 3 no longer print code-style backticks: "selected `none` on 2
+  of 5 seeds" reads "unaligned (none) selected on 2 of 5 seeds", and "dotted =
+  `mean_shift`, the analytic limit" reads "dotted lines: mean_shift (analytic
+  limit)". The plotted data are unchanged.

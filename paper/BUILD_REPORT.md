@@ -277,3 +277,23 @@ feature touched; the ledger SHA256 is unchanged.
 - Overleaf package rebuilt (38 files, 23 TeX files, 8 figures),
   `tools/verify_overleaf_package.py` passed, and the extracted ZIP compiles to
   15 and 9 pages with `latexmk`.
+
+## Follow-up: title, limitations and figure text (2026-10-03)
+
+- Title changed from the wh-type "What source validation cannot see: an affine
+  adaptation audit for cross-corpus speech emotion recognition" to
+  "Source-validation invariance in cross-corpus speech emotion recognition: an
+  affine adaptation audit", in the article, the supplement and the README.
+- Section 6.4 cut from 327 to 220 words (PDF text, line numbers excluded) in
+  two paragraphs. Caveats already stated beside their evidence in Methods and
+  Results are no longer repeated there.
+- `tools/make_figures.py`: Figure 3's right panel title "Where the answer is
+  known" became "CORAL shrinkage path", and the code-style backticks in the
+  annotations of Figures 2 and 3 were removed. Both figures were regenerated
+  and compared with the committed versions rendered at 200 dpi. Figure 3
+  differs only in the two edited strings. Figure 2 differs in its annotation
+  and in sub-pixel anti-aliasing of the rotated labels and titles, which
+  regenerating it with unchanged code also produces in this environment. No
+  bar, curve or error bar moved.
+- Article still 15 pages and supplement 9, with no undefined references or
+  citations and the same single template overfull box.

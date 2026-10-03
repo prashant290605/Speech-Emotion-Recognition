@@ -1,7 +1,7 @@
-# What source validation cannot see
+# Source-validation invariance in cross-corpus speech emotion recognition
 
-Repository for *"What source validation cannot see: an affine adaptation audit
-for cross-corpus speech emotion recognition"* (manuscript in preparation for
+Repository for *"Source-validation invariance in cross-corpus speech emotion
+recognition: an affine adaptation audit"* (manuscript in preparation for
 *Speech Communication*).
 
 The paper asks one question: **can a source-side validation protocol be
