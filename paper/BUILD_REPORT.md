@@ -210,3 +210,191 @@ by injecting a bell and confirming it fires.
   default instead of the archived pre-rebuild report.
 - Tests: 572 collected, 572 passed, 0 failed, 0 skipped.
 
+
+
+---
+
+# Phase 4: co-author review revision
+
+2026-10-03. Editorial revision answering Phyo Thet Yee's review of the
+manuscript, and Shweta Jain added as fourth author (supervisor, CRediT
+Supervision). No experiment was rerun, no result row edited and no cached
+feature touched; the ledger SHA256 is unchanged.
+
+## Output
+
+- Article: **15 pages** (was 17), 0 undefined references, 0 undefined
+  citations, one overfull box (the known `cas-dc` title-block artefact).
+- Supplement: **9 pages** (was 8, Section S10 added), 0 undefined references,
+  0 undefined citations, no overfull box.
+- Compiled with pdfLaTeX and BibTeX (TeX Live 2023) through `latexmk` from the
+  flat Overleaf package, which is the Overleaf path. Tectonic was not available
+  in this environment, so `tools/build_paper.py` was not run end to end; its
+  analysis stages were run individually (below).
+
+## What changed
+
+- Abstract and introduction rewritten to the structure the review asked for:
+  background, research gap, problem, method, gains near the end of the
+  abstract, concluding sentence, no limitations in the abstract. The
+  introduction has no formula, defines "frozen", and states the contributions
+  as "Our contributions are as follows:".
+- Every wh-type heading replaced by a formal one; every highlighted sentence
+  split or rewritten; no "here", "need not", clause-joining semicolon, or
+  reference to an earlier version of the work remains in the article.
+- Main-text table captions are now short titles. Their explanations moved into
+  the text; their run filters stay beside the numbers as `% Provenance:`
+  source comments emitted by the generators (`ser.latex.table(provenance=...)`,
+  `tools/audit_translation.py`), so regenerated tables keep the new captions.
+  Table 1's caption defines spk, utts and dur. The manifest path is no longer
+  printed.
+- Numbers already shown in tables were removed from the prose.
+- New Figure 1, a pipeline overview, drawn in TikZ (`tools/pipeline_figure.tex`)
+  and built by `tools/make_pipeline_figure.py` into `figures/pipeline.pdf` and
+  `.png`.
+- Discussion, Limitations and Conclusion shortened; the Reproducibility
+  section moved to supplementary Section S10 together with its null results.
+- Continuous line numbers (`lineno`, `switch` option) for the review copy in
+  both documents.
+- Highlight 2 says "Matched" instead of the unexplained "Frozen".
+
+## Verification
+
+- `tools/make_tables.py` and `tools/audit_translation.py` rerun under Python
+  3.12: the tabular bodies of all seven main-text tables are byte-identical to
+  the previous commit, the three supplementary tables they regenerate and the
+  audit reports are byte-identical, and only captions and notes changed.
+- `tools/check_paper.py`: no structural problems, 35 of 35 bibliography entries
+  cited. `tools/check_number_trace.py`: every outcome number traces; 794
+  occurrences now, down from 890 because repeated table values left the prose.
+- Every number in the revised sources already appears in the previous sources.
+- A 73-point check of each review comment against the compiled PDF passed.
+- Full test suite under Python 3.12: identical to the previous commit in the
+  same environment, plus one new test for the provenance comment. The 32
+  failures in both runs are environmental: `torch`, `soundfile` and `librosa`
+  not installed, the machine-local manifest and prediction files absent, and
+  git tags not fetched in the clone.
+- Overleaf package rebuilt (38 files, 23 TeX files, 8 figures),
+  `tools/verify_overleaf_package.py` passed, and the extracted ZIP compiles to
+  15 and 9 pages with `latexmk`.
+
+## Follow-up: title, limitations and figure text (2026-10-03)
+
+- Title changed from the wh-type "What source validation cannot see: an affine
+  adaptation audit for cross-corpus speech emotion recognition" to
+  "Source-validation invariance in cross-corpus speech emotion recognition: an
+  affine adaptation audit", in the article, the supplement and the README.
+- Section 6.4 cut from 327 to 220 words (PDF text, line numbers excluded) in
+  two paragraphs. Caveats already stated beside their evidence in Methods and
+  Results are no longer repeated there.
+- `tools/make_figures.py`: Figure 3's right panel title "Where the answer is
+  known" became "CORAL shrinkage path", and the code-style backticks in the
+  annotations of Figures 2 and 3 were removed. Both figures were regenerated
+  and compared with the committed versions rendered at 200 dpi. Figure 3
+  differs only in the two edited strings. Figure 2 differs in its annotation
+  and in sub-pixel anti-aliasing of the rotated labels and titles, which
+  regenerating it with unchanged code also produces in this environment. No
+  bar, curve or error bar moved.
+- Article still 15 pages and supplement 9, with no undefined references or
+  citations and the same single template overfull box.
+
+
+---
+
+# Phase 5: pre-submission reproducibility check
+
+2026-10-04. An external pre-submission read found the scientific argument
+ready and raised two issues: whether the public repository supports the
+manuscript's reproducibility claims, and the unexplained "20 splits (4 pairs x
+5 seeds)". No experiment was rerun and no result changed.
+
+## Public repository, as a stranger sees it
+
+- The repository is public, and its default branch `main` is at `44cf145`, the
+  promoted research repository. The reader's search-engine view (about two
+  months old) showed the pre-rebuild pipeline, which `main` no longer holds.
+- A fresh anonymous clone of `main` contains the frozen ledger (SHA256
+  `51b8ff64...1407`, matching `configs/FROZEN_LEDGER.sha256`), the
+  `grid-freeze-v1/v2/v3` tags, the portable manifest, the per-speaker
+  confusions, every generator, the supplement source, and a README that gives
+  the reproduction commands.
+- The two revision commits of 2026-10-03 and this phase's commit are on
+  `claude/pensive-planck-sdywwv`. **Merge it into `main` before submission**
+  so the public repository carries the final manuscript and scripts.
+
+## Fresh-clone regeneration (final branch)
+
+`python tools/build_paper.py --analysis` on a fresh clone passed all stages in
+8.5 minutes (ledger digest, artifacts, reports, tables, figures, audit,
+structural check, number trace). The four report generators the build does not
+run (label-control diagnostics, global z-score bound, reference MMD
+diagnostics, label-harmonisation table) were run as well. Compared with the
+committed files:
+
+- Every report and table is byte-identical, except the generated-from header
+  line of `reports/RESULTS.md` (commit and date).
+- `tools/make_label_harmonisation_table.py` wrote a second `\end{table*}`,
+  which would break the supplement for anyone who regenerates it. This is the
+  same latent defect `tools/report_reference_mmd_diagnostics.py` once had,
+  hidden because the committed table predated it. Fixed. The generator now
+  reproduces the committed table byte for byte, and
+  `tests/test_label_harmonisation_table.py` runs the generator itself.
+- Figures: per-class F1, frame dependence and validated-versus-oracle are
+  pixel-identical. Confusion, decomposition, CORAL asymptote and ladder differ
+  only in mathtext glyphs (the arrow in panel titles, one superscript), a
+  font-rendering difference between Windows and Linux. No plotted value
+  differs.
+- **One gap.** `tools/report_calm_sensitivity.py` rebuilds the paired intervals
+  of the two label-harmonisation controls (supplementary S1) from per-utterance
+  predictions of 80 runs. `results/predictions/` is gitignored and was never
+  committed, and the committed per-speaker confusions cover only the main
+  ledger, so a clean clone cannot regenerate those intervals. The Data
+  availability statement and the README now state this one exception.
+  Committing the 80 files (`tools/list_label_control_predictions.py` lists and
+  checks them) closes the gap, after which both statements can drop it.
+- `ser.phase8.load_predictions` joined Windows-style stored paths
+  (`predictions\<id>.json.gz`) literally, so prediction files would not load on
+  Linux or macOS even when present. It now accepts either separator
+  (`tests/test_load_predictions.py`).
+
+## Manuscript
+
+- Section 4.2 names the four corpus pairs behind the 20 splits: the two
+  cross-corpus directions plus RAVDESS -> RAVDESS and CREMA-D -> CREMA-D, which
+  appear only in the 30 trivial-baseline rows of the ledger.
+- Section 4.8 defines the majority baseline as a predictor that always outputs
+  the most frequent class of the source training data, which is what
+  `run_grid.py` computes. The values looked low to the reader until
+  reverse-engineered.
+- Code availability now says what the README provides.
+- Supplementary Sections S1 to S10 all exist, and each citation of them in the
+  article matches its content.
+
+`tools/make_pipeline_figure.py` now finds a vendored Tectonic like
+`tools/build_paper.py`, and without poppler it keeps the committed PNG instead
+of failing. Tectonic itself could not be tested in this environment; the
+Overleaf pdfLaTeX path was compiled.
+
+## Follow-up: supplement consistency (2026-10-04)
+
+A second read of the final package found two inconsistencies in the
+supplement. Both are fixed; the article is unchanged.
+
+- The opening said everything came from "the same frozen ledger as the
+  article", while S1 states that each label-harmonisation control has its own
+  ledger. The opening now says the supplement draws on the frozen main ledger
+  and on separate ledgers for the pre-specified controls and the diagnostic
+  probes, and that no experiment was run specifically for the supplement.
+- Supplementary Tables 1 and 2, and the two label-control reports, said the
+  simultaneous lower bound covers "all 12 Table 7-8 contrasts", a leftover
+  from when these tables were Tables 7 and 8 of the article. They now describe
+  the family ("the 12 contrasts across the two label-harmonisation controls"),
+  which cannot go stale, and the caption uses the `ROBUSTNESS_CONTRASTS`
+  constant instead of a literal 12. `tools/report_calm_sensitivity.py` cannot
+  run without the untracked prediction files, so its four outputs were edited
+  to match. That the generator's caption and report line equal the committed
+  text was checked by evaluating the generator's own expressions for both
+  control specifications.
+- `output/paper/Highlights.docx` (Word, four bullets, built from
+  `paper/highlights.txt`) passes the Office schema validation and was rendered
+  for a visual check, for portals that expect Highlights as a Word file.

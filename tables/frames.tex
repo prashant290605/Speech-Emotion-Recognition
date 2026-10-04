@@ -1,6 +1,6 @@
 \begin{table*}[!t]
   \centering
-  \caption{Measurement-protocol sensitivity. Spearman $\rho$ between a layer's marginal discrepancy and its target macro-F1, across the 13 layers. The adaptive own-geometry and reference-basis calculations give opposite pooled signs.}
+  \caption{Spearman correlation between layer-wise marginal discrepancy and target macro-F1 under two measurement protocols.}
   \label{tab:frames}
   \begin{tabular}{lrrr}
     \toprule
@@ -15,6 +15,5 @@
     \textbf{pooled} &  & \textbf{-0.444} & \textbf{0.142} \\
     \bottomrule
   \end{tabular}
-  \\[2pt]
-  \begin{minipage}{\linewidth}\footnotesize Filter: 13-layer sweep, 2340 runs, logreg, 6 rungs, 3 backbones, both directions, 5 seeds. Each correlation is computed across 13 layers within one direction, backbone, rung and seed, then averaged over rungs and seeds. The pooled row averages all 36 cells and 5 seeds. These are descriptive means: shared seeds and features preclude treating cell-and-seed correlations as independent replicates.\end{minipage}
+  % Provenance: Filter: 13-layer sweep, 2340 runs, logreg, 6 rungs, 3 backbones, both directions, 5 seeds. Each correlation is computed across 13 layers within one direction, backbone, rung and seed, then averaged over rungs and seeds. The pooled row averages all 36 cells and 5 seeds.
 \end{table*}

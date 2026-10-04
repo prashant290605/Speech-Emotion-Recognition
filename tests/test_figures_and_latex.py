@@ -112,6 +112,19 @@ def test_table_emits_balanced_booktabs():
     assert "a note" in text
 
 
+def test_table_keeps_provenance_as_an_untypeset_comment():
+    """A main-text table keeps its run filter beside the numbers in the source
+    without printing it, and a multi-line statement would leak out of the
+    comment into the typeset table."""
+    text = table([["a", 1]], ["k", "v"], caption="Cap", label="demo",
+                 provenance="Filter: demo rows only.")
+    assert "  % Provenance: Filter: demo rows only.\n\\end{table*}" in text
+    assert r"\begin{minipage}" not in text
+    with pytest.raises(ValueError, match="single line"):
+        table([["a", 1]], ["k", "v"], caption="Cap", label="demo",
+              provenance="Filter:\nleaks")
+
+
 def test_table_respects_escape_cells_for_the_header_too():
     """A header written as LaTeX must not be escaped into visible backslashes.
     This was a real bug: `$\\rho$` rendered as `\\$\\textbackslash{}rho\\$`."""
@@ -134,10 +147,15 @@ def test_generated_tables_are_balanced_and_labelled():
         assert text.count(r"\begin{tabular}") == text.count(r"\end{tabular}")
         assert text.count(r"\begin{table}") == text.count(r"\end{table}")
         assert f"\\label{{tab:{path.stem}}}" in text or r"\label{tab:" in text
-        # Every table states where its numbers came from, in a note block on
-        # the same page. A number whose provenance is not next to it is a
-        # number nobody can check.
-        assert r"\begin{minipage}" in text, f"{path.name}: no provenance note"
+        # Every table states where its numbers came from. A number whose
+        # provenance is not next to it is a number nobody can check.
+        # Supplementary tables typeset that statement in a note block.
+        # Main-text tables keep it as a `% Provenance:` source comment inside
+        # the float, because the article explains its tables in the text and
+        # keeps captions short; the statement must still be there.
+        typeset_note = r"\begin{minipage}" in text
+        source_note = re.search(r"(?m)^\s*% Provenance: \S", text) is not None
+        assert typeset_note or source_note, f"{path.name}: no provenance note"
         markers = ("Filter:", "replicates", "Derived from", "Ranges span")
         assert any(m in text for m in markers), (
             f"{path.name}: note does not state a run filter or data source"

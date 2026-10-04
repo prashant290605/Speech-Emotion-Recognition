@@ -16,7 +16,7 @@ This pre-specified sensitivity drops RAVDESS \texttt{calm} and excludes \texttt{
 ## Paired target-score differences from `none`
 
 Each interval is a paired cluster bootstrap over target-test speakers and seeds, 2000 replicates.
-Each lower bound is one-sided Bonferroni-simultaneous at 95% familywise coverage over all 12 contrasts in Tables 7 and 8.
+Each lower bound is one-sided Bonferroni-simultaneous at 95% familywise coverage over the 12 contrasts across the two label-harmonisation controls.
 
 - ravdess->cremad: `zscore` minus `none` = +0.0946 [+0.0756, +0.1120]; global lower bound = +0.0692; `mean_shift` minus `none` = +0.0717 [+0.0508, +0.0943]; global lower bound = +0.0438; `coral` minus `none` = +0.0612 [+0.0394, +0.0845]; global lower bound = +0.0326.
 - cremad->ravdess: `zscore` minus `none` = +0.1314 [+0.0677, +0.1935]; global lower bound = +0.0457; `mean_shift` minus `none` = +0.1310 [+0.0712, +0.1890]; global lower bound = +0.0398; `coral` minus `none` = +0.1697 [+0.1282, +0.2112]; global lower bound = +0.1090.

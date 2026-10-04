@@ -1,6 +1,6 @@
 \begin{table*}[!t]
   \centering
-  \caption{Corpora and the mapped six-class intersection. Speakers, utterances and durations describe the raw speech subsets; the last six columns are mapped class priors. Merging RAVDESS \texttt{calm} changes the neutral prior.}
+  \caption{Corpus statistics and mapped class priors. Speakers (spk), utterances (utts) and durations (dur) describe the raw speech subsets. The last six columns give the class priors of the six-class intersection, with class names abbreviated to four letters.}
   \label{tab:corpora}
   \begin{tabular}{lrrrrrrrrrrr}
     \toprule
@@ -10,6 +10,5 @@
     CREMA-D & 91 & 7442 & 5.26 & 2.54 & 7442 & 0.171 & 0.171 & 0.171 & 0.171 & 0.146 & 0.171 \\
     \bottomrule
   \end{tabular}
-  \\[2pt]
-  \begin{minipage}{\linewidth}\footnotesize Derived from \texttt{data/manifest.csv}. RAVDESS \texttt{surprised} (192 utterances) is excluded as having no CREMA-D counterpart; RAVDESS \texttt{calm} is merged into \texttt{neutral}. Neither the original eight-label subset nor this six-class intersection is exactly balanced.\end{minipage}
+  % Provenance: Derived from the corpus manifest by \texttt{tools/make\_tables.py}. RAVDESS \texttt{surprised} (192 utterances) is excluded as having no CREMA-D counterpart; RAVDESS \texttt{calm} is merged into \texttt{neutral}.
 \end{table*}

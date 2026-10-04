@@ -323,7 +323,9 @@ def figure_validated_vs_oracle(data):
             axis.set_ylabel("target macro-F1")
             axis.legend(loc="upper left", fontsize=6, ncol=2)
         fallbacks = sum(1 for p in picked if p == "none")
-        axis.annotate(f"selected `none` on {fallbacks} of {len(seeds)} seeds",
+        # Plain wording rather than code-style quoting: the rung name appears
+        # in parentheses so "none" cannot be read as "nothing".
+        axis.annotate(f"unaligned (none) selected on {fallbacks} of {len(seeds)} seeds",
                       xy=(0.98, 0.86), xycoords="axes fraction", ha="right",
                       fontsize=6.5, color="#D55E00" if fallbacks else "0.35",
                       fontweight="bold" if fallbacks else "normal")
@@ -445,7 +447,7 @@ def figure_frame_dependence(data):
     axis.annotate(f"pooled  own {pooled_own:+.2f}   ref {pooled_ref:+.2f}",
                   xy=(0.5, 0.02), xycoords="axes fraction", ha="center", fontsize=6)
 
-    # -- panel B: the case where the answer is known ----------------------
+    # -- panel B: the CORAL shrinkage path, whose map limit is known -------
     axis = axes[1]
     probe = eps_probe_rows()
     families = {r["classifier"] for r in probe}
@@ -481,8 +483,8 @@ def figure_frame_dependence(data):
     axis.set_xscale("log"); axis.set_yscale("log")
     axis.set_xlabel("CORAL shrinkage $\\epsilon$")
     axis.set_ylabel("discrepancy ($\\times$ null, log)")
-    axis.set_title("Where the answer is known")
-    axis.annotate("dotted = `mean_shift`, the analytic limit",
+    axis.set_title("CORAL shrinkage path")
+    axis.annotate("dotted lines: mean_shift (analytic limit)",
                   xy=(0.98, 0.05), xycoords="axes fraction", ha="right",
                   fontsize=6, color="0.35")
     axis.legend(loc="upper left", fontsize=6)

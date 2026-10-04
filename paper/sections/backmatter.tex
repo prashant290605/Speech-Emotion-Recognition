@@ -5,21 +5,27 @@ third-party corpora and are not redistributed. The repository contains the
 manifest construction, label mapping, speaker-disjoint split derivation,
 generated results, and scripts for every manuscript table and figure.
 
-What this does and does not allow is worth separating. The committed
-artifacts are the result ledgers, a portable manifest of speakers and labels,
-and per-speaker confusion matrices, which are a sufficient statistic for the
-cluster bootstraps reported here. Every table, figure, interval and reported
-number in this article and its supplement regenerates from those files alone,
-with no audio and no model. What is \emph{not} committed is the audio itself,
-the self-supervised feature caches and the per-utterance prediction files:
-these are third-party or large and regenerable. Repeating the feature
-extraction and the grid therefore requires obtaining RAVDESS and CREMA-D from
-their own distributors under their own terms.
+The committed artefacts are the result ledgers, a portable manifest of speakers
+and labels, and the per-speaker confusion matrices of the main ledger, which
+are a sufficient statistic for its cluster bootstraps. Every
+table, figure, interval and reported number in this article and its supplement
+can be regenerated from these files alone, without audio or models, with one
+exception. The paired intervals of the two label-harmonisation controls
+(Supplementary Section~S1) are computed from the per-utterance predictions of
+the control runs, which are not committed. The audio, the self-supervised feature
+caches and the remaining per-utterance prediction files are not committed
+either, because they are third-party or large and regenerable. Repeating the
+feature extraction and the grid therefore requires obtaining RAVDESS and
+CREMA-D from their distributors under their own terms.
 
 \section*{Code availability}
 
 The code is available in the
 \href{https://github.com/prashant290605/Speech-Emotion-Recognition}{public project repository}.
+Its README lists the frozen result ledger, its checksum and the configuration
+tag, and gives the commands that regenerate every table and figure from the
+committed files. Supplementary Section~S10 describes the provenance controls,
+consistency checks and tests.
 
 \section*{Funding}
 
@@ -43,6 +49,7 @@ inference.
 Methodology, Software, Formal analysis, Validation, Visualization, Writing -
 original draft, and Writing - review and editing.
 \textbf{Phyo Thet Yee}: Supervision.
+\textbf{Shweta Jain}: Supervision.
 
 \section*{Declaration of generative AI and AI-assisted technologies in the
 manuscript preparation process}

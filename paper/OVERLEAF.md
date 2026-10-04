@@ -56,3 +56,12 @@ are retrospective and do not add training runs. Confirm that the final
 manuscript states this scope before submitting. Build `supplementary.tex` separately for the supplementary PDF, which now
 carries the robustness controls, extended diagnostics and the provenance
 ledger of withdrawn claims.
+
+## Review copy (2026-10-03)
+
+`main.tex` and `supplementary.tex` print continuous line numbers through the
+`lineno` package. Its `switch` option puts the right column's numbers in the
+right margin and needs a second LaTeX pass, which Overleaf runs automatically.
+Remove `\linenumbers` from both files for the camera-ready version. Figure 1
+(`pipeline.pdf`) is a TikZ schematic; its source is `tools/pipeline_figure.tex`
+in the repository and `tools/make_pipeline_figure.py` rebuilds it.

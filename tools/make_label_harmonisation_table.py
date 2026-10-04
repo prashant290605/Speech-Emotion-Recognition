@@ -26,11 +26,8 @@ def display_corpus(corpus: str) -> str:
     return {"ravdess": "RAVDESS", "cremad": "CREMA-D"}.get(corpus, corpus.upper())
 
 
-def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", default="configs/label_harmonisation_summary.yaml")
-    args = parser.parse_args(argv)
-    summary_spec = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
+def render(summary_spec: dict) -> str:
+    """The LaTeX table for ``summary_spec``, without writing it anywhere."""
     rows = []
     for relative_spec in summary_spec["controls"]:
         spec = load_spec(REPO_ROOT / relative_spec)
@@ -84,8 +81,21 @@ def main(argv=None) -> int:
             "after the alignment leakage assertion. No conditional-to-marginal ratio is reported."
         ],
     )
-    text = text.replace(r"\begin{table}[tb]", r"\begin{table*}[!t]", 1)
-    text = text.rsplit(r"\end{table}", 1)[0] + r"\end{table*}" + "\n"
+    # ser.latex.table already emits a two-column `table*` float. The string
+    # surgery that used to promote a single-column float became a no-op when
+    # the helper changed, and its rsplit, which no longer matched
+    # `\end{table*}`, appended a second closing tag. The committed table
+    # predated that change, so only a regeneration from a clean clone exposed
+    # it (the same defect report_reference_mmd_diagnostics.py had).
+    return text
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config", default="configs/label_harmonisation_summary.yaml")
+    args = parser.parse_args(argv)
+    summary_spec = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
+    text = render(summary_spec)
     output = write_table(
         text,
         "label_harmonisation_diagnostics",

@@ -1,18 +1,19 @@
-\section{What source validation can identify}
+\section{Identifiability under source-side validation}
 \label{sec:selection-theory}
 
 An adaptation rule can change the target decision function without changing
-any source-validation prediction. This section gives an exact example and
-then separates it from transformations for which the invariance does not hold.
-Features are row vectors. All maps are fitted on source training and
-unlabelled target adaptation data, never on target test data.
+any source-validation prediction. This section gives an exact example and then
+separates it from transformations for which the invariance does not hold.
+Features are represented as row vectors. All mappings are fitted using the
+source training data and unlabelled target adaptation data, without access to
+the target test data.
 
 \subsection{A source-translation invariance}
 \label{sec:translation-theory}
 
 Consider a candidate offset $\delta$. Add it to every source-training and
 source-validation vector, but leave target vectors unchanged. Mean matching
-chooses $\delta=\mu_t-\mu_s$; the argument holds for any fixed offset.
+chooses $\delta=\mu_t-\mu_s$. The argument holds for any fixed offset.
 
 \paragraph{Proposition 1: stationary-kernel validation.}
 Let a kernel classifier use $k(x,y)=\psi(x-y)$. Suppose fitting and tie-breaking
@@ -52,7 +53,7 @@ preserves every translated-source score and the penalty. Corresponding optima
 therefore have the same source risk but can have different target scores.
 This is an objective identity, not a guarantee about finite optimisation.
 Penalising the intercept breaks it. The implemented \texttt{LinearSVC} uses a
-penalised synthetic intercept; neural initialisation, weight decay and early
+penalised synthetic intercept. Neural initialisation, weight decay and early
 stopping also prevent an unrestricted invariance claim. Logistic regression
 with an unpenalised intercept satisfies the ideal objective assumptions, but
 its finite solver can return different numerical solutions. We report that
@@ -70,8 +71,8 @@ as $T_s(x)=xA+a$ and $T_t(x)=xB+b$, where $B$ is invertible. Define
 \end{equation}
 Then $T_s(x)=(xR+r)B+b$. Thus $xR+r$ is the source transport expressed in
 original target coordinates, followed by a common coordinate map $zB+b$.
-The source matrix $A$ need not be invertible. This covers source-only affine
-maps, whose target map is the identity.
+The source matrix $A$ is not required to be invertible, which covers
+source-only affine maps whose target map is the identity.
 
 \paragraph{Lemma 2: the induced geometries.}
 For a head $zW+q$, let $V=BW$, $u=bW+q$, and $G=BB^\top$. Source scores become
@@ -89,13 +90,13 @@ penalty and the feature distance. They are not additional alignment methods.
 
 These elementary reparameterisations are not presented as new linear algebra.
 Feature/weight equivalence is already part of the CORAL account
-\cite{sun2016coral}. Their use here is to specify what the experimental
+\cite{sun2016coral}. In this work, they specify what the experimental
 comparison holds fixed. Equal trial counts and equal scalar regularisation
 ranges do not generally equalise an anisotropic penalty matrix. Nor does a
 scalar RBF bandwidth search remove arbitrary anisotropy. Equivalence of
 objectives also does not imply identical optimisation trajectories.
 
-\paragraph{Why z-score is not a moment-only control.}
+\paragraph{Z-score standardisation beyond moment matching.}
 Let $D_s,D_t$ contain the effective positive standard deviations used by the
 implementation, including its constant-dimension replacements. Domain-wise
 z-score has
@@ -113,7 +114,7 @@ on diagonal moment-matched features is generally a different learner.
 Consequently, the existing alignment comparison measures complete pipelines.
 It does not isolate the causal contribution of matching additional moments.
 
-\subsection{What a discrepancy comparison measures}
+\subsection{Measurement geometry of discrepancy comparisons}
 \label{sec:audit-measurement}
 
 Equation~\ref{eq:kernel-pullback} also applies to an MMD kernel. For a change
@@ -121,8 +122,8 @@ of common coordinates, keeping Euclidean distance in the new coordinates
 changes the kernel in the old coordinates. Conversely, if the intention is
 only to express a fixed metric $H$ in coordinates $z'=zQ$, its representation
 must change to $Q^{-1}HQ^{-\top}$. These are different measurement questions.
-Forcing invariance to every invertible map is not a universal solution;
-representation-comparison research shows that excessive invariance can discard
+Forcing invariance to every invertible map is not a universal solution.
+Representation-comparison research shows that excessive invariance can discard
 useful information \cite{kornblith2019similarity}.
 
 We therefore audit three objects separately: relative transport $(R,r)$,
