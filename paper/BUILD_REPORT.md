@@ -297,3 +297,80 @@ feature touched; the ledger SHA256 is unchanged.
   bar, curve or error bar moved.
 - Article still 15 pages and supplement 9, with no undefined references or
   citations and the same single template overfull box.
+
+
+---
+
+# Phase 5: pre-submission reproducibility check
+
+2026-10-04. An external pre-submission read found the scientific argument
+ready and raised two issues: whether the public repository supports the
+manuscript's reproducibility claims, and the unexplained "20 splits (4 pairs x
+5 seeds)". No experiment was rerun and no result changed.
+
+## Public repository, as a stranger sees it
+
+- The repository is public, and its default branch `main` is at `44cf145`, the
+  promoted research repository. The reader's search-engine view (about two
+  months old) showed the pre-rebuild pipeline, which `main` no longer holds.
+- A fresh anonymous clone of `main` contains the frozen ledger (SHA256
+  `51b8ff64...1407`, matching `configs/FROZEN_LEDGER.sha256`), the
+  `grid-freeze-v1/v2/v3` tags, the portable manifest, the per-speaker
+  confusions, every generator, the supplement source, and a README that gives
+  the reproduction commands.
+- The two revision commits of 2026-10-03 and this phase's commit are on
+  `claude/pensive-planck-sdywwv`. **Merge it into `main` before submission**
+  so the public repository carries the final manuscript and scripts.
+
+## Fresh-clone regeneration (final branch)
+
+`python tools/build_paper.py --analysis` on a fresh clone passed all stages in
+8.5 minutes (ledger digest, artifacts, reports, tables, figures, audit,
+structural check, number trace). The four report generators the build does not
+run (label-control diagnostics, global z-score bound, reference MMD
+diagnostics, label-harmonisation table) were run as well. Compared with the
+committed files:
+
+- Every report and table is byte-identical, except the generated-from header
+  line of `reports/RESULTS.md` (commit and date).
+- `tools/make_label_harmonisation_table.py` wrote a second `\end{table*}`,
+  which would break the supplement for anyone who regenerates it. This is the
+  same latent defect `tools/report_reference_mmd_diagnostics.py` once had,
+  hidden because the committed table predated it. Fixed. The generator now
+  reproduces the committed table byte for byte, and
+  `tests/test_label_harmonisation_table.py` runs the generator itself.
+- Figures: per-class F1, frame dependence and validated-versus-oracle are
+  pixel-identical. Confusion, decomposition, CORAL asymptote and ladder differ
+  only in mathtext glyphs (the arrow in panel titles, one superscript), a
+  font-rendering difference between Windows and Linux. No plotted value
+  differs.
+- **One gap.** `tools/report_calm_sensitivity.py` rebuilds the paired intervals
+  of the two label-harmonisation controls (supplementary S1) from per-utterance
+  predictions of 80 runs. `results/predictions/` is gitignored and was never
+  committed, and the committed per-speaker confusions cover only the main
+  ledger, so a clean clone cannot regenerate those intervals. The Data
+  availability statement and the README now state this one exception.
+  Committing the 80 files (`tools/list_label_control_predictions.py` lists and
+  checks them) closes the gap, after which both statements can drop it.
+- `ser.phase8.load_predictions` joined Windows-style stored paths
+  (`predictions\<id>.json.gz`) literally, so prediction files would not load on
+  Linux or macOS even when present. It now accepts either separator
+  (`tests/test_load_predictions.py`).
+
+## Manuscript
+
+- Section 4.2 names the four corpus pairs behind the 20 splits: the two
+  cross-corpus directions plus RAVDESS -> RAVDESS and CREMA-D -> CREMA-D, which
+  appear only in the 30 trivial-baseline rows of the ledger.
+- Section 4.8 defines the majority baseline as a predictor that always outputs
+  the most frequent class of the source training data, which is what
+  `run_grid.py` computes. The values looked low to the reader until
+  reverse-engineered.
+- Code availability now says what the README provides.
+- Supplementary Sections S1 to S10 all exist, and each citation of them in the
+  article matches its content.
+
+`tools/make_pipeline_figure.py` now finds a vendored Tectonic like
+`tools/build_paper.py`, and without poppler it keeps the committed PNG instead
+of failing. Tectonic itself could not be tested in this environment; the
+Overleaf pdfLaTeX path was compiled.

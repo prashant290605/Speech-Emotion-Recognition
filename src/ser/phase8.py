@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import gzip
 import json
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -46,8 +46,16 @@ __all__ = [
 
 
 def load_predictions(results_path: Path, row: Dict) -> Tuple[List[str], List[str]]:
-    """Utterance ids and predicted labels for one run, in the stored order."""
-    path = Path(results_path).parent / row["predictions_path"]
+    """Utterance ids and predicted labels for one run, in the stored order.
+
+    ``predictions_path`` is stored relative to the ledger, with the separator
+    of the machine that wrote it. The grid ran on Windows, so committed ledgers
+    hold ``predictions\\<run_id>.json.gz``; on POSIX that would be read as one
+    file name containing a backslash. ``PureWindowsPath`` accepts both
+    separators, so the path resolves on every platform.
+    """
+    stored = PureWindowsPath(row["predictions_path"])
+    path = Path(results_path).parent.joinpath(*stored.parts)
     with gzip.open(path, "rt", encoding="utf-8") as handle:
         payload = json.load(handle)
     return payload["utterance_ids"], payload["predicted"]

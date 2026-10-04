@@ -50,8 +50,8 @@ conflated when reading the manuscript:
 
 ## Reproducing the analysis from a clean clone
 
-**Everything the manuscript reports regenerates from committed files.** No raw
-audio, no SSL feature caches and no per-utterance prediction files are needed.
+**Everything the manuscript reports regenerates from committed files, with one
+exception listed below.** No raw audio and no SSL feature caches are needed.
 
 ```bash
 git clone https://github.com/prashant290605/Speech-Emotion-Recognition.git
@@ -70,6 +70,15 @@ Regenerate every report, table and figure:
 
 ```bash
 python tools/build_paper.py --analysis
+```
+
+Figure 1 of the article is a schematic rather than a data figure. It is drawn
+in TikZ (`tools/pipeline_figure.tex`) and rebuilt by a separate script, which
+uses `pdflatex` or Tectonic and refreshes the PNG preview when `pdftoppm` is
+available:
+
+```bash
+python tools/make_pipeline_figure.py
 ```
 
 Regenerate and compile the PDF (needs Tectonic on `PATH`; the script will not
@@ -118,10 +127,11 @@ proves exact equivalence: per-speaker tensors identical, pooled confusions
 identical, zero difference in macro-F1, per-class F1, and a full paired
 bootstrap under identical seeds, across all 5364 runs with stored predictions.
 
-### What still requires the raw corpora
+### What still requires the raw corpora or untracked files
 
 | task | needs |
 |---|---|
+| Paired intervals of the two label-harmonisation controls (supplementary Section S1, `tools/report_calm_sensitivity.py`) | the per-utterance prediction files of those 80 runs under `results/predictions/`, which are not tracked |
 | Building `data/manifest.csv` from scratch | RAVDESS and CREMA-D audio |
 | Feature extraction (`ser extract`) | audio, plus GPU/CPU time and ~4.4 GB of cache |
 | Re-running the grid (`ser run-grid`) | the feature caches; about 250 hours of CPU |

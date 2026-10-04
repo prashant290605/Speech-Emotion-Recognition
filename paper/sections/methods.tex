@@ -62,9 +62,12 @@ Every alignment object records the identifiers of the utterances it was fitted
 on, and an assertion checks the \emph{real fitted object in every run}. Model
 selection likewise never sees target data. The selection routine receives no
 target features, and the caller computes the target score afterwards from the
-already selected model. Four leakage assertions hold over all 20 splits
-(4 pairs $\times$ 5 seeds). No group appears in more than one split within a
-corpus, no utterance appears in both a source and a target split,
+already selected model. Splits are generated for four corpus pairs. Two are
+the cross-corpus directions analysed in this work, and the other two are
+within-corpus pairs (RAVDESS $\rightarrow$ RAVDESS and CREMA-D $\rightarrow$
+CREMA-D) used only for runs of trivial baseline predictors. Four leakage
+assertions hold over all 20 resulting splits (4 pairs $\times$ 5 seeds). No
+group appears in more than one split within a corpus, no utterance appears in both a source and a target split,
 \texttt{target\_test} never appears in any fitted alignment object, and the
 label mapping is a pure function. Table~\ref{tab:floors} lists the split sizes,
 which vary slightly across seeds within the speaker-disjoint constraint.
@@ -326,8 +329,9 @@ The primary metric is macro-F1 on \texttt{target\_test}. Accuracy and
 unweighted average recall are also recorded on every row. Every performance
 number is reported against two baselines. The chance baseline is the expected
 macro-F1 of a uniformly random classifier given the realised target-test
-priors, and the majority baseline is the macro-F1 of a majority-class
-predictor. Both are computed analytically on every row rather than by
+priors, and the majority baseline is the macro-F1 of a predictor that always
+outputs the most frequent class of the source training data. Both are computed
+analytically on every row rather than by
 simulation, and Table~\ref{tab:floors} lists them for both directions. A
 macro-F1 below the chance baseline is below the expected score of a random
 classifier. Because the chance baseline differs between the two transfer
