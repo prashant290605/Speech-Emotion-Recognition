@@ -235,7 +235,9 @@ def main(argv=None) -> int:
         "## Paired target-score differences from `none`",
         "",
         f"Each interval is a paired cluster bootstrap over target-test speakers and seeds, {N_BOOT} replicates.",
-        f"Each lower bound is one-sided Bonferroni-simultaneous at 95% familywise coverage over all {ROBUSTNESS_CONTRASTS} contrasts in Tables 7 and 8.",
+        # Describe the family rather than naming table numbers, which went
+        # stale when these tables moved into the supplement.
+        f"Each lower bound is one-sided Bonferroni-simultaneous at 95% familywise coverage over the {ROBUSTNESS_CONTRASTS} contrasts across the two label-harmonisation controls.",
         "",
     ])
     for direction in directions:
@@ -264,7 +266,8 @@ def main(argv=None) -> int:
        "speaker-disjoint seeds with 95\\% $t$-intervals. Each $\\Delta$ is aligned "
         "minus \\texttt{none}, with a paired 95\\% cluster-bootstrap interval and a "
         "one-sided Bonferroni-simultaneous lower bound at 95\\% familywise coverage "
-        "over all 12 Table~7--8 contrasts.}",
+       f"over the {ROBUSTNESS_CONTRASTS} contrasts across the two "
+        "label-harmonisation controls.}",
         f"  \\label{{tab:{spec['table_label']}}}",
         "  \\small",
         "  Target macro-F1 [95\\% $t$-interval]\\\\[2pt]",

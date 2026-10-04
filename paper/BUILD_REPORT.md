@@ -374,3 +374,27 @@ committed files:
 `tools/build_paper.py`, and without poppler it keeps the committed PNG instead
 of failing. Tectonic itself could not be tested in this environment; the
 Overleaf pdfLaTeX path was compiled.
+
+## Follow-up: supplement consistency (2026-10-04)
+
+A second read of the final package found two inconsistencies in the
+supplement. Both are fixed; the article is unchanged.
+
+- The opening said everything came from "the same frozen ledger as the
+  article", while S1 states that each label-harmonisation control has its own
+  ledger. The opening now says the supplement draws on the frozen main ledger
+  and on separate ledgers for the pre-specified controls and the diagnostic
+  probes, and that no experiment was run specifically for the supplement.
+- Supplementary Tables 1 and 2, and the two label-control reports, said the
+  simultaneous lower bound covers "all 12 Table 7-8 contrasts", a leftover
+  from when these tables were Tables 7 and 8 of the article. They now describe
+  the family ("the 12 contrasts across the two label-harmonisation controls"),
+  which cannot go stale, and the caption uses the `ROBUSTNESS_CONTRASTS`
+  constant instead of a literal 12. `tools/report_calm_sensitivity.py` cannot
+  run without the untracked prediction files, so its four outputs were edited
+  to match. That the generator's caption and report line equal the committed
+  text was checked by evaluating the generator's own expressions for both
+  control specifications.
+- `output/paper/Highlights.docx` (Word, four bullets, built from
+  `paper/highlights.txt`) passes the Office schema validation and was rendered
+  for a visual check, for portals that expect Highlights as a Word file.
