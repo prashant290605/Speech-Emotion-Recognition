@@ -9,7 +9,7 @@ reported number changed.
 
 | Comment | Change |
 |---|---|
-| Offer authorship to Shweta Jain, the main course instructor, with permission | Shweta Jain (shwetajain@iitrpr.ac.in, IIT Ropar) added as fourth author with CRediT role Supervision. **Shweta Jain's agreement to be listed still needs to be confirmed before submission.** |
+| Offer authorship to the course's main instructor, with permission | Authorship was offered, and the instructor asked not to be listed. The author list is Prashant Singh, Pranav Singh and Phyo Thet Yee. |
 
 ## Abstract
 
