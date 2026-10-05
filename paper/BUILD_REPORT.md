@@ -217,8 +217,7 @@ by injecting a bell and confirming it fires.
 # Phase 4: co-author review revision
 
 2026-10-03. Editorial revision answering Phyo Thet Yee's review of the
-manuscript, and Shweta Jain added as fourth author (supervisor, CRediT
-Supervision). No experiment was rerun, no result row edited and no cached
+manuscript. No experiment was rerun, no result row edited and no cached
 feature touched; the ledger SHA256 is unchanged.
 
 ## Output
